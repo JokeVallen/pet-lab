@@ -21,3 +21,6 @@ desktop.ini
 # Python 缓存
 __pycache__/
 *.pyc
+
+# 发版产物（tools/release.js 生成）
+build/

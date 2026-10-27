@@ -85,7 +85,8 @@ pet-lab/
 ├─ docs/                  API 参考、交互协议草案、截图
 ├─ LICENSE                代码 MIT
 ├─ LICENSE-ASSETS.md      素材 CC BY-NC-SA 4.0
-└─ CREDITS.md             作者、上游仓库、逐文件映射
+├─ CREDITS.md             作者、上游仓库、逐文件映射
+└─ release/               发版用：发行版 README 模板 + 各版说明
 ```
 
 ## 文档
@@ -219,8 +220,31 @@ node tools/run-tests.js --all    # 加上端到端冒烟 + 中英一致性
 
 ## 版本控制
 
-目录根有 `.gitignore`，忽略：`config/.backup/`（本地快照，手改触发的那份带 `-edit` 后缀）、Chrome 临时 profile、调试日志与截图。
+目录根有 `.gitignore`，忽略：`config/.backup/`（本地快照，手改触发的那份带 `-edit` 后缀）、Chrome 临时 profile、调试日志与截图、`build/`（发版产物）。
 `config/pet.yaml` 本身要提交——它是配置源。
+
+## 发版
+
+```powershell
+node tools/release.js 1.0.2            # 本地组装 + 校验 + 打包，打印计划
+node tools/release.js 1.0.2 --push     # 推 release 分支、打 tag、建 GitHub Release
+```
+
+产物在 `build/`（已忽略）：`pet-lab-1.0.2/` 发行目录、`pet-lab-v1.0.2.zip`、`.sha256`。
+
+脚本按顺序做四件事，每步都回读产物而不是"假设成功"：
+
+1. **组装**：白名单打包（`SHIP` 列表 + `images/pet/**` + `release/README.md`），开发内容根本不在清单里
+2. **校验**：
+   - 目录里出现 `tools/manual`、`*.html`、`HANDOFF`、`screenshots` 等一律报错
+   - `js/` `css/` `config/` `vendor/` `tools/` 下每个文件与仓库逐字节比对（防"复制没执行"）
+   - 每个 `.js` 过 `node --check`
+   - 发行版 README 里的版本号必须是本次版本
+   - 用发行包自带的 `tools/build-config.js` 重编一遍 `pet.yaml`，结果要和仓库里的 `config.js` 一致
+3. **打包**：自己写的确定性 ZIP（固定时间戳与顺序），同样的输入永远同一个 sha256
+4. **发布**（`--push`）：镜像同步到 `../pet-dist`（`release` 分支的独立仓库）→ 提交 → 推分支 → 打 tag → `gh release create` → **回读远端附件的 sha256 与本地比对**
+
+发版说明写在 `release/notes/<版本>.md`；发行版 README 是 `release/README.md`，用 `{{VERSION}}` 占位。
 
 ## 已知问题
 

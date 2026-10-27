@@ -83,7 +83,8 @@ pet-lab/
 ├─ docs/                  API reference, interaction draft, screenshots
 ├─ LICENSE                code: MIT
 ├─ LICENSE-ASSETS.md      artwork: CC BY-NC-SA 4.0
-└─ CREDITS.md             authors, upstream repos, per-file mapping
+├─ CREDITS.md             authors, upstream repos, per-file mapping
+└─ release/               distribution README template + per-version notes
 ```
 
 ## Docs
@@ -231,8 +232,35 @@ Stamp file: `public/js/pet/version.txt`.
 
 ## Version control
 
-`.gitignore` covers `config/.backup/` (local snapshots; the ones taken on a hand edit end with `-edit`), Chrome profiles, debug logs and screenshots.
+`.gitignore` covers `config/.backup/` (local snapshots; the ones taken on a hand edit end with `-edit`), Chrome profiles, debug logs and screenshots, plus `build/` (release artefacts).
 `config/pet.yaml` itself **should** be committed — it is the source.
+
+## Releases
+
+```powershell
+node tools/release.js 1.0.2            # assemble + verify + pack locally, print the plan
+node tools/release.js 1.0.2 --push     # push the release branch, tag, create the GitHub Release
+```
+
+Artefacts land in `build/` (ignored): the `pet-lab-1.0.2/` tree, `pet-lab-v1.0.2.zip` and `.sha256`.
+
+Four steps, each one verifying the artefact instead of assuming success:
+
+1. **Assemble** — allow-list only (`SHIP` + `images/pet/**` + `release/README.md`); development
+   content is simply not on the list
+2. **Verify** — dev files (`tools/manual`, `*.html`, `HANDOFF`, `screenshots`, …) fail the run; every
+   file under `js/`, `css/`, `config/`, `vendor/`, `tools/` is compared byte-for-byte with the repo
+   (this is the "copy silently didn't run" guard); every `.js` goes through `node --check`; the
+   release README must carry this version; and `config/pet.yaml` is recompiled with the bundled
+   `tools/build-config.js` and must match the repo's `config.js`
+3. **Pack** — a small deterministic ZIP writer (fixed timestamps and ordering), so identical input
+   always yields the same sha256
+4. **Publish** (`--push`) — mirror into `../pet-dist` (the standalone `release` branch repo), commit,
+   push the branch, tag, `gh release create`, then **read the remote asset digest back and compare it
+   with the local sha256**
+
+Release notes live in `release/notes/<version>.md`; the shipped README is `release/README.md` with a
+`{{VERSION}}` placeholder.
 
 ## Known issues
 
