@@ -43,6 +43,16 @@ const TAG = 'v' + version;
 const DIST_REPO = process.env.PET_DIST_DIR || path.resolve(ROOT, '..', 'pet-dist');
 const NOTES = path.join(ROOT, 'release', 'notes', version + '.md');
 const STAGE = path.join(BUILD, 'pet-lab-' + version);
+
+/* 防呆：发行分支是生成物，只能由本脚本写进 ../pet-dist，
+ * 在开发仓库里 checkout release 再提交，会把 build/ 之类的东西一起带上去。 */
+const branch = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ROOT, encoding: 'utf8' })
+    .stdout.trim();
+if (branch === 'release') {
+    console.error('✗ 当前在 release 分支上。发行分支是生成物，请在 main 上运行，');
+    console.error('  由脚本写入 ' + DIST_REPO + '。');
+    process.exit(1);
+}
 const ZIP = path.join(BUILD, 'pet-lab-v' + version + '.zip');
 const SUM = ZIP + '.sha256';
 
@@ -92,6 +102,19 @@ function walk(dir, base, out) {
         else out.push({ rel, abs });
     }
     return out;
+}
+
+/* 文本一律按 LF 落盘：Windows 上 git 可能把工作区换成 CRLF，
+ * 不归一化的话，同一份源码在不同机器上打出来的包 sha256 会不一样。 */
+const TEXT = /\.(md|js|css|yaml|yml|json|txt)$|(^|\/)LICENSE$/;
+
+function stageFile(rel) {
+    const src = path.join(ROOT, rel);
+    const dst = path.join(STAGE, rel);
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    const raw = fs.readFileSync(src);
+    const data = TEXT.test(rel) ? Buffer.from(raw.toString('utf8').replace(/\r\n/g, '\n'), 'utf8') : raw;
+    fs.writeFileSync(dst, data);
 }
 
 function sha256(buf) {
@@ -202,21 +225,21 @@ function stage() {
     for (const rel of SHIP) {
         const abs = path.join(ROOT, rel);
         if (!fs.existsSync(abs)) fail('清单里的文件不存在: ' + rel);
-        fs.mkdirSync(path.join(STAGE, path.dirname(rel)), { recursive: true });
-        fs.copyFileSync(abs, path.join(STAGE, rel));
+        stageFile(rel);
         files.push(rel);
     }
 
     const animDir = path.join(ROOT, 'images', 'pet');
     for (const f of walk(animDir, 'images/pet', [])) {
-        fs.mkdirSync(path.join(STAGE, path.dirname(f.rel)), { recursive: true });
-        fs.copyFileSync(f.abs, path.join(STAGE, f.rel));
+        stageFile(f.rel);
         files.push(f.rel);
     }
 
     /* 发行版 README 是单独维护的，版本号在打包时替换 */
     const readmeTpl = fs.readFileSync(path.join(ROOT, 'release', 'README.md'), 'utf8');
-    fs.writeFileSync(path.join(STAGE, 'README.md'), readmeTpl.replace(/\{\{VERSION\}\}/g, 'v' + version));
+    fs.mkdirSync(STAGE, { recursive: true });
+    fs.writeFileSync(path.join(STAGE, 'README.md'),
+        readmeTpl.replace(/\{\{VERSION\}\}/g, 'v' + version).replace(/\r\n/g, '\n'));
     files.push('README.md');
 
     return files.sort();
@@ -241,9 +264,9 @@ function verify(files) {
     /* 运行时必须和仓库逐字节一致——防的就是"复制没执行但看起来成功" */
     for (const rel of files) {
         if (!/^(js|css|config|vendor|tools)\//.test(rel)) continue;
-        const a = sha256(fs.readFileSync(path.join(ROOT, rel)));
-        const b = sha256(fs.readFileSync(path.join(STAGE, rel)));
-        if (a !== b) problems.push('与仓库不一致: ' + rel);
+        const src = fs.readFileSync(path.join(ROOT, rel));
+        const norm = TEXT.test(rel) ? Buffer.from(src.toString('utf8').replace(/\r\n/g, '\n'), 'utf8') : src;
+        if (sha256(norm) !== sha256(fs.readFileSync(path.join(STAGE, rel)))) problems.push('与仓库不一致: ' + rel);
     }
 
     /* 每个 JS 都要能过语法检查（js/pet 有 package.json 声明 ESM） */
@@ -301,6 +324,7 @@ function publish(info) {
     if (!fs.existsSync(NOTES)) fail('缺少发版说明: release/notes/' + version + '.md');
 
     if (!fs.existsSync(DIST_REPO)) fail('找不到发行仓库: ' + DIST_REPO + '（可用环境变量 PET_DIST_DIR 指定）');
+    if (path.resolve(DIST_REPO) === path.resolve(ROOT)) fail('发行仓库不能是开发仓库本身');
 
     const dirty = git(['status', '--porcelain'], DIST_REPO);
     if (dirty && !FORCE) fail('发行仓库有未提交的改动，先清理或加 --force:\n' + dirty);

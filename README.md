@@ -241,7 +241,7 @@ node tools/release.js 1.0.2 --push     # 推 release 分支、打 tag、建 GitH
    - 每个 `.js` 过 `node --check`
    - 发行版 README 里的版本号必须是本次版本
    - 用发行包自带的 `tools/build-config.js` 重编一遍 `pet.yaml`，结果要和仓库里的 `config.js` 一致
-3. **打包**：自己写的确定性 ZIP（固定时间戳与顺序），同样的输入永远同一个 sha256
+3. **打包**：自己写的确定性 ZIP（固定时间戳与顺序，文本统一按 LF 落盘），同样的输入永远同一个 sha256，不受 Windows 换行影响
 4. **发布**（`--push`）：镜像同步到 `../pet-dist`（`release` 分支的独立仓库）→ 提交 → 推分支 → 打 tag → `gh release create` → **回读远端附件的 sha256 与本地比对**
 
 发版说明写在 `release/notes/<版本>.md`；发行版 README 是 `release/README.md`，用 `{{VERSION}}` 占位。
