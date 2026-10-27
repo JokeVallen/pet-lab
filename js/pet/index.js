@@ -293,7 +293,9 @@ var CONFIG = {
         }
 
         function cue(name, after) {
-            if (sleeping) return;
+            if (sleeping) wake({ silent: true });   // 点一下就该醒，不能装作没听见
+            // 上一次点击留下的"被拎起"姿态要收掉；但正在拖拽时不能清，否则松手后接不上"悬空"
+            if (!hooks.isDragging || !hooks.isDragging()) holding = false;
             clearTimeout(rollTimer);
             clearTimeout(dropTimer);   // 取消上一次拖拽的安全网，否则它会把正在播的动作顶掉
             playAct(name, function () {
@@ -305,6 +307,7 @@ var CONFIG = {
 
         function sleep() {
             if (sleeping) return;
+            if (hooks.isPaused && hooks.isPaused()) return;   // 拖拽中/聊天中不睡
             sleeping = true;
             clearTimeout(rollTimer);
             clearTimeout(dropTimer);   // 取消上一次拖拽的安全网，否则它会把正在播的动作顶掉
@@ -313,11 +316,15 @@ var CONFIG = {
             player.play(clip, false);
         }
 
-        function wake() {
+        /* 醒来。silent = 紧接着要播别的动作，别再闪一下待机 */
+        function wake(opts) {
             if (!sleeping) return;
             sleeping = false;
-            playIdle();
-            scheduleRoll();
+            if (hooks.onWake) hooks.onWake();
+            if (!opts || !opts.silent) {
+                playIdle();
+                scheduleRoll();
+            }
         }
 
         return {
@@ -325,6 +332,7 @@ var CONFIG = {
             toIdle: function () { clearTimeout(rollTimer); playIdle(); scheduleRoll(); },
             /** 按住：循环"被拎起"，立刻生效 */
             hold: function (name) {
+                if (sleeping) wake({ silent: true });
                 clearTimeout(rollTimer);
                 clearTimeout(dropTimer);   // 取消上一次拖拽的安全网，否则它会把正在播的动作顶掉
                 currentAct = name;
@@ -721,6 +729,7 @@ var CONFIG = {
         var chat = root.querySelector('.dp-chat');
         if (chat) chat.classList.toggle('is-open', open);
         if (open) {
+            resetIdle();   // 打开对话框算交互，睡着也要醒
             var bubble = root.querySelector('.dp-bubble');
             if (bubble) bubble.classList.remove('is-show');
             renderChatLog();
@@ -880,7 +889,8 @@ var CONFIG = {
         var hit = (PetZones && ZONES_ENGINE) ? ZONES_ENGINE.resolve(zone) : null;
         var rule = hit && hit.rule ? hit.rule : null;
         var act = (rule && rule.act) || 'click-happy';
-        director.cue(act);
+        director.cue(act);   // cue 会先把睡着的她叫醒
+        resetIdle();         // 点击算活动，入睡计时重来
         var line = rule ? ZONES_ENGINE.pickSay(rule) : null;
         if (line) say(line, 3400);
         if (/^head/.test(zone)) burst('\u{1F497}', 3);
@@ -1020,6 +1030,7 @@ var CONFIG = {
 
     function runContext() {
         if (!director || chatOpen || document.hidden || root.classList.contains('is-hidden') || root.classList.contains('is-dragging')) return;
+        if (director.isSleeping()) return;   // 睡着了就别被站点信号叫起来
         if (!ctxEngine) return;
 
         var c;
@@ -1044,6 +1055,7 @@ var CONFIG = {
             var now = Date.now();
             if (now - lastAt < 15000) return;
             if (!director || chatOpen || document.hidden || root.classList.contains('is-dragging')) return;
+            if (director.isSleeping()) return;
             try {
                 var sel = window.getSelection && window.getSelection();
                 var text = sel ? String(sel).trim() : '';
@@ -1367,6 +1379,8 @@ var CONFIG = {
         player = createPlayer(stage);
         director = createDirector(player, {
             isPaused: function () { return chatOpen || document.hidden || root.classList.contains('is-dragging'); },
+            onWake: function () { updateStats(); },
+            isDragging: function () { return !!(root && root.classList.contains('is-dragging')); },
             onState: function (name) {
                 if (name === 'drag-up') {
                     try { player.warm('drag-hold'); } catch (e) { /* ignore */ }
@@ -1424,5 +1438,7 @@ window.PetSearch = PetSearch;
 window.PetZones = PetZones;
 window.PetDebug = window.PetDebug || {};
 window.PetDebug[CONFIG.hostId || 'deepseek-pet'] = {
-    kernel: KERNEL, search: PetSearch, zones: PetZones, adapter: PetAdapter, config: CONFIG
+    kernel: KERNEL, search: PetSearch, zones: PetZones, adapter: PetAdapter, config: CONFIG,
+    get director() { return director; },
+    get player() { return player; }
 };
