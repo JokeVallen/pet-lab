@@ -2,6 +2,9 @@
 
 鲸鱼娘宠物「大肥鱼」的独立工具集。**不依赖 Hexo / Butterfly**，只靠一个静态服务器就能跑；接进任何站点只改一个适配层。
 
+> 只想把它装到自己的博客？直接下发行版：[Releases · v1.0.0](https://github.com/JokeVallen/pet-lab/releases/latest)
+> （只含运行时、素材、配置与许可）。这个 `main` 分支是开发环境，含编辑器、测试与探针。
+
 ## 页面
 
 双击 `home.html` 即可，也可以单独打开：
