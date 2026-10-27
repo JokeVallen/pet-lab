@@ -239,7 +239,7 @@ See [KNOWN-ISSUES.en.md](KNOWN-ISSUES.en.md) for the full list with causes and f
 
 | Scope | License | File |
 | --- | --- | --- |
-| Code (`js/`, `css/`, docs) | MIT | [LICENSE](LICENSE) |
+| Code (`js/`, `css/`, docs; MIT excludes artwork) | MIT | [LICENSE](LICENSE) |
 | Artwork (`images/`) | CC BY-NC-SA 4.0 | [LICENSE-ASSETS.md](LICENSE-ASSETS.md) |
 | Attribution and clip mapping | — | [CREDITS.md](CREDITS.md) |
 

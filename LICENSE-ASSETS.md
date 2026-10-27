@@ -1,6 +1,9 @@
 # 素材授权 / Asset license
 
 本仓库的**代码**是 MIT（见 [LICENSE](LICENSE)）。**这个文件只管素材**：`images/` 下的动画与立绘。
+MIT 许可**不覆盖** `images/` 下的任何文件。
+
+The MIT license does **not** cover anything under `images/`.
 
 The **code** in this repository is MIT (see [LICENSE](LICENSE)). **This file covers the artwork only**:
 every clip and still image under `images/`.

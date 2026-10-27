@@ -224,7 +224,7 @@ node tools/run-tests.js --all    # 加上端到端冒烟 + 中英一致性
 
 | 范围 | 协议 | 文件 |
 | --- | --- | --- |
-| 代码（`js/` `css/` 文档） | MIT | [LICENSE](LICENSE) |
+| 代码（`js/` `css/` 文档，MIT 不含素材） | MIT | [LICENSE](LICENSE) |
 | 素材（`images/`） | CC BY-NC-SA 4.0 | [LICENSE-ASSETS.md](LICENSE-ASSETS.md) |
 | 署名与素材映射 | — | [CREDITS.md](CREDITS.md) |
 
