@@ -1,0 +1,727 @@
+/* ============================================================
+ * DeepSeek 鲸鱼娘博客宠物 · 小深
+ * 立绘 + localStorage，不依赖任何外部接口、不需要 API Key
+ * ============================================================ */
+
+.dp-root {
+    --dp-primary: #4a8cf7;
+    --dp-primary-2: #7c5cf0;
+    --dp-cyan: #62d9f5;
+    --dp-text: #1e2b45;
+    --dp-muted: #6b7c99;
+    --dp-card: #ffffff;
+    --dp-border: #dbe8ff;
+    position: fixed;
+    /* 偏移量由 CONFIG.offset 写入，同页放第二只时错开位置 */
+    right: calc(6px + var(--dp-ox, 0px));
+    bottom: calc(6px + var(--dp-oy, 0px));
+    /* 低于主题右下角按钮，避免挡住深色模式等开关 */
+    z-index: 90;
+    /* 尺寸由 CONFIG.size 写成 --dp-w / --dp-h，这里的值只是缺省 */
+    width: var(--dp-w, 200px);
+    pointer-events: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+[data-theme="dark"] .dp-root {
+    --dp-text: #e8eefc;
+    --dp-muted: #9fb0ce;
+    --dp-card: #1a2333;
+    --dp-border: #2d3d5c;
+}
+
+/* ---------- 角色 ---------- */
+.dp-root .dp-character {
+    position: relative;
+    width: var(--dp-w, 200px);
+    /* 与动画素材同比例，由 CONFIG.size 决定 */
+    height: var(--dp-h, 177px);
+    pointer-events: auto;
+    cursor: grab;
+    transform-origin: 50% 100%;
+    animation: dp-float 8.4s ease-in-out infinite;
+}
+
+/* 舞台：静态立绘打底，透明视频叠在上面 */
+.dp-root .dp-stage {
+    position: absolute;
+    inset: 0;
+}
+
+.dp-root .dp-art,
+.dp-root .dp-video {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: bottom center;
+    -webkit-user-drag: none;
+    pointer-events: none;
+}
+
+/* 投影参数：可在 CONFIG.shadow 或 CSS 里覆盖
+ * --dp-shadow-x   水平偏移，正数向右（角色偏左时调大）
+ * --dp-shadow-y   垂直偏移
+ * --dp-shadow-blur 模糊半径
+ * --dp-shadow-color 颜色
+ */
+.dp-root {
+    --dp-shadow-x: 0px;
+    --dp-shadow-y: 10px;
+    --dp-shadow-blur: 14px;
+    --dp-shadow-color: rgba(33, 72, 145, 0.16);
+}
+
+/* 投影只给占位立绘：视频叠加 drop-shadow 会在软件渲染下糊出一圈灰底 */
+.dp-root .dp-art {
+    filter: drop-shadow(var(--dp-shadow-x) var(--dp-shadow-y) var(--dp-shadow-blur) var(--dp-shadow-color));
+}
+
+/* 视频默认透明，谁在播谁亮 */
+.dp-root .dp-video {
+    opacity: 0;
+    transition: opacity 130ms ease;
+}
+
+.dp-root .dp-video.is-front {
+    opacity: 1;
+}
+
+/* 视频就位后把占位立绘淡出；没就位（或浏览器不支持 WebM alpha）就一直显示立绘 */
+.dp-root .dp-stage.is-ready .dp-art {
+    opacity: 0;
+    transition: opacity 320ms ease;
+}
+
+.dp-root .dp-stage.is-static .dp-art {
+    opacity: 1;
+}
+
+.dp-root.is-sleep .dp-art {
+    filter: drop-shadow(var(--dp-shadow-x) var(--dp-shadow-y) var(--dp-shadow-blur) var(--dp-shadow-color)) saturate(0.82) brightness(0.96);
+}
+
+.dp-root.is-sleep .dp-video {
+    filter: saturate(0.82) brightness(0.96);
+}
+
+/* 呼吸层：视频自带呼吸，这里只保留结构 */
+.dp-root .dp-body {
+    position: absolute;
+    inset: 0;
+    transform-origin: 50% 100%;
+}
+
+.dp-root.is-dragging .dp-character {
+    cursor: grabbing;
+    animation: none;
+}
+
+
+/* 地面投影：跟着 CONFIG.shadow 走，和立绘的 drop-shadow 共用同一组变量 */
+.dp-root .dp-shadow {
+    position: absolute;
+    left: 50%;
+    bottom: calc(-2px - var(--dp-shadow-y) * 0.5);
+    width: 96px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--dp-shadow-color);
+    transform: translateX(calc(-50% + var(--dp-shadow-x)));
+    filter: blur(calc(var(--dp-shadow-blur) * 0.45));
+    animation: dp-shadow 3.8s ease-in-out infinite;
+    z-index: -1;
+}
+
+
+/* 深色模式下给深蓝色的鳍和尾巴补一圈冷光，避免糊成一团 */
+
+/* 被摸/被喂食时的弹跳 */
+.dp-root .dp-character.is-happy {
+    animation: dp-happy 0.9s ease;
+}
+
+/* 睡着时放慢、变暗 */
+.dp-root.is-sleep .dp-character {
+    animation-duration: 6.5s;
+    filter: saturate(0.75) brightness(0.94);
+}
+
+
+
+/* ---------- 气泡 ---------- */
+.dp-root .dp-bubble {
+    position: absolute;
+    right: 4px;
+    bottom: calc(100% + 8px);
+    width: 232px;
+    padding: 11px 13px;
+    border: 1px solid var(--dp-border);
+    border-radius: 14px 14px 4px 14px;
+    background: var(--dp-card);
+    box-shadow: 0 12px 30px rgba(31, 66, 135, 0.16);
+    color: var(--dp-text);
+    font-size: 12.5px;
+    line-height: 1.65;
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+    transform-origin: bottom right;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 2;
+}
+
+.dp-root .dp-bubble.is-show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.dp-root .dp-bubble::after {
+    content: "";
+    position: absolute;
+    right: 16px;
+    bottom: -7px;
+    width: 12px;
+    height: 12px;
+    border-right: 1px solid var(--dp-border);
+    border-bottom: 1px solid var(--dp-border);
+    background: var(--dp-card);
+    transform: rotate(45deg);
+}
+
+/* ---------- 悬浮操作 ---------- */
+.dp-root .dp-actions {
+    position: absolute;
+    pointer-events: none;
+    /* 贴着角色盒子的右边缘，再用 padding 让出 8px 视觉间距：
+       中间不能留"空隙"，否则鼠标横穿时 :hover 会断，按钮就先消失了 */
+    right: 100%;
+    padding-right: 8px;
+    bottom: 34px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    opacity: 0;
+    transform: translateY(5px);
+    transition: opacity var(--dp-actions-fade, 140ms) ease, transform var(--dp-actions-fade, 140ms) ease;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.dp-root:hover .dp-actions,
+.dp-root:focus-within .dp-actions,
+.dp-root.is-chatting .dp-actions {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* 鼠标已经离开、但还在 actionHideDelayMs 的宽限期内：保持可点 */
+.dp-root.is-actions .dp-actions {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.dp-root .dp-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--dp-border);
+    border-radius: 9px;
+    background: var(--dp-card);
+    color: var(--dp-text);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 5px 12px rgba(31, 66, 135, 0.12);
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.dp-root .dp-action:hover {
+    border-color: var(--dp-primary);
+    transform: translateY(-2px);
+}
+
+.dp-root .dp-action[data-dp-action="hide"] {
+    color: var(--dp-muted);
+    font-size: 17px;
+}
+
+/* ---------- 状态卡 ---------- */
+.dp-root .dp-card {
+    position: absolute;
+    pointer-events: auto;
+    right: calc(100% + 46px);
+    bottom: 34px;
+    width: 148px;
+    padding: 9px 10px;
+    border: 1px solid var(--dp-border);
+    border-radius: 12px;
+    background: var(--dp-card);
+    box-shadow: 0 8px 20px rgba(31, 66, 135, 0.12);
+    opacity: 0;
+    transform: translateY(4px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 3;
+}
+
+.dp-root:hover .dp-card,
+.dp-root:focus-within .dp-card {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 聊天时不弹状态卡，避免挡住角色 */
+.dp-root.is-chatting .dp-card {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dp-root .dp-meter {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+}
+
+.dp-root .dp-meter:first-child {
+    margin-top: 0;
+}
+
+.dp-root .dp-meter span {
+    color: var(--dp-muted);
+    font-size: 10px;
+}
+
+.dp-root .dp-meter em {
+    display: block;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--dp-border);
+    font-style: normal;
+}
+
+.dp-root .dp-meter i {
+    display: block;
+    height: 5px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--dp-primary), var(--dp-cyan));
+    transition: width 0.3s ease;
+}
+
+.dp-root .dp-status {
+    color: var(--dp-primary);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.dp-root.is-hungry .dp-status {
+    color: #ef7d4a;
+}
+
+/* ---------- 聊天 ---------- */
+.dp-root .dp-chat {
+    position: absolute;
+    pointer-events: auto;
+    right: 0;
+    bottom: calc(100% + 8px);
+    display: none;
+    width: 248px;
+    padding: 12px;
+    border: 1px solid var(--dp-border);
+    border-radius: 15px;
+    background: var(--dp-card);
+    box-shadow: 0 14px 34px rgba(31, 66, 135, 0.2);
+    z-index: 4;
+}
+
+.dp-root .dp-chat.is-open {
+    display: block;
+}
+
+.dp-root .dp-chat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    color: var(--dp-text);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.dp-root .dp-chat-close {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--dp-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.dp-root .dp-chat-close:hover {
+    background: rgba(74, 140, 247, 0.12);
+    color: var(--dp-primary);
+}
+
+.dp-root .dp-chat-log {
+    display: grid;
+    gap: 6px;
+    max-height: 196px;
+    overflow-y: auto;
+    padding-right: 2px;
+    margin-bottom: 9px;
+    scrollbar-width: thin;
+}
+
+.dp-root .dp-msg {
+    max-width: 88%;
+    padding: 7px 9px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.55;
+    word-break: break-word;
+    color: var(--dp-text);
+}
+
+.dp-root .dp-msg.is-pet {
+    justify-self: start;
+    background: rgba(74, 140, 247, 0.12);
+    border-bottom-left-radius: 3px;
+}
+
+.dp-root .dp-msg.is-user {
+    justify-self: end;
+    background: var(--dp-primary);
+    color: #fff;
+    border-bottom-right-radius: 3px;
+}
+
+/* 素材署名：CC BY-NC-SA 4.0 要求公开渠道可查 */
+.dp-root .dp-credit {
+    margin: 6px 0 0;
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--dp-muted);
+    text-align: center;
+}
+
+.dp-root .dp-credit a {
+    color: inherit;
+    text-decoration: underline;
+}
+.dp-root .dp-chat-form {
+    display: flex;
+    gap: 6px;
+}
+
+.dp-root .dp-chat-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 8px 9px;
+    border: 1px solid var(--dp-border);
+    border-radius: 9px;
+    outline: none;
+    background: transparent;
+    color: var(--dp-text);
+    font-size: 12px;
+}
+
+.dp-root .dp-chat-input:focus {
+    border-color: var(--dp-primary);
+}
+
+.dp-root .dp-chat-send {
+    flex: 0 0 auto;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--dp-primary), var(--dp-primary-2));
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* ---------- 粒子 / 隐藏 ---------- */
+.dp-root .dp-particle {
+    position: absolute;
+    bottom: 96px;
+    z-index: 5;
+    pointer-events: none;
+    font-size: 18px;
+    animation: dp-particle 1.1s ease-out forwards;
+}
+
+.dp-root.is-hidden {
+    width: 0;
+    height: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.dp-root.is-hidden .dp-character,
+.dp-root.is-hidden .dp-bubble,
+.dp-root.is-hidden .dp-actions,
+.dp-root.is-hidden .dp-card,
+.dp-root.is-hidden .dp-chat {
+    display: none;
+}
+
+.dp-root .dp-restore {
+    position: fixed;
+    right: 6px;
+    bottom: 6px;
+    z-index: 90;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--dp-border);
+    border-radius: 50%;
+    background: var(--dp-card);
+    box-shadow: 0 8px 22px rgba(31, 66, 135, 0.2);
+    font-size: 22px;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.dp-root.is-hidden .dp-restore {
+    display: flex;
+}
+
+/* ---------- 动画 ---------- */
+/* 整体浮动 + 极轻微左右摇摆，看起来像站着呼吸而不是贴图平移 */
+@keyframes dp-float {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    22% {
+        transform: translate(1.2px, -3px) rotate(0.5deg);
+    }
+
+    45% {
+        transform: translate(0.4px, -6.5px) rotate(0.15deg);
+    }
+
+    68% {
+        transform: translate(-1.2px, -3px) rotate(-0.5deg);
+    }
+
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+}
+
+/* 呼吸：胸腔轻微起伏，锚在脚底 */
+@keyframes dp-breathe {
+
+    0%,
+    100% {
+        transform: scale(1, 1);
+    }
+
+    50% {
+        transform: scale(0.997, 1.016);
+    }
+}
+
+@keyframes dp-shadow {
+
+    0%,
+    100% {
+        transform: translateX(-50%) scale(1);
+        opacity: 0.9;
+    }
+
+    50% {
+        transform: translateX(-50%) scale(0.86);
+        opacity: 0.5;
+    }
+}
+
+
+@keyframes dp-happy {
+    0% {
+        transform: translateY(0) scale(1);
+    }
+
+    28% {
+        transform: translateY(-12px) scale(1.04, 0.97);
+    }
+
+    55% {
+        transform: translateY(0) scale(0.98, 1.03);
+    }
+
+    78% {
+        transform: translateY(-4px) scale(1.01, 0.99);
+    }
+
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes dp-particle {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(0.8) rotate(0deg);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-60px) scale(1.25) rotate(18deg);
+    }
+}
+
+/* ---------- 移动端 ---------- */
+@media (max-width: 768px) {
+    .dp-root {
+        right: 8px;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+        width: 146px;
+        z-index: 9996;
+    }
+
+    .dp-root .dp-character {
+        width: 146px;
+        height: 129px;
+    }
+
+    .dp-root .dp-bubble,
+    .dp-root .dp-chat {
+        width: 208px;
+    }
+
+    /* 手机上按钮常驻，给个半透明底，压在正文上也像个控件而不是散落的图标 */
+    .dp-root .dp-actions {
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+        gap: 3px;
+        padding: 4px;
+        border: 1px solid var(--dp-border);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: 0 6px 16px rgba(31, 66, 135, 0.14);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        right: calc(100% + 4px);
+    }
+
+    [data-theme="dark"] .dp-root .dp-actions {
+        background: rgba(26, 35, 51, 0.86);
+    }
+
+    .dp-root .dp-action {
+        border-color: transparent;
+        box-shadow: none;
+        background: transparent;
+    }
+
+    .dp-root .dp-action {
+        width: 26px;
+        height: 26px;
+        font-size: 13px;
+    }
+
+    .dp-root .dp-card {
+        display: none;
+    }
+
+    .dp-root .dp-shadow {
+        width: 76px;
+        height: 9px;
+    }
+
+    .dp-root .dp-restore {
+        right: 8px;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+    }
+
+    body.has-sticky-answer-sheet .dp-root {
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 140px);
+    }
+
+    body.has-sticky-answer-sheet.answer-sheet-expanded .dp-root {
+        bottom: calc(48vh + env(safe-area-inset-bottom, 0px) + 80px);
+    }
+}
+
+/* ---------- 无障碍 / 省电 ---------- */
+@media (prefers-reduced-motion: reduce) {
+    /* 只关"额外装饰"：待机浮动和影子呼吸。
+       宠物本体的动画（透明视频）不在这里关——那是内容，不是装饰。
+       历史的坑：这里曾写 animation-duration: 0.01s，配 infinite 等于 100Hz 抖动。 */
+    .dp-root .dp-character,
+    .dp-root .dp-shadow {
+        animation: none !important;
+    }
+}
+
+.dp-root .dp-character:focus-visible,
+.dp-root .dp-restore:focus-visible,
+.dp-root .dp-action:focus-visible {
+    outline: 2px solid var(--dp-primary);
+    outline-offset: 2px;
+}
+
+.dp-root .dp-link {
+    color: #4a90e2;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+    cursor: pointer;
+}
+
+.dp-root .dp-link:hover {
+    color: #2f6fb8;
+}
+
+/* 分区调试层：?pet-zone=1 时出现，正式环境不加载 */
+.dp-root .dp-zone-debug {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+.dp-root .dp-zone-band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px dashed rgba(255, 120, 120, .9);
+    background: rgba(255, 120, 120, .10);
+    font: 10px/1.2 sans-serif;
+    color: #b33;
+}
+.dp-root .dp-zone-band:nth-child(even) { background: rgba(120, 160, 255, .10); border-color: rgba(120, 160, 255, .9); }
+.dp-root[data-zone]::after {
+    content: attr(data-zone);
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    font: 10px/1 monospace;
+    color: #c33;
+    background: rgba(255, 255, 255, .85);
+    padding: 2px 4px;
+    border-radius: 3px;
+}
