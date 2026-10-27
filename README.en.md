@@ -77,10 +77,13 @@ pet-lab/
 │  ├─ adapter.js          site layer: DOM / URL / storage / rules
 │  └─ modules/            player, machine, actions, speech,
 │                         renderers, rules, zones, search
-├─ vendor/js-yaml.min.js  YAML parser (editors only)
-├─ images/pet/anim/       32 transparent WebM clips
+├─ vendor/js-yaml.min.js  YAML parser (editors + build-config)
+├─ images/pet/anim/       33 transparent WebM clips + poster.webp
 ├─ tools/                 build, smoke test, unit tests, dev server
-└─ docs/                  API reference, interaction draft, screenshots
+├─ docs/                  API reference, interaction draft, screenshots
+├─ LICENSE                code: MIT
+├─ LICENSE-ASSETS.md      artwork: CC BY-NC-SA 4.0
+└─ CREDITS.md             authors, upstream repos, per-file mapping
 ```
 
 ## Docs

@@ -79,10 +79,13 @@ pet-lab/
 │  ├─ adapter.js          站点层：DOM / URL / 存储 / 规则
 │  └─ modules/            player, machine, actions, speech,
 │                         renderers, rules, zones, search
-├─ vendor/js-yaml.min.js  YAML 解析（编辑器用）
-├─ images/pet/anim/       32 段透明 WebM
+├─ vendor/js-yaml.min.js  YAML 解析（编辑器与 build-config 共用）
+├─ images/pet/anim/       33 段透明 WebM + poster.webp
 ├─ tools/                 构建、冒烟、单测、开发服务器
-└─ docs/                  API 参考、交互协议草案、截图
+├─ docs/                  API 参考、交互协议草案、截图
+├─ LICENSE                代码 MIT
+├─ LICENSE-ASSETS.md      素材 CC BY-NC-SA 4.0
+└─ CREDITS.md             作者、上游仓库、逐文件映射
 ```
 
 ## 文档
