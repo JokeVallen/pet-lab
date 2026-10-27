@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>规则编辑器</title>
+<style>
+    :root { color-scheme: light; --line:#e3e9f3; --ink:#1f2a37; --muted:#7b8798; --brand:#2f6fed; }
+    * { box-sizing:border-box; }
+    .help-panel kbd { font:11px/1.4 ui-monospace,Consolas,monospace; background:#eef3fc; border:1px solid #d7e2f4; border-bottom-width:2px; border-radius:4px; padding:1px 5px; color:#2a4f9b; white-space:nowrap; }
+    .help-panel code { background:#eef3fc; padding:1px 5px; border-radius:4px; font-size:12px; }
+
+    body { margin:0; background:#f6f8fc; color:var(--ink); font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+    header { position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--line); padding:10px 20px; display:flex; gap:10px; align-items:center; }
+    header h1 { font-size:15px; margin:0; }
+    header .status { flex:1; font-size:12.5px; color:var(--muted); }
+    button, label.btn { font:inherit; font-size:13px; padding:6px 12px; border:1px solid var(--line); background:#f7f9fd; border-radius:8px; cursor:pointer; color:var(--ink); }
+    button.primary { background:var(--brand); border-color:var(--brand); color:#fff; }
+    main { display:grid; grid-template-columns:minmax(380px,1fr) 400px; gap:20px; padding:20px; align-items:start; }
+    @media (max-width:980px){ main{ grid-template-columns:1fr; } }
+
+    @media (min-width: 981px) { aside { position: sticky; top: 70px; align-self: start; } }
+
+    .rule { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px; }
+    .rule .top { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .rule .top input.id { flex:1; font-weight:600; }
+    .rule .top .n { font-size:11px; color:var(--muted); min-width:20px; }
+    .rule .del { border:0; background:transparent; color:#c2cad6; cursor:pointer; font-size:16px; }
+    .rule .del:hover { color:#d43b3b; }
+    input, select, textarea { font:inherit; font-size:12.5px; padding:5px 8px; border:1px solid var(--line); border-radius:7px; width:100%; background:#fff; }
+    textarea { min-height:52px; resize:vertical; }
+    .srwrap { margin-bottom:14px; }
+    .srule-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+    .srule-card .top { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .srule-card .top .n { font:600 12px/1 Consolas,monospace; color:#fff; background:var(--brand); border-radius:6px; padding:4px 7px; }
+    .srule-card .top b { font-size:13px; }
+    .srule-card .top .add { margin-left:auto; }
+    .srrow { border-top:1px solid #f0f3f9; padding:8px 0 4px; }
+    .srrow:first-of-type { border-top:0; }
+    .srhead { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .srhead .n { width:16px; font-size:12px; color:var(--muted); text-align:right; }
+    .srhead .arrow { color:var(--muted); }
+    .srhead select { width:130px; flex:0 0 130px; }
+    .srrow .cond { margin-left:24px; }
+    .srrow .cond .keyin { flex:0 0 120px; width:120px; font-family:Consolas,monospace; }
+    .srrow .cond .condwarn { flex:0 0 auto; }
+    .srrow .add { margin-left:24px; font-size:12px; padding:3px 8px; }
+    .cond { display:flex; gap:6px; margin-bottom:6px; align-items:center; }
+    .cond select { width:130px; flex:0 0 130px; }
+    .cond .keyin { width:120px; flex:0 0 120px; font-family:Consolas,monospace; }
+    .cond input { flex:1; min-width:0; }
+    .cond .condwarn { flex:0 0 auto; font-size:11px; color:#b22a2a; background:#fdeeee; border-radius:6px; padding:2px 7px; white-space:nowrap; }
+    .cond .x { flex:0 0 28px; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .chip { font-size:12px; padding:3px 9px; border-radius:999px; background:#f3f6fc; border:1px solid #e1e8f4; color:#33415c; cursor:pointer; user-select:none; }
+    .chip:hover { border-color:#c9d7ee; }
+    .chip.on { background:#e8f0ff; border-color:var(--brand); color:#1c4fa8; font-weight:600; }
+    .actrow { margin-bottom:2px; }
+    .acthead { display:flex; align-items:center; gap:8px; }
+    .actprev { font:11.5px/1.6 Consolas,monospace; color:#33415c; background:#f5f8fd; border-radius:6px; padding:2px 8px; }
+    .actprev.off { color:#8b95a6; background:transparent; padding-left:0; }
+    .actrow .acts { margin-top:8px; }
+    .acts { margin-bottom:2px; }
+    .acts .inline { margin-top:6px; }
+    .cond .x { border:0; background:transparent; color:#c2cad6; cursor:pointer; }
+    .lbl { font-size:11.5px; color:var(--muted); margin:8px 0 4px; }
+    .add { font-size:12px; padding:3px 8px; }
+    pre { margin:0; padding:12px; background:#1e2733; color:#d9e3f2; border-radius:10px; font:11.5px/1.55 Consolas,monospace; overflow:auto; max-height:70vh; }
+    .hint { font-size:12px; color:var(--muted); margin:8px 0 0; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px; }
+    .card h2 { margin:0 0 4px; font-size:13px; }
+    .card .desc { margin:0 0 8px; font-size:11.5px; color:var(--muted); }
+    .wrow { display:grid; grid-template-columns:64px 1fr 52px; gap:8px; align-items:center; margin-bottom:4px; }
+    .wrow span { font-size:12.5px; }
+    .wrow input[type=range] { width:100%; margin:0; }
+    .wrow .wval { font-size:11.5px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums; }
+    .wbar { display:flex; height:9px; border-radius:5px; overflow:hidden; background:#eef2f8; margin:2px 0 8px; }
+    .wbar i { display:block; height:100%; transition:width .12s ease; }
+    .wlegend { font-size:11px; color:var(--muted); margin:0 0 10px; }
+    .wlegend b { color:var(--ink); font-weight:600; }
+</style>
+</head>
+<body data-title-key="rules.title" data-help-key="rules">
+<header>
+    <h1 data-i18n="rules.title">规则编辑器</h1>
+    <span class="status" id="status">加载中…</span>
+    <button id="undoBtn" onclick="undo()" data-i18n="zone.undo" disabled>撤销</button>
+    <button id="redoBtn" onclick="redo()" data-i18n="zone.redo" disabled>重做</button>
+    <label class="btn"><span data-i18n="rules.import">导入 YAML</span><input type="file" id="file" accept=".yaml,.yml,.json" hidden></label>
+    <button onclick="addRule()" data-i18n="rules.add">＋ 规则</button>
+    <button onclick="download()" data-i18n="rules.export">导出 YAML</button>
+    <button class="primary" onclick="saveRules()" data-i18n="rules.save">保存并编译</button>
+</header>
+
+<main>
+    <section id="list"></section>
+    <aside>
+        <pre id="out"></pre>
+        <p class="hint" data-i18n="rules.copyTip">上半段是 policy.stateRules（与 policy 下其它键并列），下半段是 rules.items。</p>
+        <button onclick="copyOut()" data-i18n="rules.copy">复制</button>
+    </aside>
+</main>
+
+<script src="vendor/js-yaml.min.js"></script>
+<script>
+let rules = [];
+let stateRules = [];        // policy.stateRules：条件 → 状态
+let stateIds = [];          // 可选的目标状态（来自 config 的 states）
+let WHEN_META = [];         // 条件下拉：[{ key, kind, label, legacy, mapsTo }]
+
+const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
+const TK = (k) => (window.PetI18n ? PetI18n.s(k) : k);
+
+/* ---------- 撤销 / 重做 ---------- */
+const history = { stack: [], index: -1, limit: 120 };
+let pushTimer = null;
+
+function snapshot() { return JSON.stringify({ rules: rules, stateRules: stateRules }); }
+
+function updateHistoryButtons() {
+    const u = document.getElementById('undoBtn');
+    const r = document.getElementById('redoBtn');
+    if (u) u.disabled = history.index <= 0;
+    if (r) r.disabled = history.index >= history.stack.length - 1;
+}
+
+function pushHistory() {
+    const snap = snapshot();
+    if (history.stack[history.index] === snap) return;
+    history.stack = history.stack.slice(0, history.index + 1);
+    history.stack.push(snap);
+    if (history.stack.length > history.limit) history.stack.shift();
+    history.index = history.stack.length - 1;
+    updateHistoryButtons();
+}
+
+function resetHistory() {
+    clearTimeout(pushTimer);
+    history.stack = [snapshot()];
+    history.index = 0;
+    updateHistoryButtons();
+}
+
+function schedulePush() {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushHistory, 450);
+}
+
+function restore(snap) {
+    const s = JSON.parse(snap);
+    if (Array.isArray(s.rules)) {
+        rules = s.rules;
+        stateRules = Array.isArray(s.stateRules) ? s.stateRules : [];
+    } else {
+        rules = s;                    // 兼容旧快照：只有规则数组
+    }
+    render();
+    updateHistoryButtons();
+}
+
+function undo() {
+    clearTimeout(pushTimer);
+    pushHistory();
+    if (history.index <= 0) return;
+    history.index -= 1;
+    restore(history.stack[history.index]);
+}
+
+function redo() {
+    clearTimeout(pushTimer);
+    if (history.index >= history.stack.length - 1) return;
+    history.index += 1;
+    restore(history.stack[history.index]);
+}
+
+
+function isTyping(target) {
+    if (!target) return false;
+    const tag = (target.tagName || '').toUpperCase();
+    if (tag === 'TEXTAREA') return true;
+    if (tag === 'INPUT') return ['text', 'number', 'range', 'color'].indexOf((target.type || 'text').toLowerCase()) >= 0;
+    return false;
+}
+
+document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (isTyping(e.target)) return;
+    const key = e.key.toLowerCase();
+    if (key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redo(); }
+});
+
+/* 条件键来自运行时（modules/rules.js 的 WHEN_KEYS），加条件只改那一处 */
+let KEYS = ['page', 'type', 'tagsAny', 'wordsGt', 'wordsLt', 'commentsEq', 'commentsGte',
+            'scrollGt', 'scrollLt', 'lastScrollGt', 'dark', 'hourGte', 'hourLt', 'streakGte'];
+
+let CLIPS = [];             // 动作下拉的数据源
+
+let RUNTIME = null;         // 运行时模块，用来问「这个键认不认识、是什么类型」
+let WHEN_LABELS = {};       // key → 中文标签（含旧键别名）
+
+async function loadRuntimeMeta() {
+    try {
+        const mod = await import('./js/pet/modules/rules.js');
+        RUNTIME = mod.PetRules || null;
+        if (RUNTIME && typeof RUNTIME.getWhenMeta === 'function') {
+            WHEN_META = RUNTIME.getWhenMeta();
+            WHEN_META.forEach((m) => { WHEN_LABELS[m.key] = m.label; });
+        }
+        if (RUNTIME && typeof RUNTIME.getWhenKeys === 'function') {
+            KEYS = RUNTIME.getWhenKeys();
+        } else if (mod && Array.isArray(mod.WHEN_KEYS) && mod.WHEN_KEYS.length) {
+            KEYS = mod.WHEN_KEYS.slice();
+        }
+    } catch (e) { /* 离线打开时用内置清单 */ }
+    try {
+        const res = await fetch('/api/assets?kind=clips', { cache: 'no-store' });
+        const data = await res.json();
+        if (data && data.ok) CLIPS = data.items.map((x) => x.name);
+    } catch (e) { /* 没服务器就手填 */ }
+}
+
+const KEY_LABEL = {
+    page: '页面类型', type: '细分类型', tagsAny: '标签包含', wordsGt: '字数 >',
+    wordsLt: '字数 <', commentsEq: '评论数 =', commentsGte: '评论数 ≥',
+    scrollGt: '滚动 >', scrollLt: '滚动 <', lastScrollGt: '上次滚动 >',
+    dark: '暗色主题', hourGte: '小时 ≥', hourLt: '小时 <', streakGte: '连续天数 ≥'
+};
+
+function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+}
+
+function whenMetaOf(key) {
+    for (let i = 0; i < WHEN_META.length; i++) if (WHEN_META[i].key === key) return WHEN_META[i];
+    return { key: key, kind: 'number', label: key };
+}
+
+function whenKindOf(key) { return whenMetaOf(key).kind; }
+
+function whenDefault(key) {
+    const kind = whenKindOf(key);
+    if (kind === 'bool') return true;
+    if (kind === 'tags') return [];
+    if (kind === 'text') return '';
+    return 0;
+}
+
+function whenValueField(rule, key) {
+    const kind = whenKindOf(key);
+    const v = rule.when[key];
+
+    if (kind === 'bool') {
+        const sel = document.createElement('select');
+        [['true', T('是')], ['false', T('否')]].forEach(([val, txt]) => {
+            const o = new Option(txt, val);
+            if (String(!!v) === val) o.selected = true;
+            sel.appendChild(o);
+        });
+        sel.onchange = () => { rule.when[key] = sel.value === 'true'; renderOut(); schedulePush(); };
+        return sel;
+    }
+
+    const input = document.createElement('input');
+    input.type = kind === 'number' ? 'number' : 'text';
+    if (kind === 'number') input.step = 'any';
+    input.value = Array.isArray(v) ? v.join(', ') : (v == null ? '' : String(v));
+    input.placeholder = kind === 'tags' ? 'unity, c#' : (kind === 'number' ? '0' : '');
+    input.addEventListener('input', () => {
+        if (kind === 'tags') {
+            rule.when[key] = String(input.value).split(',').map((s) => s.trim()).filter(Boolean);
+        } else if (kind === 'number') {
+            const n = parseFloat(input.value);
+            rule.when[key] = Number.isNaN(n) ? 0 : n;
+        } else {
+            rule.when[key] = input.value;
+        }
+        renderOut();
+        schedulePush();
+    });
+    return input;
+}
+
+function renderStateRules(host) {
+    if (!host) return;
+    host.innerHTML = '';
+
+    const card = el('div', 'rule srule-card');
+    const head = el('div', 'top');
+    head.appendChild(el('span', 'n', 'S'));
+    head.appendChild(el('b', null, T('状态规则（条件 → 状态）')));
+    const add = el('button', 'add', T('＋ 状态规则'));
+    add.onclick = () => {
+        stateRules.push({ when: { hourLt: 6 }, state: stateIds[stateIds.length - 1] || 'idle' });
+        render();
+        renderOut();
+        pushHistory();
+    };
+    head.appendChild(add);
+    card.appendChild(head);
+
+    if (!stateRules.length) {
+        card.appendChild(el('p', 'hint', T('还没有状态规则：没有规则命中时按状态的权重随机。')));
+    }
+
+    const redraw = () => { render(); renderOut(); };
+
+    stateRules.forEach((r, i) => {
+        if (!r.when || typeof r.when !== 'object') r.when = {};
+        const row = el('div', 'srrow');
+
+        const top = el('div', 'srhead');
+        top.appendChild(el('span', 'n', String(i + 1)));
+
+        const stSel = document.createElement('select');
+        stateIds.forEach((id) => stSel.appendChild(new Option(id, id)));
+        if (r.state && stateIds.indexOf(r.state) < 0) stSel.appendChild(new Option(r.state + T('（未定义）'), r.state));
+        if (!r.state) stSel.appendChild(new Option(T('（未选）'), ''));
+        stSel.value = r.state || '';
+        stSel.onchange = () => { r.state = stSel.value || undefined; renderOut(); schedulePush(); };
+        top.appendChild(el('span', 'arrow', '→'));
+        top.appendChild(stSel);
+
+        const up = el('button', 'del', '↑'); up.title = T('上移');
+        up.onclick = () => { if (i > 0) { [stateRules[i - 1], stateRules[i]] = [stateRules[i], stateRules[i - 1]]; render(); pushHistory(); } };
+        const down = el('button', 'del', '↓'); down.title = T('下移');
+        down.onclick = () => { if (i < stateRules.length - 1) { [stateRules[i + 1], stateRules[i]] = [stateRules[i], stateRules[i + 1]]; render(); pushHistory(); } };
+        const del = el('button', 'del', '×');
+        del.onclick = () => { stateRules.splice(i, 1); render(); renderOut(); pushHistory(); };
+        top.append(up, down, del);
+        row.appendChild(top);
+
+        Object.keys(r.when).forEach((k) => row.appendChild(condRow(r, k, redraw)));
+
+        const addCond = el('button', 'add', T('＋ 条件'));
+        addCond.onclick = () => {
+            const used = Object.keys(r.when);
+            const free = WHEN_META.find((m) => !m.legacy && used.indexOf(m.key) < 0);
+            const k = free ? free.key : 'hourLt';
+            r.when[k] = whenDefault(k);
+            redraw();
+            pushHistory();
+        };
+        row.appendChild(addCond);
+
+        card.appendChild(row);
+    });
+
+    host.appendChild(card);
+}
+
+function render() {
+    const list = document.getElementById('list');
+    list.innerHTML = '';
+
+    // 状态规则放在列表最上面：先决定处于什么状态，再决定说什么
+    const srHost = el('div', 'srwrap');
+    list.appendChild(srHost);
+    renderStateRules(srHost);
+
+    rules.forEach((r, i) => {
+        const card = el('div', 'rule');
+        const top = el('div', 'top');
+        top.appendChild(el('span', 'n', String(i + 1)));
+        const id = document.createElement('input');
+        id.className = 'id';
+        id.value = r.id || '';
+        id.placeholder = '规则 id';
+        id.addEventListener('input', () => { r.id = id.value; renderOut(); schedulePush(); });
+        const up = el('button', 'del', '↑'); up.title = '上移'; up.style.cssText = 'font-size:13px';
+        up.onclick = () => { if (i > 0) { [rules[i - 1], rules[i]] = [rules[i], rules[i - 1]]; render(); pushHistory(); } };
+        const del = el('button', 'del', '×');
+        del.onclick = () => { rules.splice(i, 1); render(); pushHistory(); };
+        top.append(id, up, del);
+        card.appendChild(top);
+
+        card.appendChild(el('div', 'lbl', T('条件（全部满足）')));
+        const conds = r.when || {};
+        Object.keys(conds).forEach((k) => {
+            card.appendChild(condRow(r, k));
+        });
+        const addCond = el('button', 'add', T('＋ 条件'));
+        addCond.onclick = () => {
+            const k = KEYS.find((x) => !(x in conds)) || 'scrollGt';
+            r.when = r.when || {};
+            r.when[k] = whenDefault(k);
+            render();
+            pushHistory();
+        };
+        card.appendChild(addCond);
+
+        card.appendChild(el('div', 'lbl', T('台词（每行一条，随机取）')));
+        const say = document.createElement('textarea');
+        say.value = Array.isArray(r.say) ? r.say.join('\n') : (r.say || '');
+        say.addEventListener('input', () => {
+            const lines = say.value.split('\n').map((s) => s.trim()).filter(Boolean);
+            r.say = lines.length > 1 ? lines : (lines[0] || '');
+            renderOut();
+            schedulePush();
+        });
+        card.appendChild(say);
+
+        card.appendChild(el('div', 'lbl', T('动作（点选，可多选；都不选则不切动画）')));
+        card.appendChild(actRow(r));
+
+        card.appendChild(el('div', 'lbl', T('冷却（秒，留空跟随默认）')));
+        const cd = document.createElement('input');
+        cd.type = 'number';
+        cd.value = r.cooldown == null ? '' : r.cooldown;
+        cd.addEventListener('input', () => {
+            r.cooldown = cd.value === '' ? undefined : Number(cd.value);
+            renderOut();
+            schedulePush();
+        });
+        card.appendChild(cd);
+
+        list.appendChild(card);
+    });
+
+    renderOut();
+}
+
+/* 哪条规则的动作区展开着（存对象引用，重绘后仍然有效） */
+let actEditingRule = null;
+
+/* 折叠态：一行摘要 + 编辑按钮；展开才建 32 个芯片 */
+function actRow(rule) {
+    const wrap = el('div', 'actrow');
+    const cur = () => (Array.isArray(rule.act) ? rule.act : (rule.act ? [rule.act] : []));
+
+    const prev = el('span', 'actprev' + (cur().length ? '' : ' off'));
+    const paintPrev = (list) => {
+        prev.textContent = list.length ? list.join(' · ') : T('不切动画');
+        prev.className = 'actprev' + (list.length ? '' : ' off');
+    };
+    paintPrev(cur());
+
+    const open = actEditingRule === rule;
+    const btn = el('button', 'add', open ? T('收起') : T('编辑'));
+    btn.onclick = () => {
+        actEditingRule = open ? null : rule;
+        render();
+    };
+
+    const head = el('div', 'acthead');
+    head.append(prev, btn);
+    wrap.appendChild(head);
+
+    if (open) wrap.appendChild(actPicker(rule, paintPrev));
+    return wrap;
+}
+
+/* 动作点选：写回 string 或数组，空数组表示不切动画 */
+function actPicker(rule, onchange) {
+    const wrap = el('div', 'acts');
+    const bar = el('div', 'chips pick');
+    const cur = () => (Array.isArray(rule.act) ? rule.act.slice() : (rule.act ? [rule.act] : []));
+
+    const write = (list) => {
+        rule.act = list.length > 1 ? list.slice() : (list[0] || undefined);
+        if (typeof onchange === 'function') onchange(list);
+        renderOut();
+        schedulePush();
+    };
+
+    const paint = () => {
+        bar.innerHTML = '';
+        const on = cur();
+        const names = CLIPS.slice();
+        on.forEach((n) => { if (names.indexOf(n) < 0) names.push(n); });
+        if (!names.length) {
+            bar.appendChild(el('span', 'hint', T('没连服务器，只能手填')));
+            return;
+        }
+        names.forEach((n) => {
+            const chosen = on.indexOf(n) >= 0;
+            const chip = el('span', 'chip' + (chosen ? ' on' : ''), n);
+            chip.onclick = () => {
+                const list = cur();
+                const k = list.indexOf(n);
+                if (k >= 0) list.splice(k, 1); else list.push(n);
+                write(list);
+                paint();
+            };
+            bar.appendChild(chip);
+        });
+    };
+    paint();
+
+    const tools = el('div', 'inline');
+    const none = el('button', 'add', T('清空'));
+    none.onclick = () => { write([]); paint(); };
+    tools.appendChild(none);
+    wrap.append(bar, tools);
+    return wrap;
+}
+
+/* 运行时认不认识这个键；没有运行时模块时退回内置清单 */
+function knowsKey(k) {
+    // 旧键名（hourBelow 之类）也算认识：运行时会把它归一化成当前算子
+    if (WHEN_META.some((m) => m.key === k)) return true;
+    if (RUNTIME && typeof RUNTIME.hasWhen === 'function') return RUNTIME.hasWhen(k);
+    return KEYS.indexOf(k) >= 0;
+}
+
+function condRow(rule, key, redraw) {
+    const known = knowsKey(key);
+    const refresh = () => { (redraw || render)(); renderOut(); pushHistory(); };
+    const row = el('div', 'cond');
+
+    const sel = document.createElement('select');
+    const seen = {};
+    const add = (k, label) => {
+        if (seen[k]) return;
+        seen[k] = true;
+        const o = new Option(label, k);
+        if (k === key) o.selected = true;
+        sel.appendChild(o);
+    };
+    WHEN_META.filter((m) => !m.legacy).forEach((m) => add(m.key, T(m.label)));
+    WHEN_META.filter((m) => m.legacy).forEach((m) => add(m.key, T(m.label)));   // 旧键排在后面
+    if (!seen[key]) add(key, KEY_LABEL[key] ? T(KEY_LABEL[key]) : key);
+
+    const customOpt = new Option(T('自定义…'), '__custom');
+    if (!known) customOpt.selected = true;
+    sel.appendChild(customOpt);
+
+    // 自定义键名：选「自定义…」时才出现
+    const keyIn = document.createElement('input');
+    keyIn.className = 'keyin';
+    keyIn.placeholder = T('条件键名');
+    keyIn.value = known ? '' : key;
+    keyIn.style.display = known ? 'none' : '';
+
+    const warn = el('span', 'condwarn', T('运行时不认识这个键'));
+    warn.style.display = known ? 'none' : '';
+
+    const rename = (next) => {
+        const to = String(next || '').trim();
+        if (!to || to === key) return;
+        const v = rule.when[key];
+        delete rule.when[key];
+        rule.when[to] = v;
+        refresh();
+    };
+
+    sel.onchange = () => {
+        if (sel.value === '__custom') {
+            keyIn.style.display = '';
+            warn.style.display = '';
+            keyIn.focus();
+            return;
+        }
+        const prev = rule.when[key];
+        const target = whenMetaOf(sel.value).mapsTo || sel.value;   // 旧键名统一写成新键
+        delete rule.when[key];
+        rule.when[target] = (whenKindOf(sel.value) === whenKindOf(key) && prev != null)
+            ? prev                                                  // 类型没变就带上原值
+            : whenDefault(target);
+        refresh();
+    };
+
+    keyIn.addEventListener('change', () => rename(keyIn.value));
+    keyIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') rename(keyIn.value); });
+
+    const value = whenValueField(rule, key);
+
+    const x = el('button', 'x', '×');
+    x.onclick = () => { delete rule.when[key]; refresh(); };
+
+    row.append(sel, keyIn, warn, value, x);
+    return row;
+}
+
+function quote(s) {
+    // 一律加引号：空串、纯数字、true/null 之类不加引号会被 YAML 解析成别的类型
+    return JSON.stringify(String(s));
+}
+
+function toYaml() {
+    let s = '';
+    if (stateRules.length) {
+        s += '# 只替换 policy.stateRules，别覆盖 policy 下的 rollWeights / calendar\n';
+        s += 'policy:\n  stateRules:\n';
+        stateRules.forEach((r) => {
+            s += '    - when: { ' + Object.keys(r.when || {}).map((k) => {
+                const v = r.when[k];
+                if (Array.isArray(v)) return k + ': [' + v.map(quote).join(', ') + ']';
+                return k + ': ' + (typeof v === 'string' ? quote(v) : v);
+            }).join(', ') + ' }\n';
+            s += '      state: ' + (r.state || 'idle') + '\n';
+        });
+        s += '\n';
+    }
+    s += 'rules:\n  items:\n';
+    rules.forEach((r) => {
+        s += '    - id: ' + r.id + '\n';
+        if (r.when && Object.keys(r.when).length) {
+            const parts = Object.keys(r.when).map((k) => {
+                const v = r.when[k];
+                if (Array.isArray(v)) return k + ': [' + v.map(quote).join(', ') + ']';
+                return k + ': ' + (typeof v === 'string' ? quote(v) : v);
+            });
+            s += '      when: { ' + parts.join(', ') + ' }\n';
+        }
+        if (r.say) {
+            if (Array.isArray(r.say)) s += '      say: [' + r.say.map(quote).join(', ') + ']\n';
+            else s += '      say: ' + quote(r.say) + '\n';
+        }
+        if (r.act) {
+            s += '      act: ' + (Array.isArray(r.act) ? '[' + r.act.join(', ') + ']' : r.act) + '\n';
+        }
+        if (r.cooldown != null) s += '      cooldown: ' + r.cooldown + '\n';
+        s += '\n';
+    });
+    return s;
+}
+
+function renderOut() { document.getElementById('out').textContent = toYaml(); }
+
+function addRule() {
+    rules.push({ id: 'rule.' + (rules.length + 1), when: { page: 'post' }, say: '说点什么。' });
+    render();
+    pushHistory();
+}
+
+async function saveRules() {
+    const status = document.getElementById('status');
+    status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
+    try {
+        const res = await fetch('/api/patch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patch: { rulesItems: rules, stateRules: stateRules } })
+        });
+        const data = await res.json();
+        if (data.ok) { try { localStorage.setItem('pet-config-ts', String(Date.now())); } catch (e) {} }
+        status.textContent = data.ok ? (window.PetI18n ? PetI18n.s('msg.saved') : '已保存') : ((window.PetI18n ? PetI18n.s('msg.failed') : '失败：') + (data.error || data.stderr || '').slice(0, 100));
+    } catch (e) {
+        status.textContent = window.PetI18n ? PetI18n.s('msg.needServer') : '需要本地服务器';
+    }
+}
+
+function copyOut() {
+    navigator.clipboard.writeText(toYaml())
+        .then(() => setStatus('已复制'))
+        .catch(() => setStatus('复制失败，请手动选中'));
+}
+
+function download() {
+    const blob = new Blob([toYaml()], { type: 'text/yaml;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rules.yaml';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('已下载 rules.yaml');
+}
+
+function setStatus(s) { document.getElementById('status').textContent = s; }
+
+function loadText(text, name) {
+    try {
+        const data = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+        const items = data && data.rules && data.rules.items ? data.rules.items : (data.rules || data);
+        rules = Array.isArray(items) ? items : [];
+
+        const all = data || {};
+        const policy = all.policy || {};
+        stateRules = Array.isArray(policy.stateRules) ? policy.stateRules : [];
+        stateIds = Object.keys(all.states || {});
+
+        // 顺手把 states 的权重捞出来，两页共用同一份配置
+        render();
+        resetHistory();
+        window.__lastLoaded = name;
+        setStatus((window.PetI18n ? PetI18n.s('msg.loaded') : '已读取') + ' ' + name + ' (' + rules.length + ')');
+    } catch (e) {
+        setStatus('解析失败：' + e.message);
+    }
+}
+
+document.getElementById('file').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => loadText(String(reader.result), f.name);
+    reader.readAsText(f, 'utf-8');
+});
+
+window.addEventListener('load', function () {
+    if (window.PetI18n) PetI18n.onChange(function () {
+        render();
+        if (window.__lastLoaded) setStatus(PetI18n.s('msg.loaded') + ' ' + window.__lastLoaded + ' (' + rules.length + ')');
+    });
+});
+
+(async function boot() {
+    await loadRuntimeMeta();          // 条件键 + 动画清单
+    try {
+        const res = await fetch('config/pet.yaml?ts=' + Date.now());
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        loadText(new TextDecoder('utf-8').decode(await res.arrayBuffer()), 'config/pet.yaml');
+    } catch (e) {
+        setStatus('点「导入 YAML」选择 config/pet.yaml');
+    }
+})();
+</script>
+<script src="assets/i18n.js"></script>
+</body>
+</html>

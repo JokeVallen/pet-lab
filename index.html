@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>宠物演示 · 大肥鱼</title>
+<link rel="stylesheet" href="/css/deepseek-pet.css">
+<style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font: 15px/1.75 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: #24303f;
+        background: #f7f9fc;
+    }
+    main { max-width: 720px; margin: 0 auto; padding: 48px 24px 160px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: #7a8798; font-size: 13px; margin-bottom: 32px; }
+    h2 { font-size: 16px; margin: 32px 0 8px; }
+    p { margin: 0 0 14px; color: #3a4656; }
+    code { background: #eef2f8; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+    pre { background: #eef2f8; padding: 14px; border-radius: 8px; overflow: auto; font-size: 13px; }
+
+    /* 模拟站点信号的控制台 */
+    .lab {
+        position: fixed; left: 16px; bottom: 16px; z-index: 200;
+        background: #fff; border: 1px solid #e2e8f2; border-radius: 12px;
+        box-shadow: 0 8px 28px rgba(30, 50, 90, .12);
+        padding: 12px 14px; width: 260px;
+    }
+    .lab h3 { margin: 0 0 8px; font-size: 12px; color: #8b97a8; letter-spacing: .04em; }
+    .lab button {
+        display: block; width: 100%; margin: 0 0 6px; padding: 7px 10px;
+        font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+        background: #f4f7fc; border: 1px solid #e4eaf4; border-radius: 8px; color: #2c3a4d;
+    }
+    .lab button:hover { background: #e9f0fb; border-color: #cfdcef; }
+    .lab button:active { transform: translateY(1px); }
+    .lab .dark { background: #22303f; }
+    .lab .dark body { background: #0f1720; }
+</style>
+</head>
+<body data-title-key="demo.title">
+<main>
+    <h1 data-i18n="demo.h1">宠物演示</h1>
+    <div class="sub" data-i18n="demo.sub">离线环境 · 只加载宠物本体，不含博客任何依赖</div>
+
+    <p data-i18n="demo.p1">这一页只做一件事：确认宠物能脱离 Hexo / Butterfly 独立运行。</p>
+
+    <h2 data-i18n="demo.stage">当前阶段</h2>
+    <p data-i18n="demo.p2">代码是从博客里原样拷贝出来的第一版，内部仍然是单体结构（播放器、状态机、上下文规则、对话都在这一个文件里），并且还在直接读 location、document、localStorage。</p>
+    <p data-i18n="demo.p3">接下来的重构目标：</p>
+    <ol>
+        <li data-i18n="demo.li1">内核（装配、事件总线、调度、持久化）</li>
+        <li data-i18n="demo.li2">动作模块（HFSM 状态机 + 播放器）</li>
+        <li data-i18n="demo.li3">语言模块（speech act → 气泡 / 对话框渲染器）</li>
+        <li data-i18n="demo.li4">适配层（把站点信号规范化，本站的 adapter 只在这里）</li>
+    </ol>
+
+    <h2 data-i18n="demo.how">怎么用这一页</h2>
+    <p data-i18n="demo.p4">左下角的面板用于模拟站点信号：滚动到底、切到文章页、喂食、触发问候。这些按钮模拟的是未来适配器应当 emit 的东西。</p>
+    <p data-i18n="demo.p5">要验证滚动相关行为，直接滚动本页即可——页面下半部分有足够的空白。</p>
+
+    <h2 data-i18n="demo.assets">素材</h2>
+    <p data-i18n="demo.p6">32 段动画，4.55 MB，全部为带 alpha 的 VP9 WebM，路径与博客一致（/images/pet/anim/），所以宠物代码不需要改动路径。</p>
+
+    <div style="height:120vh"></div>
+    <p style="color:#94a3b8" data-i18n="demo.bottom">页面底部 —— 滚动到这里应触发“读到底了”。</p>
+</main>
+
+<div class="lab">
+    <h3 data-i18n="demo.lab">模拟站点信号</h3>
+    <button onclick="sim('nav:home')" data-i18n="demo.sim1">导航到首页</button>
+    <button onclick="sim('content:item')" data-i18n="demo.sim2">进入一篇文章</button>
+    <button onclick="sim('progress:1')" data-i18n="demo.sim3">滚动到底（信号）</button>
+    <button onclick="sim('visitor:first')" data-i18n="demo.sim4">模拟首次访问</button>
+    <button onclick="window.scrollTo({top:0,behavior:'smooth'})" data-i18n="demo.sim5">滚回顶部</button>
+    <button onclick="sim('feed')" data-i18n="demo.sim6">喂食（驱动 eat）</button>
+    <button onclick="sim('pet:head')" data-i18n="demo.sim7">戳脑袋（click-shy）</button>
+    <button onclick="location.reload()" data-i18n="demo.sim8">刷新（重置会话）</button>
+</div>
+<script>
+    /* 实验台：把面板按钮翻译成内核意图，验证真实通路。
+       这些按钮模拟的是"站点信号"，正式接入时由 adapter 发出。 */
+    (function () {
+        function say(text) {
+            if (window.PetKernel) window.PetKernel.emit('speech.act', { text: text, ttl: 4200, channel: 'auto', priority: 'context' });
+        }
+        function act(name, level) {
+            if (window.PetKernel) window.PetKernel.emit('intent.action', { act: name, level: level || 'direct', duration: 4000 });
+        }
+        function state(name) {
+            if (window.PetKernel) window.PetKernel.emit('intent.state', { state: name });
+        }
+
+        var HANDLERS = {
+            'nav:home': function () { state('idle'); say('回到首页了。'); act('look'); },
+            'content:item': function () { state('reading'); say('打开一篇，我陪你读。'); act('hum'); },
+            'progress:1': function () { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); },
+            'visitor:first': function () { say('第一次见？我是大肥鱼，住在这个角落里。'); act('click-wave'); },
+            'feed': function () { say('白米饭！谢谢你。'); act('eat'); },
+            'pet:head': function () { say('别戳脑袋啦。'); act('click-shy'); }
+        };
+
+        window.sim = function (name) {
+            console.log('[lab] signal:', name);
+            window.dispatchEvent(new CustomEvent('lab:signal', { detail: { name: name } }));
+            var fn = HANDLERS[name];
+            if (fn) { try { fn(); } catch (e) { console.error('[lab]', e); } }
+            else if (window.PetKernel) window.PetKernel.log && console.log('[lab] no handler for', name);
+        };
+
+        // 也支持外部直接派发 lab:signal
+        window.addEventListener('lab:signal', function (e) { /* 保留钩子，供未来 adapter 接入 */ });
+    })();
+</script>
+<script>
+    /* 配置改动后其它标签页会写入时间戳，这里自动重载 */
+    (function () {
+        var base = null;
+        var timer = null;
+        function tip() {
+            var d = document.createElement('div');
+            d.textContent = (window.PetI18n && PetI18n.lang === 'en')
+                ? 'Settings changed — reloading…'
+                : '配置已更新，正在重载…';
+            d.style.cssText = 'position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:300;' +
+                'background:#1f2a37;color:#fff;font:13px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;' +
+                'padding:8px 16px;border-radius:20px;box-shadow:0 6px 20px rgba(20,40,80,.25)';
+            document.body.appendChild(d);
+            setTimeout(function () { location.reload(); }, 700);
+        }
+        function check() {
+            fetch('/api/version', { cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) {
+                    if (!d || !d.ok) { clearInterval(timer); return; }   // 静态托管时没有这个接口，安静退出
+                    if (base === null) { base = d.rev; return; }
+                    if (d.rev !== base) { clearInterval(timer); tip(); }
+                })
+                .catch(function () { clearInterval(timer); });
+        }
+        timer = setInterval(check, 2500);
+        check();
+    })();
+
+    /* 编辑器保存后广播时间戳，跨标签页立即重载 */
+    (function () {
+        window.addEventListener('storage', function (e) {
+            if (e.key !== 'pet-config-ts') return;
+            var tip = document.createElement('div');
+            tip.textContent = (window.PetI18n && PetI18n.lang === 'en')
+                ? 'Settings changed — reloading…'
+                : '配置已更新，正在重载…';
+            tip.style.cssText = 'position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:300;' +
+                'background:#1f2a37;color:#fff;font:13px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;' +
+                'padding:8px 16px;border-radius:20px;box-shadow:0 6px 20px rgba(20,40,80,.25)';
+            document.body.appendChild(tip);
+            setTimeout(function () { location.reload(); }, 700);
+        });
+    })();
+</script>
+<script src="assets/i18n.js"></script>
+<script type="module" src="/js/pet/index.js"></script>
+</body>
+</html>

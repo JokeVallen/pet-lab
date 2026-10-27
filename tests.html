@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>宠物测试</title>
+<style>
+    :root {
+        color-scheme: light;
+        --line: #e3e9f3;
+        --ink: #1f2a37;
+        --muted: #7b8798;
+        --brand: #2f6fed;
+        --bg: #f6f8fc;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; background: var(--bg); color: var(--ink);
+        font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+    header {
+        position: sticky; top: 0; z-index: 20; background: #fff;
+        border-bottom: 1px solid var(--line); padding: 10px 22px;
+        display: flex; align-items: center; gap: 10px;
+    }
+    header h1 { font-size: 15px; margin: 0; }
+    header .status { flex: 1; font-size: 12.5px; color: var(--muted); }
+    button {
+        font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer;
+        border: 1px solid var(--line); background: #f7f9fd; border-radius: 8px; color: var(--ink);
+    }
+    /* 主按钮不做 hover 变色：点击后立刻进入结果态，颜色变化只会造成闪烁 */
+    button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+    button:not(.primary):hover:not(:disabled) { background: #eef3fc; }
+    button:disabled { opacity: .55; cursor: default; }
+    main {
+        padding: 22px; max-width: 1180px; margin: 0 auto;
+        display: grid; grid-template-columns: minmax(320px, 1fr) 460px;
+        gap: 18px; align-items: start;
+    }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+    .col { min-width: 0; }
+    .card {
+        background: #fff; border: 1px solid var(--line); border-radius: 12px;
+        padding: 16px 18px; margin-bottom: 18px;
+    }
+    @media (min-width: 981px) { .panel-col { position: sticky; top: 74px; } }
+    .card h2 { font-size: 14px; margin: 0 0 4px; }
+    .card .desc { font-size: 12.5px; color: var(--muted); margin: 0 0 14px; }
+    .actions { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+    .badge {
+        font-size: 12px; padding: 2px 9px; border-radius: 999px;
+        background: #eef3fc; color: #2f4f86;
+    }
+    .badge.ok { background: #e8f6ec; color: #1d7a3a; }
+    .badge.fail { background: #fdecec; color: #b22a2a; }
+    .meta { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    /* 套件列表 */
+    .suites { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 10px; }
+    .suite {
+        border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+        background: #fbfcfe; display: flex; flex-direction: column; gap: 6px;
+    }
+    .suite .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .suite .name { font-size: 13px; font-weight: 600; }
+    .suite .file { font: 11px/1.4 Consolas, monospace; color: var(--muted); word-break: break-all; }
+    .suite .result { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 17px; }
+    .suite .result.ok { color: #1d7a3a; }
+    .suite .result.fail { color: #b22a2a; }
+    .suite button { padding: 3px 10px; font-size: 12px; }
+    .suite.running { border-color: var(--brand); background: #f2f6ff; }
+    .group-title { font-size: 12px; color: var(--muted); margin: 4px 0 10px; letter-spacing: .04em; }
+    .group-title + .suites { margin-bottom: 16px; }
+
+    .out {
+        margin: 14px 0 0; padding: 14px; background: #1e2733; color: #d9e3f2;
+        border-radius: 10px; font: 12px/1.55 Consolas, monospace;
+        min-height: 320px; max-height: calc(100vh - 260px); overflow: auto; white-space: pre-wrap;
+    }
+    .hint { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
+    .hint code { background: #eef3fc; padding: 1px 5px; border-radius: 5px; }
+</style>
+</head>
+<body data-title-key="tests.title" data-help-key="tests">
+<header>
+    <h1 data-i18n="tests.title">宠物测试</h1>
+    <span class="status" id="status" data-i18n="tests.idle">等待运行</span>
+    <button class="primary" id="runUnit" onclick="runGroup('unit')" data-i18n="tests.runUnit">跑全部单元</button>
+    <button id="runAll" onclick="runGroup('all')" data-i18n="tests.runAll">全量（含冒烟与中英一致性）</button>
+    <button id="clearOut" onclick="clearOut()" data-i18n="tests.clear">清空输出</button>
+</header>
+
+<main>
+    <div class="col">
+        <section class="card">
+            <h2 data-i18n="tests.panelTitle">测试面板</h2>
+            <p class="desc" data-i18n="tests.panelDesc">每个套件可以单独跑，也可以一次跑全部。需要本地服务器（start.bat）。</p>
+            <div class="actions">
+                <span class="badge" id="badge" data-i18n="tests.badgeIdle">未运行</span>
+                <span class="meta"><span data-i18n="tests.duration">总耗时</span> <span id="duration">–</span></span>
+                <span class="meta"><span data-i18n="tests.passedSuites">通过</span> <span id="tally">0 / 0</span></span>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 data-i18n="tests.unitTitle">单元测试</h2>
+            <div class="group-title" data-i18n="tests.unitHint">纯函数与数据校验，毫秒级</div>
+            <div class="suites" id="unitList"></div>
+        </section>
+
+        <section class="card">
+            <h2 data-i18n="tests.e2eTitle">端到端</h2>
+            <div class="group-title" data-i18n="tests.e2eHint">无头浏览器，秒级</div>
+            <div class="suites" id="e2eList"></div>
+        </section>
+    </div>
+
+    <div class="col panel-col">
+        <section class="card">
+            <h2 data-i18n="tests.outputTitle">输出</h2>
+            <pre class="out" id="out" data-i18n="tests.outputPlaceholder">（还没有输出）</pre>
+            <p class="hint" data-i18n-html="tests.hint">命令行等价：<code>node tools/run-tests.js --all</code></p>
+        </section>
+    </div>
+</main>
+
+<script src="assets/i18n.js"></script>
+<script>
+(function () {
+    var UNIT = [
+        { id: 'kernel',      file: 'kernel.test.js',      key: 'tests.suite.kernel',      fallback: '内核' },
+        { id: 'rules',       file: 'rules.test.js',       key: 'tests.suite.rules',       fallback: '规则编译器' },
+        { id: 'rules-data',  file: 'rules-data.test.js',  key: 'tests.suite.rulesData',   fallback: '规则数据' },
+        { id: 'levels',      file: 'levels.test.js',      key: 'tests.suite.levels',      fallback: '意图级别' },
+        { id: 'states-data', file: 'states-data.test.js', key: 'tests.suite.statesData',  fallback: '状态数据' },
+        { id: 'states-weights', file: 'states-weights.test.js', key: 'tests.suite.statesWeights', fallback: '状态权重' },
+        { id: 'zones',       file: 'zones.test.js',       key: 'tests.suite.zones',       fallback: '分区引擎' }
+    ];
+    var E2E = [
+        { id: 'smoke', file: 'smoke.js',       key: 'tests.suite.smoke', fallback: '端到端冒烟' },
+        { id: 'i18n',  file: 'i18n-check.js',  key: 'tests.suite.i18n',  fallback: '中英一致性' }
+    ];
+
+    var out = document.getElementById('out');
+    var badge = document.getElementById('badge');
+    var statusEl = document.getElementById('status');
+    var durationEl = document.getElementById('duration');
+    var tallyEl = document.getElementById('tally');
+    var busy = false;
+
+    function T(key, fallback) {
+        return (window.PetI18n && PetI18n.s) ? PetI18n.s(key) : fallback;
+    }
+
+    function setStatus(key, fallback) {
+        statusEl.dataset.key = key;
+        statusEl.textContent = T(key, fallback);
+    }
+
+    function setBadge(kind) {
+        badge.className = 'badge' + (kind ? ' ' + kind : '');
+        badge.dataset.key = kind === 'ok' ? 'tests.badgeOk' : (kind === 'fail' ? 'tests.badgeFail' : 'tests.badgeIdle');
+        badge.textContent = T(badge.dataset.key, kind === 'ok' ? '通过' : (kind === 'fail' ? '失败' : '未运行'));
+    }
+
+    function setBusy(on) {
+        busy = on;
+        document.getElementById('runUnit').disabled = on;
+        document.getElementById('runAll').disabled = on;
+        [].forEach.call(document.querySelectorAll('.suite button'), function (b) { b.disabled = on; });
+    }
+
+    function clearOut() {
+        out.textContent = T('tests.outputPlaceholder', '（还没有输出）');
+        durationEl.textContent = '–';
+        tallyEl.textContent = '0 / 0';
+        setBadge('');
+        setStatus('tests.idle', '等待运行');
+    }
+
+    /* 建卡片 */
+    function build(group, host) {
+        group.forEach(function (s) {
+            var el = document.createElement('div');
+            el.className = 'suite';
+            el.id = 'suite-' + s.id;
+            el.innerHTML =
+                '<div class="top"><span class="name"></span>' +
+                '<button data-run="' + s.id + '"></button></div>' +
+                '<div class="file"></div>' +
+                '<div class="result"></div>';
+            el.querySelector('.name').dataset.key = s.key;
+            el.querySelector('.name').textContent = T(s.key, s.fallback);
+            el.querySelector('.file').textContent = s.file;
+            var btn = el.querySelector('button');
+            btn.dataset.key = 'tests.runOne';
+            btn.textContent = T('tests.runOne', '运行');
+            btn.onclick = function () { runGroup(s.id); };
+            host.appendChild(el);
+        });
+    }
+
+    build(UNIT, document.getElementById('unitList'));
+    build(E2E, document.getElementById('e2eList'));
+
+    function suiteEl(id) { return document.getElementById('suite-' + id); }
+
+    function markSuite(id, kind, text) {
+        var el = suiteEl(id);
+        if (!el) return;
+        var res = el.querySelector('.result');
+        res.className = 'result' + (kind ? ' ' + kind : '');
+        res.textContent = text || '';
+        el.classList.remove('running');
+    }
+
+    function parseTail(text) {
+        var m = /(\d+) passed, (\d+) failed/.exec(text);
+        if (!m) return null;
+        return { pass: +m[1], fail: +m[2] };
+    }
+
+    function runOne(id) {
+        return fetch('/api/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ suite: id })
+        })
+            .then(function (r) { return r.json().catch(function () { return { ok: false, error: 'HTTP ' + r.status }; }); })
+            .then(function (data) {
+                var text = data.output || data.error || '(no output)';
+                var tail = parseTail(text);
+                var kind = data.ok ? 'ok' : 'fail';
+                var label = tail ? (tail.pass + ' / ' + (tail.pass + tail.fail)) : (data.ok ? T('tests.badgeOk', '通过') : T('tests.badgeFail', '失败'));
+                markSuite(id, kind, label + '  ·  ' + (data.durationMs != null ? data.durationMs + ' ms' : ''));
+                return { id: id, ok: !!data.ok, ms: data.durationMs || 0, text: text, tail: tail };
+            })
+            .catch(function (e) {
+                markSuite(id, 'fail', String(e).slice(0, 40));
+                return { id: id, ok: false, ms: 0, text: String(e), tail: null };
+            });
+    }
+
+    var GROUPS = {
+        unit: UNIT.map(function (s) { return s.id; }),
+        all: UNIT.concat(E2E).map(function (s) { return s.id; })
+    };
+
+    window.runGroup = function (group) {
+        if (busy) return;
+        var ids = GROUPS[group] || [group];
+        setBusy(true);
+        setBadge('');
+        setStatus('tests.running', '运行中…');
+        out.textContent = '';
+        durationEl.textContent = '–';
+        tallyEl.textContent = '0 / ' + ids.length;
+        ids.forEach(function (id) {
+            var el = suiteEl(id);
+            if (el) {
+                el.classList.add('running');
+                el.querySelector('.result').className = 'result';
+                el.querySelector('.result').textContent = '…';
+            }
+        });
+
+        var done = 0, passed = 0, totalMs = 0;
+        var lines = [];
+        (function next(i) {
+            if (i >= ids.length) {
+                var allOk = passed === ids.length;
+                setBadge(allOk ? 'ok' : 'fail');
+                setStatus(allOk ? 'tests.done' : 'tests.failed', allOk ? '完成' : '失败');
+                durationEl.textContent = totalMs + ' ms';
+                tallyEl.textContent = passed + ' / ' + ids.length;
+                setBusy(false);
+                return;
+            }
+            runOne(ids[i]).then(function (r) {
+                done++;
+                if (r.ok) passed++;
+                totalMs += r.ms;
+                tallyEl.textContent = passed + ' / ' + ids.length;
+                lines.push('===== ' + r.id + (r.ok ? ' · ok' : ' · FAIL') + ' =====');
+                lines.push(r.text.trim());
+                lines.push('');
+                out.textContent = lines.join('\n');
+                out.scrollTop = out.scrollHeight;
+                next(i + 1);
+            });
+        })(0);
+    };
+
+    window.clearOut = clearOut;
+
+    if (window.PetI18n && PetI18n.onChange) {
+        PetI18n.onChange(function () {
+            if (statusEl.dataset.key) statusEl.textContent = PetI18n.s(statusEl.dataset.key);
+            if (badge.dataset.key) badge.textContent = PetI18n.s(badge.dataset.key);
+            [].forEach.call(document.querySelectorAll('.suite'), function (el) {
+                var name = el.querySelector('.name');
+                if (name.dataset.key) name.textContent = PetI18n.s(name.dataset.key);
+                var btn = el.querySelector('button');
+                if (btn.dataset.key) btn.textContent = PetI18n.s(btn.dataset.key);
+            });
+        });
+    }
+})();
+</script>
+</body>
+</html>

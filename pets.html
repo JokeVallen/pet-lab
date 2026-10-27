@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>两只宠物同页 · 大肥鱼 + 小橘</title>
+<link rel="stylesheet" href="/css/deepseek-pet.css">
+<style>
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, "Microsoft YaHei", sans-serif;
+        color: #1e2b45;
+        background: #f6f8fc;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 40px 24px 260px; }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    p.lead { color: #5f6b7d; margin: 0 0 22px; line-height: 1.7; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    button {
+        font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 8px;
+        border: 1px solid #dbe8ff; background: #fff; color: #2f6fed; cursor: pointer;
+    }
+    button:hover { background: #eef4ff; }
+    pre {
+        background: #0f1b2d; color: #cfe3ff; padding: 14px 16px; border-radius: 10px;
+        font-size: 12px; line-height: 1.65; overflow: auto;
+    }
+    code { font-family: Consolas, monospace; }
+    .note { color: #6b7c99; font-size: 12.5px; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1>两只宠物同页</h1>
+    <p class="lead">
+        右下角有两只：<b>大肥鱼</b>（默认配置）和 <b>小橘</b>（profile）。它们各自有独立的挂载点、
+        <code>storageKey</code>、位置、尺寸、配色和人设——共用同一份代码。
+    </p>
+
+    <div class="row">
+        <button data-act="feed-whale">喂大肥鱼</button>
+        <button data-act="feed-cat">喂小橘</button>
+        <button data-act="chat-whale">和大肥鱼聊天</button>
+        <button data-act="chat-cat">和小橘聊天</button>
+        <button data-act="reset">清空两只的存档</button>
+    </div>
+
+    <p class="note">
+        页面本身不 import 任何东西，只是先写好 <code>window.PetProfiles</code>，再插入两个带
+        <code>?pet=</code> 参数的模块。不同 URL 的模块会被浏览器当成独立实例求值，所以各自一份状态。
+    </p>
+
+<pre><code>&lt;script&gt;
+window.PetProfiles = {
+  cat: {
+    hostId: 'pet-cat',
+    storageKey: 'pet-cat-v1',
+    offset: { x: 172 },
+    size: { width: 150, height: 133 },
+    accent: { primary: '#f08a3c', primary2: '#e2603a', cyan: '#ffd08a' },
+    persona: { name: '小橘', about: '……', feed: ['……'] },
+    states: { idle: { clip: 'sad', pool: ['sad'] }, … }
+  }
+};
+&lt;/script&gt;
+&lt;script type="module" src="/js/pet/index.js"&gt;&lt;/script&gt;
+&lt;script type="module" src="/js/pet/index.js?pet=cat"&gt;&lt;/script&gt;</code></pre>
+
+    <p class="note">
+        小橘没有自己的素材，所以它的 <code>states</code> 指到了现成的几段小动画（<code>sad</code> /
+        <code>doze</code> / <code>think</code>）。换素材时把 <code>animDir</code> 指向新目录即可。
+    </p>
+</div>
+
+<script>
+    window.PetProfiles = {
+        cat: {
+            hostId: 'pet-cat',
+            storageKey: 'pet-cat-v1',
+            offset: { x: 168, y: 8 },
+            size: { width: 150, height: 133 },
+            accent: { primary: '#f08a3c', primary2: '#e2603a', cyan: '#ffd08a' },
+            clipExt: 'webm',
+            states: {
+                idle: { clip: 'sad', pool: ['sad', 'surprised'] },
+                sleepy: { clip: 'doze', pool: ['doze'] },
+                busy: { clip: 'think', pool: ['think'] }
+            },
+            persona: {
+                name: '小橘',
+                alt: '橘猫小橘',
+                icons: { feed: '🐟', restore: '🐱' },
+                about: '我是小橘，睡在博客角落的橘猫。点我、拖我，或者喂条小鱼干～',
+                sleep: '……（小橘把尾巴卷起来睡着了）',
+                feed: ['小鱼干！喜欢。', '嚼嚼嚼……再来一条？'],
+                greet: {
+                    late: ['这么晚还不睡？我陪你。'],
+                    morning: ['早，今天也要好好吃饭。'],
+                    afternoon: ['下午了，起来伸个懒腰。'],
+                    evening: ['晚上了，别熬太晚。']
+                },
+                firstMeet: '第一次见？我是小橘，刚搬来这个角落。',
+                again: '又见面了。',
+                streak3: '第 {n} 天了，你挺有规律。',
+                streak7: '第 {n} 天，我已经记住你的作息了。'
+            }
+        }
+    };
+</script>
+<script type="module" src="/js/pet/index.js"></script>
+<script type="module" src="/js/pet/index.js?pet=cat"></script>
+<script>
+    function petRoot(which) {
+        return document.getElementById(which === 'cat' ? 'pet-cat' : 'deepseek-pet');
+    }
+    document.querySelectorAll('[data-act]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var act = btn.dataset.act;
+            if (act === 'reset') {
+                ['deepseek-pet-v4', 'pet-cat-v1'].forEach(function (k) {
+                    try { localStorage.removeItem(k); } catch (e) { /* ignore */ }
+                });
+                location.reload();
+                return;
+            }
+            var which = /cat/.test(act) ? 'cat' : 'whale';
+            var root = petRoot(which);
+            if (!root) return;
+            var sel = act.indexOf('feed') === 0 ? '[data-dp-action=feed]' : '[data-dp-action=chat]';
+            var el = root.querySelector(sel);
+            if (el) el.click();
+        });
+    });
+</script>
+</body>
+</html>

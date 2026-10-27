@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分区编辑器</title>
+<style>
+    :root { color-scheme: light; --line:#e3e9f3; --ink:#1f2a37; --muted:#7b8798; --brand:#2f6fed; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:#f6f8fc; color:var(--ink); font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+    header { position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--line); padding:10px 20px; display:flex; gap:10px; align-items:center; }
+    header h1 { font-size:15px; margin:0; }
+    header .status { flex:1; font-size:12.5px; color:var(--muted); }
+    button, label.btn { font:inherit; font-size:13px; padding:6px 12px; border:1px solid var(--line); background:#f7f9fd; border-radius:8px; cursor:pointer; color:var(--ink); }
+    button:hover, label.btn:hover { background:#eef3fc; }
+    button.primary { background:var(--brand); border-color:var(--brand); color:#fff; }
+
+    main { display:grid; grid-template-columns: minmax(340px, 1fr) 380px; gap:20px; padding:20px; align-items:start; }
+    @media (max-width: 980px) { main { grid-template-columns:1fr; } }
+
+    .stage { position:relative; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; user-select:none; }
+    .stage img { display:block; width:100%; height:auto; }
+    :root { --z-parent:#2f6fed; --z-child:#e8783c; --z-sel:#1d9f5b; --z-fill:0.14; --z-label:10px; --z-lcolor:#2a4f9b; --z-lbg:#ffffff;
+            --z-parent-fill:rgba(47,111,237,0); --z-child-fill:rgba(232,120,60,0); --z-sel-fill:rgba(29,159,91,.14); }
+    .zone { position:absolute; border:1.5px solid var(--z-parent); background:transparent; cursor:move; }
+    .zone.child { border-color:var(--z-child); background:var(--z-child-fill); }
+    .zone.sel { outline:2px solid var(--z-sel); outline-offset:1px; background:var(--z-sel-fill); }
+    .zone.multi { box-shadow:0 0 0 2px var(--z-sel) inset; }
+    .zone .tag { position:absolute; left:2px; top:2px; font:var(--z-label)/1.2 monospace; background:var(--z-lbg-fill); padding:1px 4px; border-radius:3px; color:var(--z-lcolor); pointer-events:none; }
+    .zone.sel .tag { color:#0f6b3c; font-weight:600; }
+    .stage { background:#fff; }
+    #bg { opacity:var(--z-bgop, .55); }
+    .zone .h { position:absolute; width:9px; height:9px; background:var(--brand); border:1px solid #fff; border-radius:2px; }
+    .zone .h.nw { left:-5px; top:-5px; cursor:nwse-resize; }
+    .zone .h.ne { right:-5px; top:-5px; cursor:nesw-resize; }
+    .zone .h.sw { left:-5px; bottom:-5px; cursor:nesw-resize; }
+    .zone .h.se { right:-5px; bottom:-5px; cursor:nwse-resize; }
+    .zone .h.n  { left:50%; top:-5px; margin-left:-5px; cursor:ns-resize; }
+    .zone .h.s  { left:50%; bottom:-5px; margin-left:-5px; cursor:ns-resize; }
+    .zone .h.w  { left:-5px; top:50%; margin-top:-5px; cursor:ew-resize; }
+    .zone .h.e  { right:-5px; top:50%; margin-top:-5px; cursor:ew-resize; }
+    .zone .h { display:none; }
+    .zone.sel .h { display:block; }
+    .band { position:absolute; border:1.5px dashed var(--brand); background:rgba(47,111,237,.10); pointer-events:none; }
+    .stage.creating, .stage.draw-mode { cursor: crosshair; }
+    .stage.draw-mode .zone { pointer-events: none; }
+    .stage.draw-mode .zone .h { display: none; }
+
+    @media (min-width: 981px) { aside { position: sticky; top: 70px; align-self: start; } }
+
+    .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+    .card h2 { font-size:13.5px; margin:0 0 10px; }
+    .row { display:grid; grid-template-columns: 92px 1fr; gap:8px; align-items:center; margin:6px 0; }
+    .row label { font-size:12.5px; color:var(--muted); }
+    .row input, .row select { width:100%; padding:5px 8px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:12.5px; background:#fff; color:var(--ink); }
+    .row select:disabled, .row input:disabled { background:#f4f6fa; color:var(--muted); }
+    .chk { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink); cursor:pointer; }
+    .chk input { width:auto; margin:0; }
+    .row input.bad { border-color:#d64545; background:#fff6f6; }
+    .err { color:#b22a2a; font-size:12px; margin:2px 0 0 92px; display:none; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    pre { margin:0; padding:12px; background:#1e2733; color:#d9e3f2; border-radius:10px; font:11.5px/1.55 Consolas,monospace; overflow:auto; max-height:46vh; }
+    .hint { font-size:12px; color:var(--muted); margin:0 0 10px; }
+    .help-panel kbd { font:11px/1.4 ui-monospace,Consolas,monospace; background:#eef3fc; border:1px solid #d7e2f4; border-bottom-width:2px; border-radius:4px; padding:1px 5px; color:#2a4f9b; white-space:nowrap; }
+    .help-panel code { background:#eef3fc; padding:1px 5px; border-radius:4px; font-size:12px; }
+
+    .list { max-height:240px; overflow:auto; }
+    .item { display:flex; justify-content:space-between; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; }
+    .item:hover { background:#f2f6fd; }
+    .item.sel { background:#e6efff; color:#235; font-weight:600; }
+    .item small { color:var(--muted); font-weight:400; }
+</style>
+</head>
+<body data-title-key="zone.title" data-help-key="zone">
+<header>
+    <h1 data-i18n="zone.title">分区编辑器</h1>
+    <span class="status" id="status" data-i18n="zone.status">拖动方块移动分区，拖右下角缩放</span>
+    <button id="undoBtn" onclick="undo()" data-i18n="zone.undo" disabled>撤销</button>
+    <button id="redoBtn" onclick="redo()" data-i18n="zone.redo" disabled>重做</button>
+    <label class="btn"><span data-i18n="zone.import">导入 YAML</span><input type="file" id="file" accept=".yaml,.yml,.json" hidden></label>
+    <button id="drawBtn" onclick="toggleDrawMode()" data-i18n="zone.drawMode">＋ 框选新建</button>
+    <button onclick="addZone()" data-i18n="zone.add">＋ 子分区</button>
+    <button onclick="download()" data-i18n="zone.export">导出 YAML</button>
+    <button class="primary" onclick="saveZones()" data-i18n="zone.save">保存并编译</button>
+</header>
+
+<main>
+    <section>
+        <div class="stage" id="stage">
+            <img id="bg" src="images/pet/anim/poster.webp" alt="角色">
+        </div>
+    </section>
+
+    <aside>
+        <div class="card">
+            <h2 data-i18n="zone.list">分区</h2>
+            <div class="list" id="list"></div>
+        </div>
+
+        <div class="card" id="editor" style="display:none">
+            <h2 id="edTitle">编辑</h2>
+            <div class="row"><label>id</label><input id="fId" spellcheck="false"></div>
+            <p class="err" id="idErr" data-i18n="zone.idErr">id 不能为空、不能重复，也不能含空格</p>
+            <div class="grid2">
+                <div class="row"><label>yMin</label><input id="fYMin" type="number" step="0.01" min="0" max="1"></div>
+                <div class="row"><label>yMax</label><input id="fYMax" type="number" step="0.01" min="0" max="1"></div>
+                <div class="row"><label>xMin</label><input id="fXMin" type="number" step="0.01" min="0" max="1"></div>
+                <div class="row"><label>xMax</label><input id="fXMax" type="number" step="0.01" min="0" max="1"></div>
+            </div>
+            <div class="row"><label data-i18n="zone.parent">父分区</label><select id="fParent"></select></div>
+            <div class="row"><label data-i18n="zone.act">触发动作</label><select id="fAct"></select></div>
+            <div class="row" id="actCustomRow" style="display:none"><label data-i18n="zone.actCustom">自定义</label><input id="fActCustom" placeholder="例如 spin-shy"></div>
+            <div class="row"><label data-i18n="zone.width">横向范围</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <label class="chk"><input type="checkbox" id="fFull"> <span data-i18n="zone.full">占满宽度</span></label>
+                </div>
+            </div>
+            <div class="row" style="grid-template-columns:1fr"><label data-i18n="zone.say">点击台词</label></div>
+            <textarea id="fSay" style="width:100%;min-height:64px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px"></textarea>
+            <button onclick="deleteSelected()" data-i18n="zone.delSelected">删除选中分区（Del）</button>
+        </div>
+
+        <div class="card">
+            <h2 data-i18n="zone.look">外观</h2>
+            <div class="row"><label data-i18n="zone.cParent">父分区色</label><input type="color" id="cParent" value="#2f6fed"></div>
+            <div class="row"><label data-i18n="zone.cChild">子分区色</label><input type="color" id="cChild" value="#e8783c"></div>
+            <div class="row"><label data-i18n="zone.cSel">选中色</label><input type="color" id="cSel" value="#1d9f5b"></div>
+            <div class="row"><label data-i18n="zone.cFill">填充透明度</label><input type="range" id="cFill" min="0" max="60" value="0"></div>
+            <div class="row"><label data-i18n="zone.labelSize">标签字号</label><input type="range" id="lSize" min="8" max="20" value="10"></div>
+            <div class="row"><label data-i18n="zone.labelShow">显示标签</label>
+                <label class="chk"><input type="checkbox" id="lShow" checked> <span data-i18n="zone.labelShowTip">在分区内显示 id</span></label>
+            </div>
+            <div class="row"><label data-i18n="zone.labelColor">标签文字色</label><input type="color" id="lColor" value="#2a4f9b"></div>
+            <div class="row"><label data-i18n="zone.labelBg">标签底色</label><input type="color" id="lBg" value="#ffffff"></div>
+            <p class="err" id="lookErr" style="margin-left:0"></p>
+            <button onclick="resetLook()" data-i18n="zone.resetLook">恢复默认外观</button>
+        </div>
+
+        <div class="card">
+            <h2 data-i18n="zone.bg">底图</h2>
+            <p class="hint" data-i18n="zone.bgTip">只用于对齐，分区是归一化坐标，换图不影响已划分的结果。</p>
+            <div class="row"><label data-i18n="zone.bgPick">选择图片</label>
+                <label class="btn" style="text-align:center"><span data-i18n="zone.bgOpen">打开图片</span><input type="file" id="bgFile" accept="image/*" hidden></label>
+            </div>
+            <div class="row"><label data-i18n="zone.bgPath">图片地址</label><input id="bgPath" placeholder="images/pet/anim/poster.webp"></div>
+            <div class="row"><label data-i18n="zone.bgOpacity">不透明度</label><input type="range" id="bgOp" min="10" max="100" value="55"></div>
+            <button onclick="resetBg()" data-i18n="zone.resetBg">恢复默认底图</button>
+        </div>
+
+        <div class="card">
+            <h2 data-i18n="zone.export">导出</h2>
+            <pre id="out"></pre>
+            <p class="hint" style="margin-top:8px" data-i18n="zone.copyTip">复制到 config/pet.yaml（zones 与 zoneReactions 两段），再运行 node tools/build-config.js。</p>
+            <button onclick="copyOut()" data-i18n="zone.copy">复制</button>
+        </div>
+    </aside>
+</main>
+
+<script>
+let zones = [
+    { id: 'head', yMin: 0, yMax: 0.42 },
+    { id: 'head.crown', yMin: 0, yMax: 0.14, parent: 'head' },
+    { id: 'head.cheek', yMin: 0.14, yMax: 0.30, parent: 'head' },
+    { id: 'head.face', yMin: 0.30, yMax: 0.42, parent: 'head' },
+    { id: 'body', yMin: 0.42, yMax: 0.86 },
+    { id: 'body.fin', yMin: 0.55, yMax: 0.74, xMin: 0, xMax: 0.35, parent: 'body' },
+    { id: 'body.belly', yMin: 0.60, yMax: 0.86, xMin: 0.35, xMax: 0.70, parent: 'body' },
+    { id: 'tail', yMin: 0.86, yMax: 1 }
+];
+
+let reactions = {
+    head: { act: 'click-shy', say: ['别戳脑袋啦。', '脑袋不能乱摸……'] },
+    'head.crown': { act: 'click-wave', say: ['头上有东西吗？'] },
+    'head.cheek': { act: 'click-shy', say: ['痒。', '别捏脸。'] },
+    'head.face': { act: 'click-shy', say: [] },
+    body: { act: 'click-happy', say: ['干嘛呀。'] },
+    'body.fin': { act: 'spin', say: ['鳍不能拽。'] },
+    'body.belly': { act: 'click-happy', say: ['肚子软软的。', '别戳肚子啦。'] },
+    tail: { act: 'tail', say: ['尾巴会痒的。', '甩你一脸水。'] }
+};
+
+let selected = 0;
+let selectedSet = new Set([0]);
+let drag = null;
+
+/* ---------- 撤销 / 重做 ---------- */
+const history = { stack: [], index: -1, limit: 120 };
+let pushTimer = null;
+
+function snapshot() {
+    return JSON.stringify({ zones: zones, reactions: reactions, selected: selected });
+}
+
+function updateHistoryButtons() {
+    const u = document.getElementById('undoBtn');
+    const r = document.getElementById('redoBtn');
+    if (u) u.disabled = history.index <= 0;
+    if (r) r.disabled = history.index >= history.stack.length - 1;
+}
+
+function pushHistory() {
+    const snap = snapshot();
+    if (history.stack[history.index] === snap) return;
+    history.stack = history.stack.slice(0, history.index + 1);
+    history.stack.push(snap);
+    if (history.stack.length > history.limit) history.stack.shift();
+    history.index = history.stack.length - 1;
+    updateHistoryButtons();
+}
+
+/* 连续输入时合并成一步 */
+function schedulePush() {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushHistory, 450);
+}
+
+function restore(snap) {
+    const s = JSON.parse(snap);
+    zones = s.zones;
+    reactions = s.reactions;
+    selected = Math.min(s.selected || 0, zones.length - 1);
+    selectedSet = new Set([selected]);
+    draw();
+    updateHistoryButtons();
+}
+
+function undo() {
+    clearTimeout(pushTimer);
+    pushHistory();
+    if (history.index <= 0) return;
+    history.index -= 1;
+    restore(history.stack[history.index]);
+}
+
+function redo() {
+    clearTimeout(pushTimer);
+    if (history.index >= history.stack.length - 1) return;
+    history.index += 1;
+    restore(history.stack[history.index]);
+}
+
+function isTyping(target) {
+    if (!target) return false;
+    const tag = (target.tagName || '').toUpperCase();
+    if (tag === 'TEXTAREA') return true;
+    if (tag === 'INPUT') return ['text', 'number', 'range', 'color'].indexOf((target.type || 'text').toLowerCase()) >= 0;
+    return false;
+}
+
+document.addEventListener('keydown', function (e) {
+    if (isTyping(e.target)) return;
+    const key = e.key.toLowerCase();
+
+    if (key === 'delete' || key === 'backspace') {
+        if (!selectedSet.size) return;
+        e.preventDefault();
+        deleteSelected();
+        return;
+    }
+    if (key === 'escape') {
+        if (drawMode) { toggleDrawMode(false); return; }
+        if (band) { band = null; stage.classList.remove('creating'); draw(); return; }
+        selectedSet = new Set([selected]);
+        draw();
+        return;
+    }
+    if (key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        toggleDrawMode();
+        return;
+    }
+
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod) return;
+    if (key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redo(); }
+});
+
+/* 双击分区内部：在该点建一个子分区，父级就是被点的分区 */
+function makeChildAt(i, e) {
+    const parent = norm(zones[i]);
+    const r = stage.getBoundingClientRect();
+    const cx = clamp((e.clientX - r.left) / r.width);
+    const cy = clamp((e.clientY - r.top) / r.height);
+    const w = 0.16, h = 0.10;
+    let n = 1, id;
+    do { id = parent.id + '.sub' + n; n += 1; } while (zones.some((z) => z.id === id));
+    const zone = {
+        id,
+        xMin: snap(clamp(cx - w / 2)), xMax: snap(clamp(cx + w / 2)),
+        yMin: snap(clamp(cy - h / 2)), yMax: snap(clamp(cy + h / 2)),
+        parent: parent.id
+    };
+    zones.push(zone);
+    selected = zones.length - 1;
+    selectedSet = new Set([selected]);
+    draw();
+    pushHistory();
+    setTimeout(() => { const f = document.getElementById('fId'); if (f) { f.focus(); f.select(); } }, 0);
+}
+
+/* 删除所有选中的分区（子分区自动升到顶层，反应一起清掉） */
+function deleteSelected() {
+    const idxs = Array.from(selectedSet).sort((a, b) => b - a);
+    if (!idxs.length) return;
+    if (zones.length - idxs.length < 1) {
+        // 至少留一个
+        idxs.length = Math.max(0, idxs.length - 1);
+        if (!idxs.length) return;
+    }
+    const gone = idxs.map((k) => zones[k] && zones[k].id).filter(Boolean);
+    gone.forEach((name) => {
+        zones.forEach((z) => { if (z.parent === name) delete z.parent; });
+        delete reactions[name];
+    });
+    idxs.forEach((k) => zones.splice(k, 1));
+    selected = Math.max(0, Math.min(selected, zones.length - 1));
+    selectedSet = new Set([selected]);
+    draw();
+    pushHistory();
+}
+
+const stage = document.getElementById('stage');
+const list = document.getElementById('list');
+
+function clamp(v) { return Math.max(0, Math.min(1, v)); }
+
+function norm(z) {
+    if (z.xMin == null) z.xMin = 0;
+    if (z.xMax == null) z.xMax = 1;
+    return z;
+}
+
+function draw() {
+    stage.querySelectorAll('.zone, .band').forEach((n) => n.remove());
+    zones.forEach((z, i) => {
+        norm(z);
+        const el = document.createElement('div');
+        el.className = 'zone' + (z.parent ? ' child' : '') +
+            (i === selected ? ' sel' : '') +
+            (selectedSet.has(i) && i !== selected ? ' multi' : '');
+        el.style.top = (z.yMin * 100) + '%';
+        el.style.height = ((z.yMax - z.yMin) * 100) + '%';
+        el.style.left = (z.xMin * 100) + '%';
+        el.style.width = ((z.xMax - z.xMin) * 100) + '%';
+        el.innerHTML = '<span class="tag">' + z.id + '</span>' +
+            ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map((h) => '<span class="h ' + h + '" data-h="' + h + '"></span>').join('');
+        el.addEventListener('pointerdown', (e) => startDrag(e, i, el));
+        stage.appendChild(el);
+    });
+    if (band) {
+        const b = document.createElement('div');
+        b.className = 'band';
+        b.style.top = (band.yMin * 100) + '%';
+        b.style.height = ((band.yMax - band.yMin) * 100) + '%';
+        b.style.left = (band.xMin * 100) + '%';
+        b.style.width = ((band.xMax - band.xMin) * 100) + '%';
+        stage.appendChild(b);
+    }
+    renderList();
+    renderEditor();
+    renderOut();
+    if (typeof look !== 'undefined') {
+        document.querySelectorAll('.zone .tag').forEach((n) => { n.style.display = look.labelShow ? '' : 'none'; });
+    }
+}
+
+function renderList() {
+    list.innerHTML = '';
+    zones.forEach((z, i) => {
+        norm(z);
+        const d = document.createElement('div');
+        d.className = 'item' + (i === selected ? ' sel' : '');
+        const span = (z.xMax - z.xMin > 0.999) ? '' : ' · x ' + z.xMin.toFixed(2) + '–' + z.xMax.toFixed(2);
+        d.innerHTML = '<span>' + z.id + '</span><small>y ' + z.yMin.toFixed(2) + '–' + z.yMax.toFixed(2) + span + '</small>';
+        d.onclick = (ev) => {
+            if (ev.shiftKey || ev.metaKey || ev.ctrlKey) {
+                if (selectedSet.has(i)) selectedSet.delete(i); else selectedSet.add(i);
+                selected = i;
+                if (!selectedSet.size) selectedSet.add(i);
+            } else {
+                selectedSet = new Set([i]);
+                selected = i;
+            }
+            draw();
+        };
+        list.appendChild(d);
+    });
+}
+
+function renderEditor() {
+    const z = zones[selected];
+    const box = document.getElementById('editor');
+    if (!z) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    document.getElementById('edTitle').textContent = z.id;
+    document.getElementById('fId').value = z.id;
+    document.getElementById('fYMin').value = z.yMin;
+    document.getElementById('fYMax').value = z.yMax;
+    norm(z);
+    document.getElementById('fXMin').value = round(z.xMin);
+    document.getElementById('fXMax').value = round(z.xMax);
+    renderParentSelect();
+    renderActSelect();
+    var r = reactions[z.id] || {};
+    document.getElementById('fFull').checked = z.xMin <= 0 && z.xMax >= 1;
+    document.getElementById('fActCustom').value = '';
+    document.getElementById('actCustomRow').style.display = 'none';
+    document.getElementById('fSay').value = (r.say || []).map(function (s) {
+        if (typeof s === 'string') return s;
+        return s.w ? s.t + '*' + s.w : s.t;
+    }).join('\n');
+}
+
+document.getElementById('fAct').addEventListener('change', function () {
+    var z = zones[selected];
+    if (!z) return;
+    if (this.value === '__custom__') {
+        document.getElementById('actCustomRow').style.display = 'flex';
+        document.getElementById('fActCustom').value = '';
+        document.getElementById('fActCustom').focus();
+        return;
+    }
+    document.getElementById('actCustomRow').style.display = 'none';
+    if (!reactions[z.id]) reactions[z.id] = {};
+    reactions[z.id].act = this.value;
+    renderOut();
+    schedulePush();
+});
+
+document.getElementById('fActCustom').addEventListener('input', function () {
+    var z = zones[selected];
+    if (!z) return;
+    if (!reactions[z.id]) reactions[z.id] = {};
+    reactions[z.id].act = this.value.trim();
+    renderOut();
+    schedulePush();
+});
+
+document.getElementById('fParent').addEventListener('change', function () {
+    var z = zones[selected];
+    if (!z) return;
+    if (this.value) z.parent = this.value;
+    else delete z.parent;
+    draw();
+    schedulePush();
+});
+
+document.getElementById('fFull').addEventListener('change', function () {
+    var z = zones[selected];
+    if (!z) return;
+    if (this.checked) { z.xMin = 0; z.xMax = 1; }
+    else { z.xMin = 0.25; z.xMax = 0.75; }
+    draw();
+    schedulePush();
+});
+
+document.getElementById('fSay').addEventListener('input', function () {
+    var z = zones[selected];
+    if (!z) return;
+    if (!reactions[z.id]) reactions[z.id] = {};
+    reactions[z.id].say = this.value.split('\n').map(function (s) {
+        s = s.trim();
+        if (!s) return null;
+        var m = s.match(/^(.*)\*(\d+(?:\.\d+)?)$/);
+        return m ? { t: m[1].trim(), w: Number(m[2]) } : s;
+    }).filter(Boolean);
+    renderOut();
+    schedulePush();
+});
+
+/* ---------- 可选值：动作来自配置，父分区来自现有分区 ---------- */
+let ACTS = [];
+
+async function loadActs() {
+    try {
+        const res = await fetch('js/pet-config.json?ts=' + Date.now(), { cache: 'no-store' });
+        const cfg = await res.json();
+        const set = new Set();
+        const collect = (v) => {
+            if (typeof v === 'string') { if (v) set.add(v); return; }
+            if (Array.isArray(v)) { v.forEach(collect); return; }
+            if (v && typeof v === 'object') Object.values(v).forEach(collect);
+        };
+        collect(cfg.animations || {});
+        collect(cfg.states || {});
+        Object.values(cfg.zoneReactions || {}).forEach((r) => r && r.act && set.add(r.act));
+        ACTS = [...set].sort();
+    } catch (e) { ACTS = []; }
+    renderActSelect();
+}
+
+function renderActSelect() {
+    const sel = document.getElementById('fAct');
+    const z = zones[selected];
+    if (!sel) return;
+    const r = (z && reactions[z.id]) || {};
+    const cur = r.act || '';
+    const known = ACTS.indexOf(cur) >= 0;
+    sel.innerHTML = '';
+    const optNone = document.createElement('option');
+    optNone.value = '';
+    optNone.textContent = '（不播动作）';
+    sel.appendChild(optNone);
+    ACTS.forEach((a) => {
+        const o = document.createElement('option');
+        o.value = a;
+        o.textContent = a;
+        sel.appendChild(o);
+    });
+    const other = document.createElement('option');
+    other.value = '__custom__';
+    other.textContent = '其他…';
+    sel.appendChild(other);
+
+    if (cur && !known) {
+        const o = document.createElement('option');
+        o.value = cur;
+        o.textContent = cur + '（自定义）';
+        sel.insertBefore(o, other);
+        sel.value = cur;
+    } else {
+        sel.value = cur;
+    }
+    document.getElementById('actCustomRow').style.display = sel.value === '__custom__' ? 'flex' : 'none';
+}
+
+function renderParentSelect() {
+    const sel = document.getElementById('fParent');
+    const z = zones[selected];
+    if (!sel || !z) return;
+    // 子孙不能当父级：避免环
+    const banned = new Set([z.id]);
+    let grew = true;
+    while (grew) {
+        grew = false;
+        zones.forEach((x) => {
+            if (x.parent && banned.has(x.parent) && !banned.has(x.id)) { banned.add(x.id); grew = true; }
+        });
+    }
+    sel.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = '（顶层）';
+    sel.appendChild(none);
+    zones.forEach((x) => {
+        if (banned.has(x.id)) return;
+        const o = document.createElement('option');
+        o.value = x.id;
+        o.textContent = x.id;
+        sel.appendChild(o);
+    });
+    sel.value = z.parent || '';
+}
+
+['fId', 'fYMin', 'fYMax', 'fXMin', 'fXMax'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', () => {
+        const z = zones[selected];
+        if (!z) return;
+        const v = document.getElementById(id).value;
+        if (id === 'fId') {
+            const err = document.getElementById('idErr');
+            const bad = !v.trim() || /\s/.test(v) || zones.some((x, i) => i !== selected && x.id === v);
+            document.getElementById('fId').classList.toggle('bad', bad);
+            err.style.display = bad ? 'block' : 'none';
+            if (bad) return;          // 非法 id 不写回数据
+            const oldId = z.id;
+            z.id = v.trim();
+            if (reactions[oldId] && oldId !== z.id) { reactions[z.id] = reactions[oldId]; delete reactions[oldId]; }
+            zones.forEach((x) => { if (x.parent === oldId) x.parent = z.id; });
+            draw();
+            schedulePush();
+            return;
+        }
+        if (id === 'fParent') { z.parent = v || undefined; }
+        else {
+            const n = parseFloat(v);
+            const key = { fYMin: 'yMin', fYMax: 'yMax', fXMin: 'xMin', fXMax: 'xMax' }[id];
+            if (!Number.isNaN(n)) z[key] = clamp(n);
+            else if (v === '') delete z[key];
+        }
+        norm(z);
+        if (z.yMax <= z.yMin) z.yMax = clamp(z.yMin + 0.02);
+        if (z.xMax <= z.xMin) z.xMax = clamp(z.xMin + 0.02);
+        draw();
+        schedulePush();
+    });
+});
+
+let band = null;
+
+function stagePoint(e) {
+    const r = stage.getBoundingClientRect();
+    return {
+        x: clamp((e.clientX - r.left) / r.width),
+        y: clamp((e.clientY - r.top) / r.height)
+    };
+}
+
+function snap(v) { return Math.round(v * 100) / 100; }
+
+function startDrag(e, i, el) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+        if (selectedSet.has(i)) selectedSet.delete(i);
+        else selectedSet.add(i);
+        selected = i;
+        if (!selectedSet.size) selectedSet.add(i);
+        draw();
+        return;
+    }
+    if (!selectedSet.has(i)) selectedSet = new Set([i]);
+    selected = i;
+    const h = e.target.getAttribute && e.target.getAttribute('data-h');
+    drag = {
+        i,
+        mode: h ? 'resize' : 'move',
+        handle: h || '',
+        sx: e.clientX,
+        sy: e.clientY,
+        o: JSON.parse(JSON.stringify(norm(zones[i]))),
+        group: Array.from(selectedSet).filter((k) => k !== i).map((k) => ({
+            idx: k, o: JSON.parse(JSON.stringify(norm(zones[k])))
+        })),
+        rect: stage.getBoundingClientRect()
+    };
+    if (el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch (err) {} }
+    markSelection();
+}
+
+/* 只改类名，不重建节点：双击、指针捕获都不会被破坏 */
+function markSelection() {
+    stage.querySelectorAll('.zone').forEach((n, i) => {
+        n.classList.toggle('sel', i === selected);
+        n.classList.toggle('multi', selectedSet.has(i) && i !== selected);
+    });
+    renderList();
+    renderEditor();
+}
+
+/* 在空白处按下：拉一个矩形，松手就变成新分区 */
+let drawMode = false;
+
+function toggleDrawMode(on) {
+    drawMode = (typeof on === 'boolean') ? on : !drawMode;
+    stage.classList.toggle('draw-mode', drawMode);
+    const btn = document.getElementById('drawBtn');
+    if (btn) btn.classList.toggle('primary', drawMode);
+    const st = document.getElementById('status');
+    if (st) {
+        st.dataset.key = drawMode ? 'zone.drawHint' : 'zone.status';
+        st.textContent = window.PetI18n
+            ? PetI18n.s(drawMode ? 'zone.drawHint' : 'zone.status')
+            : (drawMode ? '在图上拖出一个矩形' : '拖动方块移动分区，拖右下角缩放');
+    }
+}
+
+/* 按几何位置找分区：层级深的先中，同层面积小的先中（与运行时同一规则） */
+function zoneIndexAt(clientX, clientY) {
+    const r = stage.getBoundingClientRect();
+    const x = (clientX - r.left) / r.width;
+    const y = (clientY - r.top) / r.height;
+    let best = -1;
+    let bestKey = null;
+    zones.forEach((z, i) => {
+        norm(z);
+        if (x < z.xMin || x >= z.xMax || y < z.yMin || y >= z.yMax) return;
+        const depth = String(z.id).split('.').length;
+        const area = (z.xMax - z.xMin) * (z.yMax - z.yMin);
+        const key = [-depth, area];
+        if (!bestKey || key[0] < bestKey[0] || (key[0] === bestKey[0] && key[1] < bestKey[1])) {
+            bestKey = key;
+            best = i;
+        }
+    });
+    return best;
+}
+
+stage.addEventListener('dblclick', (e) => {
+    const i = zoneIndexAt(e.clientX, e.clientY);
+    if (i < 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selected = i;
+    selectedSet = new Set([i]);
+    makeChildAt(i, e);
+}, true);
+
+stage.addEventListener('pointerdown', (e) => {
+    if (!drawMode && !e.shiftKey && e.target.closest('.zone')) return;
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    const pt = stagePoint(e);
+    const start = { x: snap(pt.x), y: snap(pt.y) };
+    band = { xMin: start.x, yMin: start.y, xMax: start.x, yMax: start.y };
+    stage.classList.add('creating');
+    draw();
+});
+
+window.addEventListener('pointermove', (e) => {
+    if (band) {
+        const pt = stagePoint(e);
+        band.xMax = snap(pt.x);
+        band.yMax = snap(pt.y);
+        draw();
+        return;
+    }
+    if (!drag) return;
+    const z = norm(zones[drag.i]);
+    const o = drag.o;
+    const dx = (e.clientX - drag.sx) / drag.rect.width;
+    const dy = (e.clientY - drag.sy) / drag.rect.height;
+    const MIN = 0.02;
+
+    if (drag.mode === 'move') {
+        const w = o.xMax - o.xMin, h = o.yMax - o.yMin;
+        z.xMin = snap(clamp(o.xMin + dx)); z.xMax = snap(clamp(z.xMin + w));
+        z.yMin = snap(clamp(o.yMin + dy)); z.yMax = snap(clamp(z.yMin + h));
+        if (z.xMax > 1) { z.xMax = 1; z.xMin = snap(1 - w); }
+        if (z.yMax > 1) { z.yMax = 1; z.yMin = snap(1 - h); }
+
+        // 多选时其余分区跟着走，保持相对位置
+        const ddx = z.xMin - o.xMin, ddy = z.yMin - o.yMin;
+        drag.group.forEach((g) => {
+            const gz = norm(zones[g.idx]);
+            gz.xMin = snap(clamp(g.o.xMin + ddx)); gz.xMax = snap(clamp(g.o.xMax + ddx));
+            gz.yMin = snap(clamp(g.o.yMin + ddy)); gz.yMax = snap(clamp(g.o.yMax + ddy));
+        });
+    } else {
+        const hd = drag.handle;
+        if (hd.indexOf('n') >= 0) { z.yMin = snap(clamp(Math.min(o.yMin + dy, o.yMax - MIN))); }
+        if (hd.indexOf('s') >= 0) { z.yMax = snap(clamp(Math.max(o.yMax + dy, o.yMin + MIN))); }
+        if (hd.indexOf('w') >= 0) { z.xMin = snap(clamp(Math.min(o.xMin + dx, o.xMax - MIN))); }
+        if (hd.indexOf('e') >= 0) { z.xMax = snap(clamp(Math.max(o.xMax + dx, o.xMin + MIN))); }
+    }
+    draw();
+});
+
+window.addEventListener('pointerup', () => {
+    if (band) {
+        finishBand();
+        return;
+    }
+    if (drag) { drag = null; pushHistory(); }
+});
+
+window.addEventListener('pointercancel', () => {
+    if (band) { band = null; stage.classList.remove('creating'); draw(); }
+});
+
+function finishBand() {
+    const b = band;
+    band = null;
+    stage.classList.remove('creating');
+    toggleDrawMode(false);
+    const xMin = Math.min(b.xMin, b.xMax), xMax = Math.max(b.xMin, b.xMax);
+    const yMin = Math.min(b.yMin, b.yMax), yMax = Math.max(b.yMin, b.yMax);
+    if (xMax - xMin < 0.03 || yMax - yMin < 0.03) { draw(); return; }   // 太小当作误触
+
+    // 落在已有分区里就自动认父：取最小的包含者
+    const holder = zones
+        .filter((z) => norm(z) && z.xMin <= xMin && z.xMax >= xMax && z.yMin <= yMin && z.yMax >= yMax)
+        .sort((a, b2) => (a.xMax - a.xMin) * (a.yMax - a.yMin) - (b2.xMax - b2.xMin) * (b2.yMax - b2.yMin))[0];
+
+    let n = 1;
+    let id;
+    do { id = (holder ? holder.id : 'zone') + '.new' + n; n += 1; } while (zones.some((z) => z.id === id));
+
+    const zone = { id, xMin, xMax, yMin, yMax };
+    if (holder) zone.parent = holder.id;
+    zones.push(zone);
+    selected = zones.length - 1;
+    draw();
+    pushHistory();
+    setTimeout(() => { const f = document.getElementById('fId'); if (f) { f.focus(); f.select(); } }, 0);
+}
+
+function addZone() {
+    const base = zones[selected] ? norm(zones[selected]) : { id: '', xMin: 0, xMax: 1, yMin: 0, yMax: 0.3 };
+    let n = 1;
+    let id;
+    do { id = (base.id || 'zone') + '.new' + n; n += 1; } while (zones.some((x) => x.id === id));
+    const w = 0.3, h = 0.15;
+    const cx = (base.xMin + base.xMax) / 2, cy = (base.yMin + base.yMax) / 2;
+    const zone = {
+        id,
+        xMin: snap(clamp(cx - w / 2)), xMax: snap(clamp(cx + w / 2)),
+        yMin: snap(clamp(cy - h / 2)), yMax: snap(clamp(cy + h / 2))
+    };
+    if (base.id) zone.parent = base.id;
+    zones.push(zone);
+    selected = zones.length - 1;
+    draw();
+    pushHistory();
+    setTimeout(() => { const f = document.getElementById('fId'); if (f) { f.focus(); f.select(); } }, 0);
+}
+
+function delZone() {
+    if (zones.length <= 1) return;
+    const gone = zones[selected];
+    if (!gone) return;
+    const name = gone.id;
+    zones.forEach((z) => { if (z.parent === name) delete z.parent; });
+    zones.splice(selected, 1);
+    delete reactions[name];
+    selected = Math.max(0, selected - 1);
+    draw();
+    pushHistory();
+}
+
+function toYaml() {
+    let s = 'zones:\n';
+    zones.forEach((z) => {
+        norm(z);
+        s += '  - id: ' + z.id + '\n';
+        s += '    yMin: ' + round(z.yMin) + '\n';
+        s += '    yMax: ' + round(z.yMax) + '\n';
+        if (z.xMin > 0) s += '    xMin: ' + round(z.xMin) + '\n';
+        if (z.xMax < 1) s += '    xMax: ' + round(z.xMax) + '\n';
+        if (z.parent) s += '    parent: ' + z.parent + '\n';
+    });
+    return s;
+}
+
+function round(n) { return Math.round(n * 100) / 100; }
+
+/* ---------------- 编辑器外观（只影响本工具，不写进 pet.yaml） ---------------- */
+const LOOK_KEY = 'pet-zone-look';
+const LOOK_DEFAULT = {
+    parent: '#2f6fed', child: '#e8783c', sel: '#1d9f5b',
+    fill: 0, labelSize: 10, labelShow: true, labelColor: '#2a4f9b', labelBg: '#ffffff',
+    bg: 'images/pet/anim/poster.webp', bgOpacity: 55
+};
+let look = Object.assign({}, LOOK_DEFAULT);
+
+function applyLook() {
+    const r = document.documentElement.style;
+    const alpha = look.fill / 100;
+    const rgba = (hex, a) => {
+        const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+        if (!m) return 'rgba(47,111,237,' + a + ')';
+        const n = parseInt(m[1], 16);
+        return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    };
+    r.setProperty('--z-parent', look.parent);
+    r.setProperty('--z-child', look.child);
+    r.setProperty('--z-sel', look.sel);
+    r.setProperty('--z-parent-fill', rgba(look.parent, alpha));
+    r.setProperty('--z-child-fill', rgba(look.child, alpha));
+    r.setProperty('--z-sel-fill', rgba(look.sel, Math.min(0.5, Math.max(0.12, alpha + 0.08))));
+    r.setProperty('--z-fill', String(alpha));
+    r.setProperty('--z-label', look.labelSize + 'px');
+    r.setProperty('--z-lcolor', look.labelColor);
+    r.setProperty('--z-lbg', look.labelBg);
+    r.setProperty('--z-lbg-fill', rgba(look.labelBg, 0.9));
+    r.setProperty('--z-bgop', String(look.bgOpacity / 100));
+
+    const bg = document.getElementById('bg');
+    if (bg && look.bg && bg.getAttribute('src') !== look.bg) bg.src = look.bg;
+    if (bg) bg.style.visibility = look.bg ? 'visible' : 'hidden';
+
+    document.querySelectorAll('.zone .tag').forEach((n) => { n.style.display = look.labelShow ? '' : 'none'; });
+    document.querySelectorAll('.zone.sel .tag').forEach((n) => { n.style.display = look.labelShow ? '' : 'none'; });
+
+    const cp = document.getElementById('cParent');
+    if (cp) { cp.value = look.parent; }
+    const cc = document.getElementById('cChild'); if (cc) cc.value = look.child;
+    const cs = document.getElementById('cSel'); if (cs) cs.value = look.sel;
+    const cf = document.getElementById('cFill'); if (cf) cf.value = look.fill;
+    const ls = document.getElementById('lSize'); if (ls) ls.value = look.labelSize;
+    const lc = document.getElementById('lColor'); if (lc) lc.value = look.labelColor;
+    const lb = document.getElementById('lBg'); if (lb) lb.value = look.labelBg;
+    const lsh = document.getElementById('lShow'); if (lsh) lsh.checked = look.labelShow;
+    const bp = document.getElementById('bgPath'); if (bp && document.activeElement !== bp) bp.value = look.bg || '';
+    const bo = document.getElementById('bgOp'); if (bo) bo.value = look.bgOpacity;
+}
+
+function saveLook() {
+    try { localStorage.setItem(LOOK_KEY, JSON.stringify(look)); } catch (e) { /* ignore */ }
+}
+
+async function loadLook() {
+    try {
+        const raw = localStorage.getItem(LOOK_KEY);
+        if (raw) look = Object.assign({}, LOOK_DEFAULT, JSON.parse(raw));
+    } catch (e) { /* ignore */ }
+    applyLook();
+
+    // 没存过底图时，用宠物自己的立绘：换宠物只要改 config.image，这里自动跟上
+    if (!look.bg || look.bg === LOOK_DEFAULT.bg) {
+        try {
+            const res = await fetch('js/pet-config.json?ts=' + Date.now(), { cache: 'no-store' });
+            const cfg = await res.json();
+            if (cfg && cfg.image) { look.bg = cfg.image; applyLook(); }
+        } catch (e) { /* ignore */ }
+    }
+}
+
+function resetLook() {
+    look = Object.assign({}, LOOK_DEFAULT);
+    saveLook();
+    applyLook();
+    draw();
+}
+
+/* 只复位底图相关，不动配色 */
+function resetBg() {
+    look.bg = LOOK_DEFAULT.bg;
+    look.bgOpacity = LOOK_DEFAULT.bgOpacity;
+    saveLook();
+    applyLook();
+}
+
+function bindLook() {
+    const on = (id, key, cast) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const ev = (el.type === 'range' || el.type === 'color') ? 'input' : 'change';
+        el.addEventListener(ev, () => {
+            look[key] = cast ? cast(el.value) : el.value;
+            applyLook();
+            saveLook();
+        });
+    };
+    on('cParent', 'parent');
+    on('cChild', 'child');
+    on('cSel', 'sel');
+    on('cFill', 'fill', Number);
+    on('lSize', 'labelSize', Number);
+    on('lShow', 'labelShow', () => document.getElementById('lShow').checked);
+    on('lColor', 'labelColor');
+    on('lBg', 'labelBg');
+    on('bgPath', 'bg');
+    on('bgOp', 'bgOpacity', Number);
+
+    const file = document.getElementById('bgFile');
+    if (file) file.addEventListener('change', () => {
+        const f = file.files && file.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            look.bg = reader.result;      // data URL，仅存在本机编辑器里
+            saveLook();
+            applyLook();
+        };
+        reader.readAsDataURL(f);
+    });
+}
+
+
+function toReactionsYaml() {
+    var ids = zones.map(function (z) { return z.id; });
+    var s = 'zoneReactions:\n';
+    Object.keys(reactions).filter(function (id) { return ids.indexOf(id) >= 0; }).forEach(function (id) {
+        var r = reactions[id] || {};
+        s += '  ' + id + ':\n';
+        if (r.act) s += '    act: ' + r.act + '\n';
+        if (r.say && r.say.length) s += '    say: [' + r.say.map(function (x) {
+            if (typeof x === 'string') return x;
+            return '{ t: ' + x.t + ', w: ' + (x.w || 1) + ' }';
+        }).join(', ') + ']\n';
+    });
+    return s;
+}
+
+function fullYaml() { return toYaml() + '\n' + toReactionsYaml(); }
+
+function renderOut() { document.getElementById('out').textContent = fullYaml(); }
+
+function copyOut() {
+    navigator.clipboard.writeText(fullYaml())
+        .then(() => { document.getElementById('status').textContent = 'YAML 已复制'; })
+        .catch(() => { document.getElementById('status').textContent = '复制失败，请手动选中'; });
+}
+
+async function saveZones() {
+    const status = document.getElementById('status');
+    status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
+    try {
+        const res = await fetch('/api/patch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patch: { zones: zones, zoneReactions: reactions } })
+        });
+        const data = await res.json();
+        if (data.ok) { try { localStorage.setItem('pet-config-ts', String(Date.now())); } catch (e) {} }
+        status.textContent = data.ok ? (window.PetI18n ? PetI18n.s('msg.saved') : '已保存') : ((window.PetI18n ? PetI18n.s('msg.failed') : '失败：') + (data.error || data.stderr || '').slice(0, 100));
+    } catch (e) {
+        status.textContent = window.PetI18n ? PetI18n.s('msg.needServer') : '需要本地服务器';
+    }
+}
+
+function download() {
+    const blob = new Blob([fullYaml()], { type: 'text/yaml;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'zones.yaml';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    document.getElementById('status').textContent = '已下载 zones.yaml';
+}
+
+document.getElementById('file').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const text = reader.result;
+            let parsed;
+            if (window.jsyaml) parsed = window.jsyaml.load(text);
+            else parsed = JSON.parse(text);
+            if (parsed && parsed.zones) zones = parsed.zones;
+            else if (Array.isArray(parsed)) zones = parsed;
+            selected = 0;
+            draw();
+            pushHistory();
+            document.getElementById('status').textContent = '已导入 ' + zones.length + ' 个分区';
+        } catch (err) {
+            document.getElementById('status').textContent = '解析失败：' + err.message;
+        }
+    };
+    reader.readAsText(f);
+});
+
+zones.forEach(norm);
+loadLook();
+bindLook();
+loadActs();
+draw();
+pushHistory();
+</script>
+<script src="vendor/js-yaml.min.js"></script>
+<script src="assets/i18n.js"></script>
+</body>
+</html>

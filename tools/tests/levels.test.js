@@ -1,0 +1,14 @@
+﻿import { PetKernel as K } from "../../js/pet/core.js";
+let pass = 0, fail = 0;
+const ok = (c, n) => { c ? (pass++, console.log("  ok", n)) : (fail++, console.log("  FAIL", n)); };
+ok(K.level("hold") === 4, "具名级别解析为数值");
+ok(K.level("scheduled") === 2, "默认级别");
+ok(K.level(2.5) === 2.5, "任意数值可用（细粒度）");
+ok(K.level("nope") === 2, "未知名字回落默认");
+ok(K.defineLevel("cinematic", 5) === true && K.level("cinematic") === 5, "可注册新级别");
+ok(K.action({ act: "a", level: 2.5, duration: 5000 }), "数值级别可占位");
+ok(!K.action({ act: "b", level: 2, duration: 1000 }), "低于当前级别被拒");
+ok(K.action({ act: "c", level: 5, duration: 1000 }), "更高数值可抢占");
+ok(K.busy().act === "c", "busy 反映最新占用");
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

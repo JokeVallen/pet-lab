@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>宠物配置</title>
+<style>
+    :root {
+        color-scheme: light;
+        --line: #e3e9f3;
+        --ink: #1f2a37;
+        --muted: #7b8798;
+        --brand: #2f6fed;
+        --bg: #f6f8fc;
+    }
+    * { box-sizing: border-box; }
+    .help-panel kbd { font:11px/1.4 ui-monospace,Consolas,monospace; background:#eef3fc; border:1px solid #d7e2f4; border-bottom-width:2px; border-radius:4px; padding:1px 5px; color:#2a4f9b; white-space:nowrap; }
+    .help-panel code { background:#eef3fc; padding:1px 5px; border-radius:4px; font-size:12px; }
+
+    body {
+        margin: 0; background: var(--bg); color: var(--ink);
+        font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+    header {
+        position: sticky; top: 0; z-index: 20; background: #fff;
+        border-bottom: 1px solid var(--line); padding: 10px 22px;
+        display: flex; align-items: center; gap: 10px;
+    }
+    header h1 { font-size: 15px; margin: 0; }
+    header .status { flex: 1; font-size: 12.5px; color: var(--muted); }
+    button {
+        font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer;
+        border: 1px solid var(--line); background: #f7f9fd; border-radius: 8px; color: var(--ink);
+    }
+    button:hover { background: #eef3fc; }
+    button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+    button.ghost { background: transparent; }
+
+    main { display: grid; grid-template-columns: minmax(360px, 1fr) 420px; gap: 22px; padding: 22px; align-items: start; }
+    @media (max-width: 1080px) { main { grid-template-columns: 1fr; } }
+
+    .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+    .card > header { all: unset; display: block; margin-bottom: 10px; }
+    .card h2 { font-size: 14px; margin: 0 0 2px; }
+    .card .desc { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
+
+    .field { display: grid; grid-template-columns: 168px 1fr; gap: 14px; align-items: center; padding: 7px 0; border-top: 1px dashed transparent; }
+    .field + .field { border-top-color: #f0f3f9; }
+    .field .name { font-size: 13px; }
+    .field .name small { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.45; margin-top: 2px; }
+    /* 控件只有这一套样式：文本框、数字框、多行文本、下拉都走同一组值 */
+    input[type=text], input[type=number], textarea, select {
+        width: 100%; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px;
+        font: inherit; font-size: 13px; background: #fff; color: inherit; max-width: 100%;
+    }
+    input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus {
+        outline: 2px solid rgba(47, 111, 237, .25); border-color: var(--brand);
+    }
+    .inline { display: flex; align-items: center; gap: 10px; }
+    .inline select { width: auto; min-width: 150px; flex: 0 0 auto; }
+    .inline input[type=range] { flex: 1; accent-color: var(--brand); }
+    .val { min-width: 62px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); }
+
+    .switch { position: relative; display: inline-block; vertical-align: middle; flex: none; width: 40px; height: 22px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch span {
+        position: absolute; inset: 0; background: #d7deea; border-radius: 999px; transition: .15s; cursor: pointer;
+    }
+    .switch span::after {
+        content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px;
+        background: #fff; border-radius: 50%; transition: .15s;
+    }
+    .switch input:checked + span { background: var(--brand); }
+    .switch input:checked + span::after { transform: translateX(18px); }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; min-height: 38px; background: #fbfcfe; }
+    .chip {
+        display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;
+        background: #eaf1ff; color: #2a4f9b; border-radius: 999px; padding: 2px 8px;
+    }
+    .srow { border-top:1px solid #eef2f8; padding:9px 2px; }
+    .srow:first-child { border-top:0; }
+    .srow-head { display:flex; align-items:center; gap:12px; justify-content:space-between; }
+    .srow-main { display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0; }
+    .srow-main b { font-size:13px; }
+    .srow-meta { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .srow-preview { font:11.5px/1.5 Consolas,monospace; color:#5f6b7d; background:#f5f8fd; border-radius:6px; padding:1px 7px; }
+    .srow-bad { font-size:11px; color:#b22a2a; background:#fdeeee; border-radius:6px; padding:1px 7px; }
+    .srow-btns { display:flex; gap:6px; flex-shrink:0; }
+    .srow-btns button { font-size:12px; padding:4px 10px; }
+    .srow.open { background:#fbfdff; }
+    .srow.open .srow-head { margin-bottom:10px; }
+    .ctrl-col { display:flex; flex-direction:column; gap:10px; }
+    .ctrl-col > .chips.pick { margin:0; }
+    .ctrl-col > .inline { gap:8px; }
+    .field:has(.ctrl-col) { align-items:start; padding-top:10px; padding-bottom:12px; }
+    .chips.pick { padding:0; border:0; }
+    .chips.pick .chip { cursor:pointer; user-select:none; background:#f3f6fc; border:1px solid #e1e8f4; }
+    .chips.pick .chip.on { background:#e8f0ff; border-color:var(--brand); color:#1c4fa8; font-weight:600; }
+    .chips.pick .chip.bad { border-color:#e05a5a; background:#fdeeee; color:#a12121; }
+    .chip b { cursor: pointer; font-weight: 400; color: #6f86b5; }
+    .chip b:hover { color: #d43b3b; }
+    .chips input { border: 0; outline: 0; font: inherit; font-size: 12.5px; background: transparent; flex: 1; min-width: 90px; }
+
+    .rowcat { display: grid; grid-template-columns: 1fr 90px 2fr 28px; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .rowcat input { padding: 5px 8px; font-size: 12.5px; }
+    .rowcat .del { border: 0; background: transparent; color: #b9c2d0; cursor: pointer; font-size: 15px; }
+    .rowcat .del:hover { color: #d43b3b; }
+    .cathead { display: grid; grid-template-columns: 1fr 90px 2fr 28px; gap: 8px; font-size: 11.5px; color: var(--muted); margin-bottom: 6px; }
+
+    .panel { position: sticky; top: 66px; }
+    .panel pre {
+        margin: 0; padding: 14px; background: #1e2733; color: #d9e3f2; border-radius: 10px;
+        font: 12px/1.55 Consolas, monospace; overflow: auto; max-height: 62vh;
+    }
+    .panel .tip { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+    .banner {
+        display: none; margin: 0 0 14px; padding: 12px 14px; border-radius: 10px;
+        background: #fff8e8; border: 1px solid #f2ddb0; font-size: 12.5px;
+    }
+    .banner textarea { width: 100%; min-height: 90px; margin-top: 8px; font: 12px/1.5 Consolas, monospace; padding: 8px; border-radius: 8px; border: 1px solid #e6d3a8; }
+</style>
+</head>
+<body data-title-key="cfg.title" data-help-key="cfg">
+<header>
+    <h1 data-i18n="cfg.title">宠物配置</h1>
+    <span class="status" id="status" data-i18n="cfg.opening">正在读取配置…</span>
+    <label class="ghost" style="display:inline-flex;align-items:center;padding:6px 12px;border:1px solid var(--line);border-radius:8px;background:#f7f9fd;cursor:pointer;font-size:13px"><span data-i18n="cfg.openFile">打开 YAML</span><input type="file" id="file" accept=".yaml,.yml,.json" hidden></label><button class="ghost" onclick="reload()" data-i18n="cfg.reload">重新读取</button>
+    <button class="ghost" onclick="resetAll()" data-i18n="cfg.reset">恢复默认</button>
+    <button id="cfgUndoBtn" onclick="undo()" data-i18n="zone.undo" disabled>撤销</button>
+    <button id="cfgRedoBtn" onclick="redo()" data-i18n="zone.redo" disabled>重做</button>
+    <button onclick="copyYaml()" data-i18n="cfg.copy">复制 YAML</button>
+    <button onclick="downloadYaml()" data-i18n="cfg.download">下载 pet.yaml</button>
+    <button onclick="openHistory()" data-i18n="cfg.history">历史版本</button>
+    <button class="primary" onclick="saveAndBuild()" data-i18n="cfg.save">保存并编译</button>
+</header>
+
+<main>
+    <section>
+        <div class="banner" id="banner">
+            浏览器不让网页自动读取本地文件。点顶部「打开 YAML」选择 <code>config/pet.yaml</code>，
+            或把内容粘到下面。
+            <textarea id="pasteYaml" placeholder="粘贴 pet.yaml 全文…"></textarea>
+            <button onclick="parsePaste()" data-i18n="cfg.parsePaste">解析粘贴内容</button>
+        </div>
+        <div id="form"></div>
+    </section>
+
+    <aside class="panel">
+        <pre id="yaml"></pre>
+        <p class="tip" data-i18n="cfg.tip">右侧是实时导出结果，点「保存并编译」即可生效。</p>
+    </aside>
+</main>
+
+<script src="vendor/js-yaml.min.js"></script>
+<script>
+'use strict';
+
+let cfg = null;
+let base = null;   // 默认值，用于「恢复默认」
+
+/* ---------- 撤销 / 重做 ---------- */
+const history = { stack: [], index: -1, limit: 120 };
+let pushTimer = null;
+
+function snapshot() { return JSON.stringify(cfg); }
+
+function updateHistoryButtons() {
+    const u = document.getElementById('cfgUndoBtn');
+    const r = document.getElementById('cfgRedoBtn');
+    if (u) u.disabled = history.index <= 0;
+    if (r) r.disabled = history.index >= history.stack.length - 1;
+}
+
+function pushHistory() {
+    if (!cfg) return;
+    const snap = snapshot();
+    if (history.stack[history.index] === snap) return;
+    history.stack = history.stack.slice(0, history.index + 1);
+    history.stack.push(snap);
+    if (history.stack.length > history.limit) history.stack.shift();
+    history.index = history.stack.length - 1;
+    updateHistoryButtons();
+}
+
+function resetHistory() {
+    clearTimeout(pushTimer);
+    if (!cfg) return;
+    history.stack = [snapshot()];
+    history.index = 0;
+    updateHistoryButtons();
+}
+
+function schedulePush() {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushHistory, 450);
+}
+
+function restore(snap) {
+    cfg = JSON.parse(snap);
+    render();
+    updateHistoryButtons();
+}
+
+function undo() {
+    clearTimeout(pushTimer);
+    pushHistory();
+    if (history.index <= 0) return;
+    history.index -= 1;
+    restore(history.stack[history.index]);
+}
+
+function redo() {
+    clearTimeout(pushTimer);
+    if (history.index >= history.stack.length - 1) return;
+    history.index += 1;
+    restore(history.stack[history.index]);
+}
+
+/* 在输入框里打字时交给浏览器原生撤销 */
+function isTyping(target) {
+    if (!target) return false;
+    const tag = (target.tagName || '').toUpperCase();
+    if (tag === 'TEXTAREA') return true;
+    if (tag === 'INPUT') {
+        const type = (target.type || 'text').toLowerCase();
+        return ['text', 'number', 'range', 'color'].indexOf(type) >= 0;
+    }
+    return false;
+}
+
+document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const key = e.key.toLowerCase();
+    const isUndo = key === 'z' && !e.shiftKey;
+    const isRedo = (key === 'z' && e.shiftKey) || key === 'y';
+    if (!isUndo && !isRedo) return;
+    if (isTyping(e.target)) return;
+    e.preventDefault();
+    if (isUndo) undo(); else redo();
+});
+
+/* ---------------- 字段定义：中文标签 + 说明 + 控件类型 ---------------- */
+
+const SCHEMA = [
+    {
+        title: '身份',
+        desc: '它在对话里怎么称呼自己，以及状态存在哪个键下面。',
+        fields: [
+            { path: ['name'], label: '名字', hint: '气泡和对话里的自称', type: 'text' },
+            { path: ['storageKey'], label: '存储键', hint: '换掉会让访客记录、位置、聊天全部重置', type: 'text' }
+        ]
+    },
+    {
+        title: '外观',
+        desc: '素材位置与投影。角色看起来偏左或偏右，调「水平偏移」。',
+        fields: [
+            { path: ['animDir'], label: '动画目录', hint: '透明 WebM 放这里', type: 'path', asset: 'dirs' },
+            { path: ['image'], label: '占位图', hint: '首帧或无法播放时的静帧', type: 'path', asset: 'images' },
+            { path: ['shadow', 'offsetX'], label: '水平偏移', hint: '正数向右；偏左就调大', type: 'range', min: -20, max: 20, step: 1, unit: 'px' },
+            { path: ['shadow', 'offsetY'], label: '垂直偏移', hint: '越大越"飘在上面"', type: 'range', min: 0, max: 40, step: 1, unit: 'px' },
+            { path: ['shadow', 'blur'], label: '模糊半径', hint: '越大越柔和', type: 'range', min: 0, max: 40, step: 1, unit: 'px' },
+            { path: ['shadow', 'color'], label: '颜色', hint: '带透明度的颜色值', type: 'color' }
+        ]
+    },
+    {
+        title: '节奏',
+        desc: '她多久换一次待机小动作，以及多久没人理就睡着。',
+        fields: [
+            { path: ['idleRollMs', 0], label: '换动作间隔（最短）', hint: '单位毫秒；9000 = 9 秒', type: 'number', min: 1000, max: 120000, step: 500, unit: 'ms' },
+            { path: ['idleRollMs', 1], label: '换动作间隔（最长）', hint: '实际间隔在上限与下限之间随机', type: 'number', min: 1000, max: 300000, step: 500, unit: 'ms' },
+            { path: ['idleSleepMs'], label: '多久后睡着', hint: '无操作累计到这个时间', type: 'number', min: 10000, max: 1800000, step: 5000, unit: 'ms' }
+        ]
+    },
+    {
+        title: '交互',
+        desc: '点击与拖拽怎么区分，点一下飘出几个粒子。',
+        fields: [
+            { path: ['drag', 'enabled'], label: '允许拖拽', hint: '关掉之后只能点', type: 'toggle' },
+            { path: ['drag', 'thresholdPx'], label: '拖拽判定距离', hint: '位移超过这个值才算拖，否则算点', type: 'range', min: 2, max: 20, step: 1, unit: 'px' },
+            { path: ['click', 'particleCount'], label: '点击粒子数', hint: '点一次飘出的爱心/水滴数量', type: 'range', min: 0, max: 10, step: 1, unit: '个' }
+        ]
+    },
+    {
+        title: '语言',
+        desc: '说话的节奏：同一句多久内不重复、气泡停留多久、对话保留几条。',
+        fields: [
+            { path: ['speech', 'bubbleTtl'], label: '气泡停留', hint: '情境台词会覆盖这个值', type: 'number', min: 800, max: 20000, step: 200, unit: 'ms' },
+            { path: ['speech', 'contextTtl'], label: '情境台词停留', hint: '读到底、换页这类主动说话', type: 'number', min: 800, max: 20000, step: 200, unit: 'ms' },
+            { path: ['speech', 'dedupeMs'], label: '防重复窗口', hint: '这段时间内同一句不重复说', type: 'number', min: 0, max: 120000, step: 500, unit: 'ms' },
+            { path: ['speech', 'maxQueue'], label: '待说队列上限', hint: '说不过来时最多积压几句', type: 'range', min: 1, max: 20, step: 1, unit: '句' },
+            { path: ['chat', 'maxMessages'], label: '对话保留条数', hint: '超出后丢弃最早的', type: 'range', min: 4, max: 50, step: 1, unit: '条' }
+        ]
+    },
+    {
+        title: '情境规则',
+        desc: '每条规则触发一次后，需要等多久才可能再次触发。',
+        fields: [
+            { path: ['rules', 'defaultCooldown'], label: '默认冷却', hint: '越小越活泼，越大越安静', type: 'range', min: 0, max: 300, step: 5, unit: '秒' }
+        ]
+    },
+    {
+        title: '站内检索',
+        desc: '对话里问「有没有讲 X 的」时，去哪找索引。',
+        fields: [
+            { path: ['search', 'url'], label: '索引地址', hint: '构建期生成的 JSON', type: 'path', asset: 'json' },
+            { path: ['search', 'preloadDelayMs'], label: '预取延迟', hint: '首屏多久后静默加载索引', type: 'number', min: 0, max: 60000, step: 500, unit: 'ms' },
+            { path: ['search', 'maxResults'], label: '最多返回几条', hint: '问答里列出的结果数量', type: 'range', min: 1, max: 10, step: 1, unit: '条' }
+        ]
+    },
+
+];
+
+/* ---------------- 路径读写 ---------------- */
+
+const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
+
+/* 磁盘上真实存在的素材：能选就不让人手打 */
+const ASSETS = { clips: [], images: [], json: [], dirs: [] };
+let assetsReady = false;
+
+async function loadAssets() {
+    const grab = async (kind) => {
+        try {
+            const r = await fetch('/api/assets?kind=' + kind, { cache: 'no-store' });
+            const j = await r.json();
+            return j && j.ok ? j.items : [];
+        } catch (e) { return []; }
+    };
+    const [clips, images, json] = await Promise.all([grab('clips'), grab('images'), grab('json')]);
+    ASSETS.clips = clips;
+    ASSETS.images = images;
+    ASSETS.json = json.filter((x) => !/\/package\.json$/.test(x.path));
+    const dirs = {};
+    clips.forEach((c) => { dirs[c.path.replace(/[^/]+$/, '')] = true; });
+    ASSETS.dirs = Object.keys(dirs).sort();
+    assetsReady = clips.length > 0;
+}
+
+const clipNames = () => ASSETS.clips.map((c) => c.name);
+
+const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+
+function getPath(obj, path) {
+    let o = obj;
+    for (const k of path) { if (o == null) return undefined; o = o[k]; }
+    return o;
+}
+
+function setPath(obj, path, value) {
+    let o = obj;
+    for (let i = 0; i < path.length - 1; i++) {
+        if (o[path[i]] == null || typeof o[path[i]] !== 'object') o[path[i]] = {};
+        o = o[path[i]];
+    }
+    o[path[path.length - 1]] = value;
+}
+
+/* ---------------- 控件 ---------------- */
+
+function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+}
+
+function fieldRow(spec) {
+    const wrap = el('div', 'field');
+    const name = el('div', 'name', T(spec.label));
+    if (spec.hint) name.appendChild(el('small', null, T(spec.hint)));
+    wrap.appendChild(name);
+
+    const value = getPath(cfg, spec.path);
+    const ctrl = el('div');
+
+    const commit = (v) => {
+        setPath(cfg, spec.path, v);
+        updateYaml();
+        schedulePush();
+    };
+
+    if (spec.type === 'toggle') {
+        const sw = el('label', 'switch');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = !!value;
+        input.addEventListener('change', () => commit(input.checked));
+        sw.append(input, el('span'));
+        ctrl.appendChild(sw);
+    } else if (spec.type === 'range') {
+        const box = el('div', 'inline');
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.min = spec.min; input.max = spec.max; input.step = spec.step || 1;
+        input.value = value;
+        const out = el('span', 'val', value + (spec.unit ? ' ' + T(spec.unit) : ''));
+        input.addEventListener('input', () => {
+            const v = Number(input.value);
+            out.textContent = v + (spec.unit ? ' ' + T(spec.unit) : '');
+            commit(v);
+        });
+        box.append(input, out);
+        ctrl.appendChild(box);
+    } else if (spec.type === 'color') {
+        // 只给色板和透明度，避免手打 rgba 出错
+        const box = el('div', 'inline');
+        const cur = parseColor(value);
+        const swatch = document.createElement('input');
+        swatch.type = 'color';
+        swatch.value = cur.hex;
+        const alpha = document.createElement('input');
+        alpha.type = 'range';
+        alpha.min = 0; alpha.max = 100; alpha.step = 1;
+        alpha.value = Math.round(cur.a * 100);
+        const out = el('span', 'val', Math.round(cur.a * 100) + '%');
+        const push = () => {
+            const a = Number(alpha.value) / 100;
+            out.textContent = Math.round(a * 100) + '%';
+            commit(rgbaStr(swatch.value, a));
+        };
+        swatch.addEventListener('input', push);
+        alpha.addEventListener('input', push);
+        box.append(swatch, alpha, out);
+        ctrl.appendChild(box);
+    } else if (spec.type === 'path') {
+        // 从磁盘清单里挑，选不到才允许手填
+        const kind = spec.asset;          // dirs | images | json
+        const pool = kind === 'dirs' ? ASSETS.dirs
+            : kind === 'images' ? ASSETS.images.map((x) => x.path)
+            : ASSETS.json.map((x) => x.path);
+        const box = el('div', 'inline');
+        const sel = document.createElement('select');
+        const custom = document.createElement('input');
+        custom.type = 'text';
+        custom.placeholder = T('自定义路径');
+        custom.style.display = 'none';
+
+        const fill = (keep) => {
+            sel.innerHTML = '';
+            const opts = pool.slice();
+            if (keep && opts.indexOf(keep) < 0) opts.unshift(keep);
+            if (!keep && opts.length) {
+                // 没设过值时才放一个不可选的占位，避免下拉里多一个点不出东西的项
+                const ph = new Option(T('（未设置）'), '');
+                ph.disabled = true;
+                ph.selected = true;
+                sel.appendChild(ph);
+            }
+            opts.forEach((v) => sel.appendChild(new Option(v, v)));
+            if (keep) sel.value = keep;
+        };
+        fill(value);
+
+        sel.addEventListener('change', () => {
+            if (sel.value === '__custom') { custom.style.display = ''; custom.focus(); return; }
+            if (!sel.value) return;               // 占位项不会触发，这里只是兜底
+            custom.style.display = 'none';
+            custom.value = '';
+            commit(sel.value);
+        });
+        custom.addEventListener('input', () => commit(custom.value));
+
+        const manual = new Option(T('手动输入…'), '__custom');
+        sel.appendChild(manual);
+        box.append(sel, custom);
+        ctrl.appendChild(box);
+    } else if (spec.type === 'number') {
+        const box = el('div', 'inline');
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.value = value;
+        if (spec.min != null) input.min = spec.min;
+        if (spec.max != null) input.max = spec.max;
+        input.step = spec.step || 1;
+        const unit = el('span', 'val', spec.unit ? T(spec.unit) : '');
+        input.addEventListener('input', () => {
+            let v = Number(input.value);
+            if (Number.isNaN(v)) return;
+            if (spec.min != null && v < spec.min) v = spec.min;
+            if (spec.max != null && v > spec.max) v = spec.max;
+            commit(v);
+        });
+        box.append(input, unit);
+        ctrl.appendChild(box);
+    } else {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = value == null ? '' : value;
+        input.addEventListener('input', () => commit(input.value));
+        ctrl.appendChild(input);
+    }
+
+    wrap.appendChild(ctrl);
+    return wrap;
+}
+
+/* ---------------- 颜色工具 ---------------- */
+
+function parseColor(v) {
+    const s = String(v || '').trim();
+    let m = s.match(/^#([0-9a-f]{6})$/i);
+    if (m) {
+        return {
+            hex: '#' + m[1].toLowerCase(),
+            a: 1
+        };
+    }
+    m = s.match(/rgba?\(([^)]+)\)/i);
+    if (m) {
+        const p = m[1].split(',').map((x) => parseFloat(x));
+        const h = (n) => Math.max(0, Math.min(255, Math.round(n || 0))).toString(16).padStart(2, '0');
+        return {
+            hex: '#' + h(p[0]) + h(p[1]) + h(p[2]),
+            a: p.length > 3 && !Number.isNaN(p[3]) ? Math.max(0, Math.min(1, p[3])) : 1
+        };
+    }
+    return { hex: '#214890', a: 0.16 };
+}
+
+function rgbaStr(hex, a) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + (Math.round(a * 100) / 100) + ')';
+}
+
+function hexToRgb(hex) { return rgbaStr(hex, 0.16); }
+
+/* ---------------- 状态（idle / sleepy / busy …） ---------------- */
+
+
+
+/* ---------------- 动作库（折叠行 + 按需展开） ---------------- */
+
+let animEditing = null;
+
+function animEditor() {
+    const card = el('div', 'card');
+    card.appendChild(el('h2', null, T('动作库')));
+    card.appendChild(el('p', 'desc', T('待机时从哪些动画里抽。改这里等于改她的性格。')));
+
+    const body = el('div');
+    card.appendChild(body);
+
+    const ROWS = [
+        { path: ['animations', 'idle'], label: '常驻待机', hint: '一直循环的动画', type: 'clips' },
+        { path: ['animations', 'clicks'], label: '点击回应', hint: '被点时的候选', type: 'clips' },
+        { path: ['animations', 'drag'], label: '拖拽动画', hint: '抓起时播的那一个', type: 'clip' },
+        { path: ['animations', 'events', 'sleep'], label: '睡着时', hint: '进入休眠播一次', type: 'clip' },
+        { path: ['animations', 'events', 'eat'], label: '喂食时', hint: '点喂食按钮播一次', type: 'clip' }
+    ];
+
+    const commit = (path, v) => {
+        setPath(cfg, path, v);
+        updateYaml();
+        schedulePush();
+    };
+
+    const redraw = () => {
+        body.innerHTML = '';
+        ROWS.forEach((row, idx) => {
+            const value = getPath(cfg, row.path);
+            const open = animEditing === idx;
+
+            const wrap = el('div', 'srow' + (open ? ' open' : ''));
+            const head = el('div', 'srow-head');
+            const main = el('div', 'srow-main');
+            main.appendChild(el('b', null, T(row.label)));
+
+            const meta = el('span', 'srow-meta');
+            const paintMeta = () => {
+                const v = getPath(cfg, row.path);
+                if (row.type === 'clips') {
+                    const list = Array.isArray(v) ? v : [];
+                    meta.textContent = list.length + ' ' + T('个动画');
+                } else {
+                    meta.textContent = v || T('（不播动画）');
+                }
+            };
+            paintMeta();
+            main.appendChild(meta);
+
+            if (!open) {
+                const v = getPath(cfg, row.path);
+                const list = Array.isArray(v) ? v : [];
+                if (row.type === 'clips' && list.length) {
+                    const pv = el('span', 'srow-preview');
+                    pv.textContent = list.slice(0, 5).join(' · ') + (list.length > 5 ? ' +' + (list.length - 5) : '');
+                    main.appendChild(pv);
+                }
+            }
+
+            const btns = el('div', 'srow-btns');
+            const edit = el('button', null, open ? T('收起') : T('编辑'));
+            edit.addEventListener('click', () => {
+                animEditing = open ? null : idx;
+                redraw();
+            });
+            btns.appendChild(edit);
+            head.append(main, btns);
+            wrap.appendChild(head);
+
+            if (open) {
+                const ctrl = el('div', 'ctrl-col');
+                const known = clipNames();
+
+                if (row.type === 'clips') {
+                    const list = Array.isArray(value) ? value.slice() : [];
+                    const chips = el('div', 'chips pick');
+                    const names = known.slice();
+                    list.forEach((n) => { if (names.indexOf(n) < 0) names.push(n); });
+                    const paint = () => {
+                        chips.innerHTML = '';
+                        names.forEach((n) => {
+                            const on = list.indexOf(n) >= 0;
+                            const missing = known.indexOf(n) < 0;
+                            const chip = el('span', 'chip' + (on ? ' on' : '') + (missing ? ' bad' : ''), n);
+                            if (missing) chip.title = T('配置里有，但磁盘上找不到这个动画');
+                            chip.addEventListener('click', () => {
+                                const k = list.indexOf(n);
+                                if (k >= 0) list.splice(k, 1); else list.push(n);
+                                commit(row.path, list.slice());
+                                paintMeta();
+                                paint();
+                            });
+                            chips.appendChild(chip);
+                        });
+                    };
+                    paint();
+
+                    const tools = el('div', 'inline');
+                    const all = el('button', null, T('全选'));
+                    all.addEventListener('click', () => {
+                        list.length = 0;
+                        known.forEach((n) => list.push(n));
+                        commit(row.path, list.slice());
+                        paintMeta();
+                        paint();
+                    });
+                    const none = el('button', null, T('清空'));
+                    none.addEventListener('click', () => {
+                        list.length = 0;
+                        commit(row.path, []);
+                        paintMeta();
+                        paint();
+                    });
+                    tools.append(all, none);
+                    ctrl.append(chips, tools);
+                } else {
+                    const sel = document.createElement('select');
+                    sel.appendChild(new Option(T('（不播动画）'), ''));
+                    const names = known.slice();
+                    if (value && names.indexOf(value) < 0) names.unshift(value);
+                    names.forEach((n) => sel.appendChild(new Option(n, n)));
+                    sel.value = value || '';
+                    sel.addEventListener('change', () => {
+                        commit(row.path, sel.value);
+                        paintMeta();
+                    });
+                    ctrl.appendChild(sel);
+                }
+                wrap.appendChild(ctrl);
+            }
+
+            body.appendChild(wrap);
+        });
+    };
+
+    redraw();
+    return card;
+}
+
+/* 折叠时只画一行摘要；展开的那一个才建控件，避免每个状态都铺 32 个芯片 */
+let stateEditing = null;
+
+function statesEditor() {
+    const card = el('div', 'card');
+    card.appendChild(el('h2', null, T('状态')));
+    card.appendChild(el('p', 'desc', T('每种状态播哪个动画、待机池里有哪些、被随机选中的概率有多大。')));
+
+    const body = el('div');
+    const footer = el('div');
+    card.append(body, footer);
+
+    const redraw = () => {
+        body.innerHTML = '';
+        const states = cfg.states && typeof cfg.states === 'object' ? cfg.states : null;
+        if (!states) {
+            body.appendChild(el('p', 'desc', T('配置里还没有 states。')));
+            return;
+        }
+        if (stateEditing && !states[stateEditing]) stateEditing = null;
+
+        Object.keys(states).forEach((name) => {
+            const st = states[name] && typeof states[name] === 'object' ? states[name] : {};
+            states[name] = st;
+            const open = stateEditing === name;
+            const pool = Array.isArray(st.pool) ? st.pool : [];
+            const weight = Number.isFinite(Number(st.weight)) ? Number(st.weight) : 0;
+
+            const row = el('div', 'srow' + (open ? ' open' : ''));
+            const head = el('div', 'srow-head');
+
+            const main = el('div', 'srow-main');
+            main.appendChild(el('b', null, name));
+
+            const meta = el('span', 'srow-meta');
+            meta.textContent = 'clip ' + (st.clip || T('（不指定）')) +
+                ' · ' + T('池') + ' ' + pool.length +
+                ' · ' + T('权重') + ' ' + weight;
+            main.appendChild(meta);
+
+            if (!st.clip || !pool.length) {
+                const bad = el('span', 'srow-bad', T('不完整'));
+                bad.title = (!st.clip ? T('缺 clip') : '') + (!st.clip && !pool.length ? ' · ' : '') + (!pool.length ? T('池是空的') : '');
+                main.appendChild(bad);
+            }
+
+            if (!open && pool.length) {
+                const preview = el('span', 'srow-preview');
+                preview.textContent = pool.slice(0, 5).join(' · ') + (pool.length > 5 ? ' +' + (pool.length - 5) : '');
+                main.appendChild(preview);
+            }
+
+            const btns = el('div', 'srow-btns');
+            const edit = el('button', null, open ? T('收起') : T('编辑'));
+            edit.addEventListener('click', () => {
+                stateEditing = open ? null : name;
+                redraw();
+            });
+            btns.appendChild(edit);
+
+            const del = el('button', null, T('删除状态'));
+            del.addEventListener('click', () => {
+                delete cfg.states[name];
+                if (stateEditing === name) stateEditing = null;
+                // 规则里引用到这个状态的也一并清掉，免得留下死引用
+                if (cfg.policy && Array.isArray(cfg.policy.stateRules)) {
+                    cfg.policy.stateRules = cfg.policy.stateRules.filter((r) => r && r.state !== name);
+                }
+                redraw();
+                updateYaml();
+                pushHistory();
+            });
+            btns.appendChild(del);
+
+            head.append(main, btns);
+            row.appendChild(head);
+
+            if (open) {
+                const ctrl = el('div', 'ctrl-col');
+
+                const clip = document.createElement('select');
+                clip.appendChild(new Option(T('（不指定）'), ''));
+                const names = clipNames();
+                if (st.clip && names.indexOf(st.clip) < 0) names.unshift(st.clip);
+                names.forEach((n) => clip.appendChild(new Option(n, n)));
+                clip.value = st.clip || '';
+
+                // 权重只在这里改：滑杆 0–100，旁边显示原始值和占比
+                const weightTotal = () => Object.keys(cfg.states || {}).reduce((a, id) => {
+                    const w = Number((cfg.states[id] || {}).weight);
+                    return a + (Number.isFinite(w) && w > 0 ? w : 0);
+                }, 0);
+
+                const weightBox = document.createElement('input');
+                weightBox.type = 'range';
+                weightBox.min = 0;
+                weightBox.max = 100;
+                weightBox.step = 1;
+                weightBox.style.width = '120px';
+                weightBox.title = T('随机权重');
+                weightBox.value = Math.max(0, Math.min(100, weight));
+
+                const weightOut = el('span', 'val');
+                const paintWeight = () => {
+                    const v = Number(st.weight) || 0;
+                    const total = weightTotal();
+                    const pct = total ? Math.round(v / total * 100) : 0;
+                    weightOut.textContent = total ? v + ' · ' + pct + '%' : String(v);
+                };
+                paintWeight();
+
+                weightBox.addEventListener('input', () => {
+                    const v = Number(weightBox.value);
+                    if (Number.isNaN(v) || v < 0) return;
+                    st.weight = v;
+                    meta.textContent = 'clip ' + (st.clip || T('（不指定）')) +
+                        ' · ' + T('池') + ' ' + (Array.isArray(st.pool) ? st.pool.length : 0) +
+                        ' · ' + T('权重') + ' ' + v;
+                    paintWeight();
+                    updateYaml();
+                    schedulePush();
+                });
+
+                const inline = el('div', 'inline');
+                inline.append(clip, el('span', 'val', T('权重')), weightBox, weightOut);
+
+                const chips = el('div', 'chips pick');
+                const known = clipNames();
+                const poolNames = known.slice();
+                pool.forEach((n) => { if (poolNames.indexOf(n) < 0) poolNames.push(n); });
+                const paint = () => {
+                    chips.innerHTML = '';
+                    const cur = Array.isArray(st.pool) ? st.pool : [];
+                    poolNames.forEach((n) => {
+                        const on = cur.indexOf(n) >= 0;
+                        const missing = known.indexOf(n) < 0;
+                        const chip = el('span', 'chip' + (on ? ' on' : '') + (missing ? ' bad' : ''), n);
+                        if (missing) chip.title = T('配置里有，但磁盘上找不到这个动画');
+                        chip.addEventListener('click', () => {
+                            const list = Array.isArray(st.pool) ? st.pool.slice() : [];
+                            const k = list.indexOf(n);
+                            if (k >= 0) list.splice(k, 1); else list.push(n);
+                            st.pool = list;
+                            meta.textContent = 'clip ' + (st.clip || T('（不指定）')) +
+                                ' · ' + T('池') + ' ' + list.length +
+                                ' · ' + T('权重') + ' ' + (Number.isFinite(Number(st.weight)) ? Number(st.weight) : 0);
+                            updateYaml();
+                            schedulePush();
+                            paint();
+                        });
+                        chips.appendChild(chip);
+                    });
+                };
+                paint();
+
+                clip.addEventListener('change', () => {
+                    st.clip = clip.value || undefined;
+                    if (!clip.value) delete st.clip;
+                    meta.textContent = 'clip ' + (st.clip || T('（不指定）')) +
+                        ' · ' + T('池') + ' ' + (Array.isArray(st.pool) ? st.pool.length : 0) +
+                        ' · ' + T('权重') + ' ' + (Number.isFinite(Number(st.weight)) ? Number(st.weight) : 0);
+                    updateYaml();
+                    schedulePush();
+                });
+
+                ctrl.append(inline, chips);
+                row.appendChild(ctrl);
+            }
+
+            body.appendChild(row);
+        });
+    };
+
+    footer.innerHTML = '';
+    const add = el('button', null, T('＋ 添加状态'));
+    add.addEventListener('click', () => {
+        if (!cfg.states || typeof cfg.states !== 'object') cfg.states = {};
+        let n = 1, id;
+        do { id = 'state' + n; n += 1; } while (cfg.states[id]);
+        cfg.states[id] = { clip: '', pool: [], weight: 10 };
+        stateEditing = id;          // 新建的直接展开，省一次点击
+        redraw();
+        updateYaml();
+        pushHistory();
+    });
+    footer.appendChild(add);
+
+    redraw();
+    return card;
+}
+
+/* ---------------- 渲染 ---------------- */
+
+function render() {
+    const form = document.getElementById('form');
+    form.innerHTML = '';
+
+    SCHEMA.forEach((sec) => {
+        const card = el('div', 'card');
+        card.appendChild(el('h2', null, T(sec.title)));
+        if (sec.desc) card.appendChild(el('p', 'desc', T(sec.desc)));
+        sec.fields.forEach((spec) => card.appendChild(fieldRow(spec)));
+        form.appendChild(card);
+    });
+
+    form.appendChild(animEditor());
+    form.appendChild(statesEditor());
+
+    updateYaml();
+}
+
+function updateYaml() {
+    const out = document.getElementById('yaml');
+    try {
+        out.textContent = window.jsyaml
+            ? window.jsyaml.dump(cfg, { lineWidth: 100, noRefs: true })
+            : JSON.stringify(cfg, null, 2);
+    } catch (e) {
+        out.textContent = '导出失败：' + e.message;
+    }
+}
+
+/* ---------------- 数据 ---------------- */
+
+function deepMerge(dst, src) {
+    Object.keys(src).forEach((k) => {
+        const v = src[k];
+        if (isObj(v) && isObj(dst[k])) deepMerge(dst[k], v);
+        else if (Array.isArray(v)) dst[k] = JSON.parse(JSON.stringify(v));
+        else if (isObj(v)) dst[k] = deepMerge({}, v);
+        else dst[k] = v;
+    });
+    return dst;
+}
+
+function loadFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const text = String(reader.result);
+            cfg = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+            base = JSON.parse(JSON.stringify(cfg));
+            document.getElementById('banner').style.display = 'none';
+            render();
+            var __st2 = document.getElementById('status');
+            __st2.dataset.key = 'msg.loaded';
+            __st2.dataset.suffix = ' ' + file.name;
+            __st2.textContent = (window.PetI18n ? PetI18n.s('msg.loaded') : '已读取') + ' ' + file.name;
+        } catch (e) {
+            alert('解析失败：' + e.message);
+        }
+    };
+    reader.readAsText(file, 'utf-8');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('file');
+    if (input) input.addEventListener('change', function () {
+        if (input.files && input.files[0]) loadFromFile(input.files[0]);
+    });
+});
+
+async function reload() {
+    const status = document.getElementById('status');
+    status.textContent = '正在读取…';
+    try {
+        const res = await fetch('config/pet.yaml?ts=' + Date.now());
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const text = new TextDecoder('utf-8').decode(await res.arrayBuffer());
+        cfg = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+        base = JSON.parse(JSON.stringify(cfg));
+        document.getElementById('banner').style.display = 'none';
+        render();
+        resetHistory();
+        var __st = document.getElementById('status');
+        __st.dataset.key = 'msg.loaded';
+        __st.dataset.suffix = ' config/pet.yaml';
+        __st.textContent = (window.PetI18n ? PetI18n.s('msg.loaded') : '已读取') + ' config/pet.yaml';
+    } catch (e) {
+        status.textContent = '读不到配置文件，请粘贴内容';
+        document.getElementById('banner').style.display = 'block';
+    }
+}
+
+function parsePaste() {
+    const text = document.getElementById('pasteYaml').value;
+    if (!text.trim()) return;
+    try {
+        cfg = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+        base = JSON.parse(JSON.stringify(cfg));
+        document.getElementById('banner').style.display = 'none';
+        render();
+        resetHistory();
+        document.getElementById('status').textContent = '已从粘贴内容读取';
+    } catch (e) {
+        alert('解析失败：' + e.message);
+    }
+}
+
+function resetAll() {
+    if (!base) return;
+    if (!confirm('把所有项恢复成刚读取时的值？')) return;
+    cfg = JSON.parse(JSON.stringify(base));
+    render();
+    pushHistory();
+    document.getElementById('status').textContent = '已恢复';
+}
+
+function copyYaml() {
+    const text = document.getElementById('yaml').textContent;
+    navigator.clipboard.writeText(text)
+        .then(() => { document.getElementById('status').textContent = 'YAML 已复制到剪贴板'; })
+        .catch(() => { document.getElementById('status').textContent = '复制失败，请手动选中右侧内容'; });
+}
+
+async function saveAndBuild() {
+    const status = document.getElementById('status');
+    const yamlText = document.getElementById('yaml').textContent;
+    status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
+    try {
+        const save = await fetch('/api/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: 'config/pet.yaml', content: yamlText })
+        });
+        const saveRes = await save.json();
+        if (!saveRes.ok) throw new Error(saveRes.error || '保存失败');
+
+        status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
+        const build = await fetch('/api/build', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const buildRes = await build.json();
+        if (buildRes.ok) {
+            try { localStorage.setItem('pet-config-ts', String(Date.now())); } catch (e) {}
+            status.textContent = window.PetI18n ? PetI18n.s('msg.saved') : '已保存并编译完成';
+        } else {
+            status.textContent = (window.PetI18n ? PetI18n.s('msg.failed') : '失败：') + (buildRes.stderr || buildRes.stdout || buildRes.error || '').slice(0, 120);
+        }
+    } catch (e) {
+        status.textContent = window.PetI18n ? PetI18n.s('msg.needServer') : '需要本地服务器';
+    }
+}
+
+function downloadYaml() {
+    const blob = new Blob([document.getElementById('yaml').textContent], { type: 'text/yaml;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'pet.yaml';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    document.getElementById('status').textContent = '已下载 pet.yaml';
+}
+
+loadAssets().then(reload);
+window.addEventListener('load', function () {
+    if (!window.PetI18n) return;
+    (function () {
+        var st0 = document.getElementById('status');
+        if (st0 && st0.dataset.key) st0.textContent = PetI18n.s(st0.dataset.key) + (st0.dataset.suffix || '');
+    })();
+    PetI18n.onChange(function () {
+        render();
+        var st = document.getElementById('status');
+        var key = st.dataset.key;
+        if (key) st.textContent = PetI18n.s(key) + (st.dataset.suffix || '');
+    });
+});
+</script>
+<script src="assets/i18n.js"></script>
+<div id="histModal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,.45);z-index:99">
+    <div style="max-width:520px;margin:80px auto;background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 20px 60px rgba(20,40,80,.25)">
+        <h3 style="margin:0 0 4px;font-size:15px" data-i18n="hist.title">历史版本</h3>
+        <p style="margin:0 0 12px;font-size:12.5px;color:#7b8798" data-i18n="hist.desc">每次保存前自动留一份，最多 20 份。</p>
+        <div id="histList" style="max-height:46vh;overflow:auto"></div>
+        <div style="text-align:right;margin-top:12px">
+            <button onclick="document.getElementById('histModal').style.display='none'" data-i18n="hist.close">关闭</button>
+        </div>
+    </div>
+</div>
+<script>
+async function openHistory() {
+    const modal = document.getElementById('histModal');
+    const list = document.getElementById('histList');
+    modal.style.display = 'block';
+    list.textContent = '读取中…';
+    try {
+        const res = await fetch('/api/backups');
+        const data = await res.json();
+        if (!data.items || !data.items.length) { list.textContent = '还没有备份。'; return; }
+        list.innerHTML = '';
+        data.items.forEach(function (it) {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0f3f9;font-size:13px';
+            const label = document.createElement('span');
+            label.style.cssText = 'flex:1;font-family:Consolas,monospace;font-size:12px';
+            label.textContent = it.name;
+            const size = document.createElement('span');
+            size.style.cssText = 'color:#7b8798;font-size:12px';
+            size.textContent = Math.round(it.size / 102.4) / 10 + ' KB';
+            const btn = document.createElement('button');
+            btn.textContent = window.PetI18n ? PetI18n.s('hist.restore') : '恢复';
+            btn.style.cssText = 'font-size:12px;padding:3px 10px';
+            btn.onclick = function () { restoreBackup(it.name); };
+            row.append(label, size, btn);
+            list.appendChild(row);
+        });
+    } catch (e) {
+        list.textContent = '需要本地服务器（双击 start.bat 后打开本页）。';
+    }
+}
+
+async function restoreBackup(name) {
+    if (!confirm('用这份备份覆盖当前配置？当前版本会先被备份。')) return;
+    const res = await fetch('/api/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+    });
+    const data = await res.json();
+    document.getElementById('histModal').style.display = 'none';
+    if (data.ok) {
+        document.getElementById('status').textContent = '已恢复 ' + name + '，正在重新读取…';
+        await reload();
+    } else {
+        document.getElementById('status').textContent = '恢复失败：' + (data.error || '');
+    }
+}
+</script>
+</body>
+</html>
