@@ -17,3 +17,7 @@ docs/screenshots/*.png
 node_modules/
 Thumbs.db
 desktop.ini
+
+# Python 缓存
+__pycache__/
+*.pyc

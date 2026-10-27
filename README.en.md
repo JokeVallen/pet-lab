@@ -237,4 +237,12 @@ See [KNOWN-ISSUES.en.md](KNOWN-ISSUES.en.md) for the full list with causes and f
 
 ## License
 
-Code MIT. Animation assets are **non-commercial** and require attribution — see `PET_CREDITS.md` in the blog repo.
+| Scope | License | File |
+| --- | --- | --- |
+| Code (`js/`, `css/`, docs) | MIT | [LICENSE](LICENSE) |
+| Artwork (`images/`) | CC BY-NC-SA 4.0 | [LICENSE-ASSETS.md](LICENSE-ASSETS.md) |
+| Attribution and clip mapping | — | [CREDITS.md](CREDITS.md) |
+
+**The artwork is non-commercial**: no ads, sponsorship, paid content or merchandise, and public use
+must credit the authors and link the upstream repositories. For commercial use, ask the original
+authors.

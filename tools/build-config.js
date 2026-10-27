@@ -17,12 +17,13 @@ function loadYaml() {
     const candidates = [
         'js-yaml',
         path.join(ROOT, 'node_modules', 'js-yaml'),
+        path.join(ROOT, 'vendor', 'js-yaml.min.js'),   // 发行包自带，免 npm install
         path.join(ROOT, '..', 'Blogs', 'node_modules', 'js-yaml')
     ];
     for (const c of candidates) {
         try { return require(c); } catch (e) { /* next */ }
     }
-    console.error('js-yaml not found: npm i -D js-yaml in pet-lab');
+    console.error('js-yaml not found: expected vendor/js-yaml.min.js or npm i -D js-yaml');
     process.exit(1);
 }
 

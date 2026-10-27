@@ -220,6 +220,13 @@ node tools/run-tests.js --all    # 加上端到端冒烟 + 中英一致性
 
 完整清单（含原因与修法）见 [KNOWN-ISSUES.md](KNOWN-ISSUES.md)。
 
-## 素材授权
+## 授权
 
-代码 MIT。动画素材**非商用**，需署名并保留上游仓库链接（见博客仓库 `PET_CREDITS.md`）。
+| 范围 | 协议 | 文件 |
+| --- | --- | --- |
+| 代码（`js/` `css/` 文档） | MIT | [LICENSE](LICENSE) |
+| 素材（`images/`） | CC BY-NC-SA 4.0 | [LICENSE-ASSETS.md](LICENSE-ASSETS.md) |
+| 署名与素材映射 | — | [CREDITS.md](CREDITS.md) |
+
+**素材非商用**：不得接入广告、赞助或付费内容，不得售卖周边；公开使用需署名并保留上游仓库链接。
+商用请分别取得原作者授权。
