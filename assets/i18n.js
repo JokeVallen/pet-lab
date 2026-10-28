@@ -54,7 +54,32 @@
                     '32 clips, 4.55 MB, all VP9 WebM with alpha, at the same paths as the blog (/images/pet/anim/), so no path changes are needed.'],
         'demo.bottom': ['页面底部 —— 滚动到这里应触发「读到底了」。',
                         'Bottom of page — scrolling here should fire "reached the end".'],
-        'demo.lab': ['模拟站点信号', 'Simulate site signals'],
+        'demo.lab': ['测试面板', 'Test panel'],
+        'demo.lab.toggle': ['收起', 'Collapse'],
+        'demo.g.act': ['动作（直接 cue）', 'Actions (cue directly)'],
+        'demo.g.state': ['状态与睡眠', 'State and sleep'],
+        'demo.state.idle': ['待机', 'Idle'],
+        'demo.state.busy': ['忙碌', 'Busy'],
+        'demo.state.sleepy': ['困倦', 'Sleepy'],
+        'demo.sleep': ['强制入睡', 'Force sleep'],
+        'demo.wake': ['叫醒', 'Wake up'],
+        'demo.g.interact': ['互动', 'Interactions'],
+        'demo.feed': ['喂食', 'Feed'],
+        'demo.poke.head': ['戳脑袋', 'Poke head'],
+        'demo.poke.tail': ['戳尾巴', 'Poke tail'],
+        'demo.particles': ['粒子 ×1', 'One particle'],
+        'demo.g.speech': ['说话', 'Speech'],
+        'demo.speech.ambient': ['闲话', 'Ambient'],
+        'demo.speech.context': ['情境', 'Context'],
+        'demo.speech.reply': ['回答', 'Reply'],
+        'demo.speech.dialog': ['进对话框', 'To dialog'],
+        'demo.g.ask': ['问一句（走检索 / 句库）', 'Ask (search + lines)'],
+        'demo.ask': ['提问', 'Ask'],
+        'demo.ask.ph': ['有没有讲算法的？', 'Do you have anything about algorithms?'],
+        'demo.g.lang': ['语言与配置', 'Language and config'],
+        'demo.showConfig': ['看配置', 'Show config'],
+        'demo.reload': ['刷新（重置会话）', 'Reload (reset session)'],
+        'demo.g.site': ['模拟站点信号', 'Simulate site signals'],
         'demo.sim1': ['导航到首页', 'Go to home'],
         'demo.sim2': ['进入一篇文章', 'Open an article'],
         'demo.sim3': ['滚动到底（信号）', 'Scroll to bottom (signal)'],
@@ -120,12 +145,33 @@
             '2. 左边改值，右边实时显示 YAML。<br>' +
             '3. 点「保存并编译」直接写回并生效——不用再敲命令。<br>' +
             '4. 没有服务器时，用「下载 pet.yaml」覆盖原文件，再运行 <code>node tools/build-config.js</code>。<br>' +
-            '提示：滑杆调外观，芯片输入动画名（回车添加），动作分类表格可增删行。',
+            '提示：滑杆调外观，芯片输入动画名（回车添加），动作分类表格可增删行。<br>' +
+            '<b>改动什么时候生效</b>：点「保存并编译」后写回 YAML 并重新生成 <code>js/pet/config.js</code>；' +
+            '演示页开着的话会自动重载（每 2.5 秒查一次版本号）。所以<strong>所有字段都是保存即生效</strong>，' +
+            '没反应通常是字段没接进运行时代码，而不是缓存。<br>' +
+            '<b>两个"恢复"不一样</b>：「撤销全部改动」回到本次读取时的状态；' +
+            '「恢复出厂默认」读 <code>config/pet.default.yaml</code>，那是一份独立保存的默认配置，改了也不会被日常编辑带走。<br>' +
+            '<b>保存前会看磁盘</b>：如果这个页面打开之后文件被别的标签页或手工改过，会先弹确认，' +
+            '避免用旧内容整份覆盖。取消后点「重新读取」拿到最新版本再改。<br>' +
+            '<b>命令行等价物</b>：<code>node tools/build-config.js</code> 编译；' +
+            '<code>--reset</code> 用默认值覆盖并备份旧文件；<code>--snapshot</code> 把当前配置存成新的默认值。',
             '1. Click "Open YAML" and pick config/pet.yaml (auto-loads when served).<br>' +
             '2. Edit on the left; the YAML preview updates live on the right.<br>' +
             '3. Click "Save & build" to write it back and apply — no commands needed.<br>' +
             '4. Without a server, use "Download pet.yaml" then run <code>node tools/build-config.js</code>.<br>' +
-            'Tip: sliders are for looks, chips take animation names (Enter to add), category rows are editable.'
+            'Tip: sliders are for looks, chips take animation names (Enter to add), category rows are editable.<br>' +
+            '<b>When changes apply</b>: "Save & build" writes the YAML back and regenerates ' +
+            '<code>js/pet/config.js</code>; an open demo tab reloads itself (it polls the version every 2.5s). ' +
+            'So <strong>every field applies on save</strong> — if nothing happens, the field is probably not wired ' +
+            'into the runtime, not cached.<br>' +
+            '<b>Two different resets</b>: "Revert all edits" goes back to what was loaded; ' +
+            '"Load factory defaults" reads <code>config/pet.default.yaml</code>, a separate copy of the shipped ' +
+            'defaults that ordinary editing never touches.<br>' +
+            '<b>Saving checks the disk</b>: if the file changed after this tab was opened (another tab, or a manual ' +
+            'edit), you get a confirmation first so stale content cannot overwrite it. Cancel, hit "Reload", edit again.<br>' +
+            '<b>Command-line equivalents</b>: <code>node tools/build-config.js</code> compiles; ' +
+            '<code>--reset</code> copies the defaults over (old file is backed up); <code>--snapshot</code> stores the ' +
+            'current config as the new defaults.'
         ],
 
         'zone.title': ['分区编辑器', 'Zone editor'],
@@ -138,6 +184,49 @@
                            'Paste into config/pet.yaml (both zones and zoneReactions), then run node tools/build-config.js.'],
         'zone.save': ['保存并编译', 'Save & build'],
         'rules.save': ['保存并编译', 'Save & build'],
+        '页面类型': ['页面类型', 'Page type'],
+        '细分类型': ['细分类型', 'Sub type'],
+        '标签包含': ['标签包含', 'Has tag'],
+        '字数 >': ['字数 >', 'Words >'],
+        '字数 <': ['字数 <', 'Words <'],
+        '评论数 =': ['评论数 =', 'Comments ='],
+        '评论数 ≥': ['评论数 ≥', 'Comments ≥'],
+        '滚动 >': ['滚动 >', 'Scroll >'],
+        '滚动 ≥': ['滚动 ≥', 'Scroll ≥'],
+        '滚动 <': ['滚动 <', 'Scroll <'],
+        '滚动 ≤': ['滚动 ≤', 'Scroll ≤'],
+        '上次滚动 >': ['上次滚动 >', 'Last scroll >'],
+        '暗色主题': ['暗色主题', 'Dark theme'],
+        '小时 ≥': ['小时 ≥', 'Hour ≥'],
+        '小时 <': ['小时 <', 'Hour <'],
+        '连续天数 ≥': ['连续天数 ≥', 'Streak ≥'],
+        '（旧）': ['（旧）', ' (legacy)'],
+        'cfg.revert': ['撤销全部改动', 'Revert all edits'],
+        'cfg.factory': ['恢复出厂默认', 'Load factory defaults'],
+        'zone.factory': ['恢复出厂默认', 'Load factory defaults'],
+        'rules.factory': ['恢复出厂默认', 'Load factory defaults'],
+        'reset.factoryConfirm': ['用 config/pet.default.yaml 里的出厂默认值替换当前内容？', 'Replace the current values with the factory defaults in config/pet.default.yaml?'],
+        'reset.factoryHint': ['（只是载入到编辑器，点「保存并编译」才会写盘）', '(This only loads them into the editor; nothing is written until you save.)'],
+        'reset.loadedCfg': ['已载入出厂默认值，点「保存并编译」写回', 'Factory defaults loaded — click Save & build to write them'],
+        'reset.loadedZone': ['已载入出厂默认分区，点「保存并编译」写回', 'Factory zones loaded — click Save & build to write them'],
+        'reset.loadedRules': ['已载入出厂默认规则，点「保存并编译」写回', 'Factory rules loaded — click Save & build to write them'],
+        'reset.noDefault': ['读不到 config/pet.default.yaml：', 'Cannot read config/pet.default.yaml: '],
+        'rules.sec.state': ['状态规则（条件 → 状态）', 'State rules (condition → state)'],
+        'rules.sec.state.desc': [
+            '按顺序判断，第一条命中就决定她处于什么状态；都不命中时按状态自身的权重随机。',
+            'Evaluated top to bottom; the first match decides the state. If nothing matches, states are picked by their weights.'
+        ],
+        'rules.sec.item': ['情境规则（条件 → 台词 / 动作）', 'Contextual rules (condition → line / action)'],
+        'rules.sec.item.desc': [
+            '同样按顺序判断，第一条命中就说这句话、做这个动作；停用的规则会被跳过。',
+            'Also evaluated top to bottom; the first match speaks the line / plays the action. Disabled rules are skipped.'
+        ],
+        'rules.enabled': ['启用', 'On'],
+        'rules.enabledTip': [
+            '取消勾选 = 停用这条规则（保留在配置里，但不参与判断）',
+            'Uncheck to disable: the rule stays in the config but is skipped at runtime'
+        ],
+        'rules.count': [' 条', ' rules'],
 
         'unit.pcs': ['个', 'pcs'],
         'unit.lines': ['句', 'lines'],
@@ -241,7 +330,13 @@
             '· 「外观」改配色、标签样式；「底图」只用于对齐，换图不影响已划分的分区（坐标是归一化的比例）。<br>' +
             '· 本地选的图片只存在本机浏览器，不会写进仓库。<br>' +
             '<b>保存</b>：点「保存并编译」直接写回 <code>config/pet.yaml</code>；没有服务器时用「导出 YAML」手动合并。<br>' +
-            '提示：子分区 id 用 <code>head.crown</code> 这种点号层级，会自动继承父分区的反应。',
+            '提示：子分区 id 用 <code>head.crown</code> 这种点号层级，会自动继承父分区的反应。<br>' +
+            '<b>父级有两种写法</b>：id 里带点号（<code>head.crown</code>）会自动推出父级；' +
+            '也可以单独填 <code>parent</code>，显式写的优先级更高——id 起名如 <code>crown</code> 时就得靠它。<br>' +
+            '<b>坐标是比例</b>：0~1 的归一化值，跟素材尺寸无关，换立绘不用重画。<br>' +
+            '<b>页面打开时读的是真实配置</b>：启动会先读 <code>config/pet.yaml</code> 里的 zones / zoneReactions，' +
+            '读不到才用内置默认分区；保存同样会先比对磁盘，避免覆盖别人的改动。<br>' +
+            '<b>恢复出厂默认</b>只替换 zones 与 zoneReactions 两段，其它配置不动。',
             '<b>Create</b><br>' +
             '· Press <kbd>N</kbd> or click "＋ Draw new", then drag a rectangle; hold <kbd>Shift</kbd> to draw without toggling.<br>' +
             '· Double-click inside a zone to add a child at that point; its parent is the zone you clicked.<br>' +
@@ -257,7 +352,14 @@
             '· "Appearance" changes colours and label style; the backdrop is alignment only — zones are normalised, so swapping images keeps every zone.<br>' +
             '· A locally picked image stays in this browser; nothing is written to the repo.<br>' +
             '<b>Save</b>: "Save &amp; build" writes <code>config/pet.yaml</code>; without a server use "Export YAML".<br>' +
-            'Tip: dotted ids like <code>head.crown</code> inherit the parent reaction.'
+            'Tip: dotted ids like <code>head.crown</code> inherit the parent reaction.<br>' +
+            '<b>Two ways to declare a parent</b>: dots in the id (<code>head.crown</code>) imply the parent, and an ' +
+            'explicit <code>parent</code> field wins over that — needed when the id is a plain name like <code>crown</code>.<br>' +
+            '<b>Coordinates are ratios</b>: normalised 0~1, independent of the artwork size, so a new drawing needs no ' +
+            're-tracing.<br>' +
+            '<b>It reads the real config</b>: zones and zoneReactions are loaded from <code>config/pet.yaml</code> at ' +
+            'startup (the built-in array is only a fallback), and saving compares against the file on disk first.<br>' +
+            '<b>Factory defaults</b> replace only zones and zoneReactions; everything else stays put.'
         ],
 
         'rules.title': ['规则编辑器', 'Rules editor'],
@@ -290,13 +392,30 @@
             '2. 条件越具体越该放前面，兜底规则放最后。<br>' +
             '3. 台词可以多行，随机取一条；支持 <code>{tag}</code> 与 <code>{streak}</code> 占位。<br>' +
             '4. 点「保存并编译」直接写回；没有服务器时才需要导出 YAML。<br>' +
-            '提示：冷却时间越短越热闹，太长会显得安静。',
+            '提示：冷却时间越短越热闹，太长会显得安静。<br>' +
+            '<b>两个上下区不一样</b>：上面「状态规则」决定她处于什么状态（条件 → 状态），' +
+            '下面「情境规则」决定她说哪句、做哪个动作（条件 → 台词 / 动作）。两组都按从上到下的顺序判定，先命中先生效。<br>' +
+            '<b>启用开关</b>：每条规则左边的勾选框对应 YAML 里的 <code>enabled: false</code>——' +
+            '取消勾选后规则仍保留在配置里，只是运行时跳过，不用删掉再手抄回来。<br>' +
+            '<b>没有状态规则命中时</b>，会按各状态自己的 <code>weight</code> 加权随机。<br>' +
+            '<b>保存</b>只替换 <code>rules.items</code> 与 <code>policy.stateRules</code>，' +
+            '<code>policy</code> 下的 rollWeights / calendar 不受影响；没成功读取配置时保存会被拦下，' +
+            '避免写出一份空规则。',
             '1. Rules are evaluated top to bottom; the first match wins.<br>' +
             '2. Put specific conditions first and keep a fallback last.<br>' +
             '3. Multiple lines are picked at random; <code>{tag}</code> and <code>{streak}</code> are supported.<br>' +
             '4. Ctrl+Z undoes a drag, Ctrl+Shift+Z or Ctrl+Y redoes it.<br>' +
             '5. Click "Save & build" to write it back; export only if you have no server.<br>' +
-            'Tip: short cooldowns feel lively, long ones feel quiet.'
+            'Tip: short cooldowns feel lively, long ones feel quiet.<br>' +
+            '<b>The two sections differ</b>: "State rules" decide which state she is in (condition → state); ' +
+            '"Contextual rules" decide what she says or does (condition → line / action). Both are evaluated top to ' +
+            'bottom and the first match wins.<br>' +
+            '<b>The On switch</b> maps to <code>enabled: false</code> in the YAML: the rule stays in the config but ' +
+            'is skipped at runtime, so you can silence it without deleting and retyping it.<br>' +
+            '<b>When no state rule matches</b>, states are picked by their own <code>weight</code>.<br>' +
+            '<b>Saving</b> replaces only <code>rules.items</code> and <code>policy.stateRules</code>; rollWeights and ' +
+            'the calendar under <code>policy</code> are untouched. If the config was never loaded, saving is blocked ' +
+            'so it cannot write an empty rule list.'
         ],
 
         'tests.clear': ['清空输出', 'Clear output'],
@@ -448,6 +567,8 @@
         lang = next;
         try { localStorage.setItem('pet-i18n', lang); } catch (e) { /* ignore */ }
         apply();
+        // 说明面板是拼出来的 HTML，apply() 不认识它，得手动重建
+        try { buildHelp(); } catch (e) { /* ignore */ }
     }
 
     function toggle() { setLang(lang === 'zh' ? 'en' : 'zh'); }

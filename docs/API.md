@@ -344,7 +344,28 @@ s.rows();
 
 ---
 
-## 10. 配置
+## 10. 文案 `content/`
+
+```js
+import { PetContent } from './content/index.js';
+
+PetContent.t('mood.sleeping');                 // 当前语言的一个字符串
+PetContent.t('site.streak', { n: 3 });         // {name} 形式的变量替换
+PetContent.pick('chat.fallback');              // 数组里随机取一条（同样支持变量）
+PetContent.list('zone.tail');                  // 取整个数组（不改原数组）
+PetContent.replies();                          // [{ id, re, lines }]，正则在取用时编译
+PetContent.lang;                               // 'zh' | 'en'
+PetContent.setLang('en');                      // 运行时切换，缺的键回落到中文
+```
+
+- 数据在 `content/zh.js`、`content/en.js`，形状一致；新增语言 = 新增一个文件 + 在 `content/index.js` 的 `PACKS` 里登记。
+- 键路径用点号：`chat.replies`、`adapter.finished`、`search.kindCard`。
+- 缺键时依次回落：当前语言 → 中文 → 返回键名本身（这样漏翻会显形，不会静默）。
+- 正则类内容（`search.intent`、`site.patterns.*`）由调用方用 `new RegExp(...)` 编译，并按语言缓存。
+
+---
+
+## 11. 配置
 
 ```js
 import PetConfig from './config.js';   // 由 config/pet.yaml 编译
@@ -352,7 +373,7 @@ import PetConfig from './config.js';   // 由 config/pet.yaml 编译
 
 字段见 `config/pet.yaml`，或打开 `config-editor.html` 可视化编辑。
 
-### 10.1 角色可移植字段
+### 11.1 角色可移植字段
 
 换一只宠物只需要这几个键，运行时不写死任何角色：
 
@@ -392,12 +413,15 @@ persona:
 
 ---
 
-## 11. 调试入口
+## 12. 调试入口
 
 ```js
 window.PetDebug.kernel   // 发意图、看日志
 window.PetDebug.search   // 单独测检索
 window.PetDebug.zones    // 分区命中
+window.PetDebug[name]    // 每个实例一份：director / player / config / content / state
+window.PetDebug[name].reply('你好')   // 直接走一遍"用户说 → 她回什么"
+window.PetContent        // 文案层，可 setLang 切换
 window.PetKernel         // 兼容快捷方式
 ```
 

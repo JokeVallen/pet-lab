@@ -353,7 +353,28 @@ Index shape (generated at build time):
 
 ---
 
-## 10. Configuration
+## 10. Copy `content/`
+
+```js
+import { PetContent } from './content/index.js';
+
+PetContent.t('mood.sleeping');                 // one string in the current language
+PetContent.t('site.streak', { n: 3 });         // {name}-style interpolation
+PetContent.pick('chat.fallback');              // random entry from an array (variables too)
+PetContent.list('zone.tail');                  // the whole array (a copy)
+PetContent.replies();                          // [{ id, re, lines }], regexes compiled on read
+PetContent.lang;                               // 'zh' | 'en'
+PetContent.setLang('en');                      // switch at runtime; missing keys fall back to Chinese
+```
+
+- Data lives in `content/zh.js` and `content/en.js` with identical shapes; a new language = one new file plus a `PACKS` entry in `content/index.js`.
+- Keys are dotted paths: `chat.replies`, `adapter.finished`, `search.kindCard`.
+- Missing keys resolve current language → Chinese → the key itself, so gaps show up instead of going silent.
+- Regex-shaped copy (`search.intent`, `site.patterns.*`) is compiled by the caller with `new RegExp(...)` and cached per language.
+
+---
+
+## 11. Configuration
 
 ```js
 import PetConfig from './config.js';   // compiled from config/pet.yaml
@@ -361,7 +382,7 @@ import PetConfig from './config.js';   // compiled from config/pet.yaml
 
 See `config/pet.yaml`, or open `config-editor.html`.
 
-### 10.1 Character portability
+### 11.1 Character portability
 
 Swapping in another pet needs only these keys; nothing character-specific is hardcoded:
 
@@ -400,12 +421,15 @@ enough to run.
 
 ---
 
-## 11. Debug handles
+## 12. Debug handles
 
 ```js
 window.PetDebug.kernel   // fire intents, read the log
 window.PetDebug.search   // test search alone
 window.PetDebug.zones    // zone hit testing
+window.PetDebug[name]    // per instance: director / player / config / content / state
+window.PetDebug[name].reply('hello')  // run "user says > what she answers"
+window.PetContent        // copy layer; setLang switches language
 window.PetKernel         // shortcut kept for convenience
 ```
 

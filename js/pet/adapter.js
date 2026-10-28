@@ -11,6 +11,9 @@
 
 import PetConfig from './config.js';
 import { PetRules } from './modules/rules.js';
+import { PetContent } from './content/index.js';
+
+const C = PetContent;
 
     /* 规则来自配置：when 编译成断言，say 走模板，act 支持数组随机 */
     function buildRules() {
@@ -53,6 +56,7 @@ import { PetRules } from './modules/rules.js';
     function pickState(ctx) {
         var rules = (PetConfig && PetConfig.policy && PetConfig.policy.stateRules) || [];
         for (var i = 0; i < rules.length; i++) {
+            if (rules[i].enabled === false) continue;   // 停用的规则跳过
             if (matchWhen(rules[i].when, ctx || {})) return rules[i].state;
         }
         // 没有规则命中时，按状态自身的 weight 加权；全都没写就还是待机
@@ -216,8 +220,14 @@ import { PetRules } from './modules/rules.js';
     // 预留：站点只提供坐标，判断逻辑在宠物侧
 
     /* 规则里用的随机取一，避免依赖宠物的内部工具函数 */
+
     function pick(arr) {
         return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    /* 关键词也进文案文件：换语言/换站点只改 content，不动这里的匹配逻辑 */
+    function keywordsOf(name) {
+        return C.list('adapter.keywords.' + name);
     }
 
     /* ---------------- 上下文规则（站点知识） ----------------
@@ -228,58 +238,58 @@ import { PetRules } from './modules/rules.js';
     var CTX_RULES = [
     {
         id: 'post.unity',
-        when: function (c) { return c.page === 'post' && window.PetRules.matchTag(c.tags, ['unity', 'c#', 'csharp']); },
-        say: '这篇和 Unity 有关……题库里有对应的知识点。'
+        when: function (c) { return c.page === 'post' && window.PetRules.matchTag(c.tags, keywordsOf('unity')); },
+        say: function () { return C.t('adapter.unity'); }
     },
     {
         id: 'post.algorithm',
-        when: function (c) { return c.page === 'post' && window.PetRules.matchTag(c.tags, ['算法', 'leetcode', '数据结构']); },
-        say: '算法文！要不要顺便去复习一道？'
+        when: function (c) { return c.page === 'post' && window.PetRules.matchTag(c.tags, keywordsOf('algorithm')); },
+        say: function () { return C.t('adapter.algorithm'); }
     },
     {
         id: 'post.finished',
         when: function (c) { return c.page === 'post' && c.scroll > 0.85; },
-        say: function () { return pick(['读完了呀，辛苦了。', '看到底了，有收获吗？']); },
+        say: function () { return C.pick('adapter.finished'); },
         act: 'look'
     },
     {
         id: 'post.long',
         when: function (c) { return c.page === 'post' && c.words > 4000; },
-        say: function () { return pick(['这篇够看一阵的，慢慢读。', '长文，我先趴着陪你。']); },
+        say: function () { return C.pick('adapter.long'); },
         act: function () { return pick(['think', 'doze']); }
     },
     {
         id: 'post.short',
         when: function (c) { return c.page === 'post' && c.words > 0 && c.words < 600; },
-        say: function () { return pick(['很短的一篇，一下就看完了吧。', '这种长度刚好，一口气读完。']); },
+        say: function () { return C.pick('adapter.short'); },
         act: 'look'
     },
     {
         id: 'post.noComment',
         when: function (c) { return c.page === 'post' && c.comments === 0 && c.scroll > 0.5; },
-        say: '还没人说话……我可以先当第一个。'
+        say: function () { return C.t('adapter.noComment'); }
     },
     {
         id: 'post.hot',
         when: function (c) { return c.page === 'post' && c.comments >= 3; },
-        say: '这么热闹，看来这篇戳到大家了。',
+        say: function () { return C.t('adapter.hot'); },
         act: 'hum'
     },
     {
         id: 'home.late',
         when: function (c) { return c.page === 'home' && c.dark && c.hour >= 23; },
-        say: '这么晚还在首页翻……早点睡吧。',
+        say: function () { return C.t('adapter.late'); },
         act: 'doze'
     },
     {
         id: 'home.streak',
         when: function (c, env) { return c.page === 'home' && (env.streak || 1) >= 3; },
-        say: function (c, env) { return '又见面了，第 ' + env.streak + ' 天。'; }
+        say: function (c, env) { return C.t('adapter.streak', { n: env.streak }); }
     },
     {
         id: 'post.backToTop',
         when: function (c, env) { return c.page === 'post' && env.lastScroll > 0.8 && c.scroll < 0.25; },
-        say: function () { return pick(['回到开头了，要再读一遍吗？', '又回到上面了。']); },
+        say: function () { return C.pick('adapter.backTop'); },
         act: 'stretch'
     },
     {
@@ -288,14 +298,15 @@ import { PetRules } from './modules/rules.js';
         say: function (c, env) {
             var name = env.adapter.headingText() || env.adapter.tagFromPath();
             if (!name) return '';
-            return pick(['「' + name + '」这个标签下的东西不少。', '在翻「' + name + '」相关的内容呀。']);
+            var tpl = C.pick('adapter.tag');
+            return tpl.replace(/\{name\}/g, name);
         },
         act: 'hum'
     },
     {
         id: 'page.404',
         when: function (c) { return c.type === '404'; },
-        say: function () { return pick(['这里什么都没有……你是不是点错链接了？', '迷路了？首页在这边。']); },
+        say: function () { return C.pick('adapter.notFound'); },
         act: function () { return pick(['puzzle', 'angry']); }
     }
     ];

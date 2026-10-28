@@ -10,10 +10,10 @@ Double-click `home.html`, or open any page directly:
 | Page | Purpose |
 | --- | --- |
 | `home.html` | Entry point |
-| `index.html` | Live demo (needs a server, ES modules) |
+| `index.html` | Live demo + test panel (actions / state / sleep / speech / ask / language / config readout) |
 | `config-editor.html` | What she **is**: looks, timing, speech, animation library, states (clip, pool, weight) |
 | `zone-editor.html` | Body zones: 2D rects, mouse reactions, look and backdrop |
-| `rules-editor.html` | **When** she does what: state rules (condition → state) + context rules (condition → line / action) |
+| `rules-editor.html` | **When** she does what: state rules (condition → state) + context rules (condition → line / action); each rule can be disabled |
 | `tests.html` | Test panel: 8 suites, each runnable alone or all at once |
 
 ### Division: one field, one page
@@ -91,10 +91,12 @@ pet-lab/
 ├─ start.bat              one-click server
 ├─ assets/i18n.js         ZH/EN switch + help panels
 ├─ config/pet.yaml        config source (hand-edited)
+├─ config/pet.default.yaml shipped defaults ("load factory defaults" reads it)
 ├─ js/pet/                ES modules
 │  ├─ index.js            entry
 │  ├─ core.js             kernel: bus / arbitration / assembly
 │  ├─ adapter.js          site layer: DOM / URL / storage / rules
+│  ├─ content/            zh.js / en.js — every line and answer (text only)
 │  └─ modules/            player, machine, actions, speech,
 │                         renderers, rules, zones, search
 ├─ vendor/js-yaml.min.js  YAML parser (editors + build-config)
@@ -118,6 +120,50 @@ pet-lab/
 | [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | Known issues with causes and fixes |
 
 Chinese versions use the `.en`-less names (`README.md`, `STATUS.md`, `docs/API.md`, `docs/INTERACTION.md`, `HANDOFF.md`, `KNOWN-ISSUES.md`).
+
+## Content and copy (change the character or the language here)
+
+No sentences live in the code. Everything a visitor reads comes from `js/pet/content/`:
+
+| File | Contents |
+| --- | --- |
+| `content/zh.js` | Chinese copy: chat lines, mood words, site answers, zone reactions, ambient lines |
+| `content/en.js` | English copy, key for key; missing keys fall back to Chinese |
+| `content/index.js` | Lookup layer: `t(key, vars)` / `pick(key)` / `list(key)` / `replies()` |
+
+```js
+PetContent.t('mood.sleeping')                // "打盹中" / "napping"
+PetContent.t('site.streak', { n: 3 })        // "That is 3 days in a row…"
+PetContent.pick('chat.fallback')             // one random entry
+PetContent.setLang('en')                     // switch at runtime (no retro-translation)
+```
+
+A few rules:
+
+- **Text only, no logic.** When to speak and in what order is still decided by the code and `pet.yaml`; the copy files only answer "what is said".
+- **Matching words are copy too.** `site.patterns`, `search.stopwords`, `search.intent` and `adapter.keywords` are per-language regexes and word lists — switch them together, or English questions fall through to the generic lines.
+- **Character-specific lines belong in `persona` in `pet.yaml`.** If the config has them, they win; `content` is the fallback.
+- **Tool pages (editors, demo) use `assets/i18n.js`** — paired zh/en entries read via `data-i18n="key"` or `PetI18n.t('…')`.
+
+Language resolution: `localStorage['pet-content-lang']` → `<html lang>` → Chinese. A Chinese blog therefore stays Chinese unless the site sets `lang` to `en`.
+
+## Defaults and resetting
+
+`config/pet.default.yaml` is a **separately stored set of shipped defaults**:
+
+- "Load factory defaults" in all three editors reads it and only loads the values into the form — nothing is written until you save;
+- "Revert all edits" in the config editor is different: it returns to the state loaded from disk.
+
+Command-line equivalents:
+
+```bash
+node tools/build-config.js            # compile pet.yaml → js/pet/config.js
+node tools/build-config.js --reset    # overwrite pet.yaml with the defaults (backed up to config/.backup/)
+node tools/build-config.js --snapshot # store the current pet.yaml as the new defaults
+node tools/build-config.js --check    # validate only
+```
+
+After changing the defaults on purpose, run `--snapshot`, or "factory defaults" will keep reverting to the old ones.
 
 ## Configuration
 
@@ -270,6 +316,7 @@ node tools/run-tests.js --all    # plus the end-to-end smoke test (headless Chro
 ```
 
 The smoke test covers: mount, module assembly, bubble rendering, zone clicks, action intents, site search.
+python tools/check-copy.py fails if anyone hardcodes Chinese copy again inside js/pet/ (outside content/).
 
 Click assertions use `Input.dispatchMouseEvent` — real mouse events. Synthetic `PointerEvent`s cannot exercise drag-vs-click detection.
 

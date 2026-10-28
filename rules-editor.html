@@ -24,6 +24,14 @@
     .rule { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px; }
     .rule .top { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
     .rule .top input.id { flex:1; font-weight:600; }
+.rule.is-off { opacity:.55; }
+.rule.is-off .lbl, .rule.is-off textarea { text-decoration:line-through; }
+.en { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--muted); cursor:pointer; user-select:none; }
+.en input { margin:0; cursor:pointer; }
+.sechead { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin:18px 0 8px; padding-bottom:6px; border-bottom:1px solid #e3e9f3; }
+.sechead:first-child { margin-top:0; }
+.sechead h2 { margin:0; font-size:14px; color:#1f2a37; }
+.sechead .hint { margin:3px 0 0; }
     .rule .top .n { font-size:11px; color:var(--muted); min-width:20px; }
     .rule .del { border:0; background:transparent; color:#c2cad6; cursor:pointer; font-size:16px; }
     .rule .del:hover { color:#d43b3b; }
@@ -87,6 +95,7 @@
     <button id="undoBtn" onclick="undo()" data-i18n="zone.undo" disabled>撤销</button>
     <button id="redoBtn" onclick="redo()" data-i18n="zone.redo" disabled>重做</button>
     <label class="btn"><span data-i18n="rules.import">导入 YAML</span><input type="file" id="file" accept=".yaml,.yml,.json" hidden></label>
+    <button onclick="resetFactory()" data-i18n="rules.factory">恢复出厂默认</button>
     <button onclick="addRule()" data-i18n="rules.add">＋ 规则</button>
     <button onclick="download()" data-i18n="rules.export">导出 YAML</button>
     <button class="primary" onclick="saveRules()" data-i18n="rules.save">保存并编译</button>
@@ -319,7 +328,7 @@ function renderStateRules(host) {
     const card = el('div', 'rule srule-card');
     const head = el('div', 'top');
     head.appendChild(el('span', 'n', 'S'));
-    head.appendChild(el('b', null, T('状态规则（条件 → 状态）')));
+    head.appendChild(el('b', null, stateRules.length + T(' 条'))); 
     const add = el('button', 'add', T('＋ 状态规则'));
     add.onclick = () => {
         stateRules.push({ when: { hourLt: 6 }, state: stateIds[stateIds.length - 1] || 'idle' });
@@ -342,6 +351,7 @@ function renderStateRules(host) {
 
         const top = el('div', 'srhead');
         top.appendChild(el('span', 'n', String(i + 1)));
+        top.appendChild(enabledBox(r));
 
         const stSel = document.createElement('select');
         stateIds.forEach((id) => stSel.appendChild(new Option(id, id)));
@@ -380,19 +390,55 @@ function renderStateRules(host) {
     host.appendChild(card);
 }
 
+/* 启用 / 停用：写进 enabled，引擎里 r.enabled === false 会跳过这条 */
+function enabledBox(rule) {
+    const wrap = el('label', 'en');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = rule.enabled !== false;
+    box.title = T('取消勾选 = 停用这条规则（保留在配置里，但不参与判断）');
+    box.onchange = () => {
+        if (box.checked) delete rule.enabled;
+        else rule.enabled = false;
+        render();
+        renderOut();
+        pushHistory();
+    };
+    wrap.title = box.title;
+    wrap.append(box, el('span', null, T('启用')));
+    return wrap;
+}
+
+/* 板块标题：以前只有"状态规则"那张卡片自带标题，下面的情境规则列表是光秃秃的 */
+function sectionHead(titleZh, descZh, extra) {
+    const box = el('div', 'sechead');
+    const left = el('div');
+    left.appendChild(el('h2', null, T(titleZh)));
+    if (descZh) left.appendChild(el('p', 'hint', T(descZh)));
+    box.appendChild(left);
+    if (extra) box.appendChild(extra);
+    return box;
+}
+
 function render() {
     const list = document.getElementById('list');
     list.innerHTML = '';
 
     // 状态规则放在列表最上面：先决定处于什么状态，再决定说什么
+    list.appendChild(sectionHead('状态规则（条件 → 状态）',
+        '按顺序判断，第一条命中就决定她处于什么状态；都不命中时按状态自身的权重随机。'));
     const srHost = el('div', 'srwrap');
     list.appendChild(srHost);
     renderStateRules(srHost);
 
+    list.appendChild(sectionHead('情境规则（条件 → 台词 / 动作）',
+        '同样按顺序判断，第一条命中就说这句话、做这个动作；停用的规则会被跳过。'));
+
     rules.forEach((r, i) => {
-        const card = el('div', 'rule');
+        const card = el('div', 'rule' + (r.enabled === false ? ' is-off' : ''));
         const top = el('div', 'top');
         top.appendChild(el('span', 'n', String(i + 1)));
+        top.appendChild(enabledBox(r));
         const id = document.createElement('input');
         id.className = 'id';
         id.value = r.id || '';
@@ -548,8 +594,9 @@ function condRow(rule, key, redraw) {
         if (k === key) o.selected = true;
         sel.appendChild(o);
     };
-    WHEN_META.filter((m) => !m.legacy).forEach((m) => add(m.key, T(m.label)));
-    WHEN_META.filter((m) => m.legacy).forEach((m) => add(m.key, T(m.label)));   // 旧键排在后面
+    const labelOf = (m) => T(m.label) + (m.legacy ? T(m.legacyLabel || '（旧）') : '');
+    WHEN_META.filter((m) => !m.legacy).forEach((m) => add(m.key, labelOf(m)));
+    WHEN_META.filter((m) => m.legacy).forEach((m) => add(m.key, labelOf(m)));   // 旧键排在后面
     if (!seen[key]) add(key, KEY_LABEL[key] ? T(KEY_LABEL[key]) : key);
 
     const customOpt = new Option(T('自定义…'), '__custom');
@@ -620,6 +667,7 @@ function toYaml() {
                 return k + ': ' + (typeof v === 'string' ? quote(v) : v);
             }).join(', ') + ' }\n';
             s += '      state: ' + (r.state || 'idle') + '\n';
+            if (r.enabled === false) s += '      enabled: false\n';
         });
         s += '\n';
     }
@@ -642,12 +690,34 @@ function toYaml() {
             s += '      act: ' + (Array.isArray(r.act) ? '[' + r.act.join(', ') + ']' : r.act) + '\n';
         }
         if (r.cooldown != null) s += '      cooldown: ' + r.cooldown + '\n';
+        if (r.enabled === false) s += '      enabled: false\n';
         s += '\n';
     });
     return s;
 }
 
 function renderOut() { document.getElementById('out').textContent = toYaml(); }
+
+/* 恢复出厂默认：只替换 rules.items / policy.stateRules */
+async function resetFactory() {
+    if (!confirm(T('用 config/pet.default.yaml 里的出厂默认值替换当前内容？') + '\n' + T('（只是载入到编辑器，点「保存并编译」才会写盘）'))) return;
+    try {
+        const r = await fetch('config/pet.default.yaml?ts=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const text = new TextDecoder('utf-8').decode(await r.arrayBuffer());
+        const data = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+        const items = data && data.rules && data.rules.items ? data.rules.items : [];
+        rules = Array.isArray(items) ? items : [];
+        stateRules = (data && data.policy && Array.isArray(data.policy.stateRules)) ? data.policy.stateRules : [];
+        stateIds = Object.keys((data && data.states) || {});
+        render();
+        resetHistory();
+        window.__lastLoaded = 'config/pet.default.yaml';
+        setStatus(T('已载入出厂默认规则，点「保存并编译」写回'));
+    } catch (e) {
+        setStatus(T('读不到 config/pet.default.yaml：') + e.message);
+    }
+}
 
 function addRule() {
     rules.push({ id: 'rule.' + (rules.length + 1), when: { page: 'post' }, say: '说点什么。' });

@@ -12,10 +12,10 @@
 | 页面 | 用途 |
 | --- | --- |
 | `home.html` | 统一入口 |
-| `index.html` | 宠物演示（需本地服务器，ES 模块） |
+| `index.html` | 宠物演示 + 测试面板（动作 / 状态 / 睡眠 / 说话 / 提问 / 语言 / 配置读数） |
 | `config-editor.html` | 她**是什么**：外观 / 节奏 / 语言 / 动作库 / 状态（clip、池、权重） |
 | `zone-editor.html` | 身体分区：二维框、鼠标反应、外观与底图 |
-| `rules-editor.html` | 她**何时做什么**：状态规则（条件 → 状态）+ 情境规则（条件 → 台词 / 动作） |
+| `rules-editor.html` | 她**何时做什么**：状态规则（条件 → 状态）+ 情境规则（条件 → 台词 / 动作），每条可单独停用 |
 | `docs.html` | Markdown 阅读器，中英文档都能看 |
 | `tests.html` | 测试面板：8 个套件可单跑，也能一键全跑 |
 
@@ -87,10 +87,12 @@ pet-lab/
 ├─ start.bat              一键起服务
 ├─ assets/i18n.js         中英切换 + 帮助面板
 ├─ config/pet.yaml        配置源（唯一手改）
+├─ config/pet.default.yaml 出厂默认（「恢复默认」读它）
 ├─ js/pet/                ES 模块
 │  ├─ index.js            入口
 │  ├─ core.js             内核：总线 / 裁决 / 装配
 │  ├─ adapter.js          站点层：DOM / URL / 存储 / 规则
+│  ├─ content/            zh.js / en.js：全部台词与回答（只放字，不放逻辑）
 │  └─ modules/            player, machine, actions, speech,
 │                         renderers, rules, zones, search
 ├─ vendor/js-yaml.min.js  YAML 解析（编辑器与 build-config 共用）
@@ -114,6 +116,50 @@ pet-lab/
 | [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | 已知问题清单（含原因与修法） |
 
 英文版：`README.en.md`、`STATUS.en.md`、`docs/API.en.md`、`docs/INTERACTION.en.md`、`HANDOFF.en.md`、`KNOWN-ISSUES.en.md`。
+
+## 内容与文案（换角色 / 换语言只改这里）
+
+代码里不写句子。所有给访客看的字都在 `js/pet/content/`：
+
+| 文件 | 内容 |
+| --- | --- |
+| `content/zh.js` | 中文文案：闲聊句库、状态词、站点回答、分区反应、旁白 |
+| `content/en.js` | 英文文案，键与中文一一对应，缺的键自动回落到中文 |
+| `content/index.js` | 取值层：`t(key, vars)` / `pick(key)` / `list(key)` / `replies()` |
+
+```js
+PetContent.t('mood.sleeping')                // → “打盹中” / "napping"
+PetContent.t('site.streak', { n: 3 })        // → “这是你连续来的第 3 天…”
+PetContent.pick('chat.fallback')             // 数组里随机取一条
+PetContent.setLang('en')                     // 运行时切换（已渲染的文字不追溯）
+```
+
+几条约定：
+
+- **只放字，不放逻辑。** 什么时候说、按什么顺序判断仍在代码与 `pet.yaml` 里；文案文件只回答“说什么”。
+- **问句特征词也算文案。** `site.patterns`、`search.stopwords`、`search.intent`、`adapter.keywords` 都是按语言写的正则/词表，换语言要一起换，否则英文提问只会回落到通用句库。
+- **角色专属的台词优先走 `pet.yaml` 的 `persona`。** 配置里有就用配置的，`content` 里的只是兜底。
+- **工具页文案（编辑器、演示页）在 `assets/i18n.js`。** 那里是中英成对的键值表，页面上用 `data-i18n="key"` 或 `PetI18n.t('中文')` 取。
+
+语言判定顺序：`localStorage['pet-content-lang']` → `<html lang>` → 默认中文。所以博客是中文站就永远是中文，除非站点把 `lang` 改成 `en`。
+
+## 默认配置与重置
+
+`config/pet.default.yaml` 是一份**独立保存的出厂默认**，和 `pet.yaml` 分开存放：
+
+- 三个编辑器里的「恢复出厂默认」都读它，只把值载入界面，不立刻写盘；
+- `config-editor` 的「撤销全部改动」是另一件事：回到本次读取时的状态。
+
+命令行等价物：
+
+```bash
+node tools/build-config.js            # 编译 pet.yaml → js/pet/config.js
+node tools/build-config.js --reset    # 用默认值覆盖 pet.yaml（先备份到 config/.backup/）
+node tools/build-config.js --snapshot # 把当前 pet.yaml 存成新的默认值
+node tools/build-config.js --check    # 只校验，不写文件
+```
+
+改过默认值之后记得 `--snapshot` 一次，否则「恢复默认」还是旧的。
 
 ## 配置
 
@@ -247,6 +293,7 @@ node tools/run-tests.js --all    # 加上端到端冒烟 + 中英一致性
 
 冒烟覆盖：挂载、模块装配、气泡、分区点击、动作意图、站内检索。
 `tools/i18n-check.js` 检查 7 个页面的文本与标题是否中英一致。
+`python tools/check-copy.py` 检查有没有人在 `js/pet/` 里重新写死中文文案（`content/` 除外）。
 
 点击类断言用 `Input.dispatchMouseEvent` 派发真实鼠标事件——合成 `PointerEvent` 测不出拖拽/点击的判定逻辑。
 

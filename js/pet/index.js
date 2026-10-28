@@ -31,6 +31,9 @@ import { PetRenderers } from './modules/renderers.js';
 import { PetRules } from './modules/rules.js';
 import { PetZones } from './modules/zones.js';
 import { PetSearch } from './modules/search.js';
+import { PetContent } from './content/index.js';
+
+const C = PetContent;
 
 var CONFIG = {
         name: '大肥鱼',
@@ -433,12 +436,12 @@ var CONFIG = {
 
     /* ==================== 表现 ==================== */
     function mood() {
-        if (director && director.isSleeping()) return '打盹中';
-        if (state.fullness < 20) return '饿扁了';
-        if (state.affinity >= 80) return '超喜欢你';
-        if (state.affinity >= 45) return '很开心';
-        if (state.fullness < 45) return '有点饿';
-        return '好奇';
+        if (director && director.isSleeping()) return C.t('mood.sleeping');
+        if (state.fullness < 20) return C.t('mood.starving');
+        if (state.affinity >= 80) return C.t('mood.loved');
+        if (state.affinity >= 45) return C.t('mood.happy');
+        if (state.fullness < 45) return C.t('mood.peckish');
+        return C.t('mood.curious');
     }
 
     function updateStats() {
@@ -558,7 +561,7 @@ var CONFIG = {
             if (!chatOpen && !document.hidden && director) {
                 director.sleep();
                 updateStats();
-                say(say_line('sleep', '……睡着了。'), 4200);
+                say(say_line('sleep', C.t('persona.asleep')), 4200);
             }
         }, CONFIG.idleSleepMs);
     }
@@ -570,30 +573,8 @@ var CONFIG = {
     }
 
     /* ==================== 聊天 ==================== */
-    var REPLIES = [
-        { re: /你好|您好|hi|hello|在吗|嗨/i, list: ['在的！今天也一起写点东西吧。', '嗨～我一直在这儿。'] },
-        { re: /知识|卡片|笔记/, list: ['知识库把零散的问题沉淀成卡片了，去 /knowledge/ 翻翻看？', '想记点什么的话，知识库很适合做长期复习。'] },
-        { re: /算法|刷题|leetcode|题解/i, list: ['算法库里有间隔复习，先写模板再刷题会快很多：/algorithm/'] },
-        { re: /面试|笔试|模拟|求职/, list: ['求职模拟可以随机抽题练表达：/mock/，别只背答案哦。'] },
-        { re: /工具|效率/, list: ['实用工具里有些小玩意，写博客的时候挺顺手的：/tools/'] },
-        { re: /游戏|摸鱼|玩/, list: ['个人游戏区有几只小游戏，写累了可以去摸鱼：/games/'] },
-        { re: /题库|unity|c#|csharp/i, list: ['Unity 题库按知识点整理过，可以按标签挑着看：/questions/'] },
-        { re: /博客|文章|首页|归档/, list: ['首页就是归档，慢慢翻吧，都是些记录和思考。'] },
-        { re: /饿|吃|鱼|投喂|喂/, list: ['想吃白米饭……点一下 🍚 就能喂我。', '肚子在叫了，有米饭吗？'] },
-        { re: /累|难过|焦虑|压力|烦/, list: ['先休息五分钟吧。写不完的代码不会跑掉，但你会的。', '要不要先站起来走两步？我在这儿等你。'] },
-        { re: /谢谢|喜欢|可爱|爱你|棒/, list: ['嘿嘿，被夸到了。好感度 +1！', '被你这么说，尾巴都翘起来了。'] },
-        { re: /你是谁|你叫什么|什么鲸鱼|deepseek/i, list: ['我是博客里的鲸鱼娘大肥鱼，不是官方产品哦，只是一只住在网页角落里的小鲸鱼。'] },
-        { re: /晚安|睡觉|困/, list: ['晚安，早点休息。我会在角落里打盹。'] },
-        { re: /米饭|饭|饿|吃/, list: ['白米饭才是正经饭，点 🍚 喂我。', '一碗就够了……好吧，两碗。'] },
-        { re: /拖|抓|拎/, list: ['别拎我尾巴！', '被抓起来的时候我会缩一下，正常的。'] },
-        { re: /摸头|脑袋|头/, list: ['摸头可以，戳就不行。', '头顶的发饰是限量款。'] },
-        { re: /暗色|夜间|晚上|开灯|主题/, list: ['开暗色我就当是晚上了。', '白天模式我会精神一点。'] },
-        { re: /无聊|没事|陪你/, list: ['那就陪我看会儿代码吧。', '无聊的话，去算法库随便点一道？'] },
-        { re: /bug|报错|崩|错误/i, list: ['报错总能解决的，先看第一行日志。', '把复现步骤写下来，问题就小一半。'] },
-        { re: /加油|努力|坚持/, list: ['一起加油，慢慢来。', '每天一点就够，别把自己逼太紧。'] },
-        { re: /早|早安/, list: ['早安！今天想先解决哪一件事？'] },
-        { re: /厉害|难|不会|学不动/, list: ['不会才正常，会了就不用学了。挑最小的一步先做。'] }
-    ];
+    /* 句库在 content/<lang>.js 里；这里只保留"怎么用" */
+    function replyLines() { return C.replies(); }
 
     /* ==================== 全站索引检索 ====================
      * /pet-index.json 由构建期的 scripts/pet-index.js 生成（文章 + 知识卡片 + 页面）。
@@ -601,28 +582,42 @@ var CONFIG = {
      */
 
     /* 先看能不能用"当前页面的信息"来回答，比固定句库更有针对性 */
+    /* 问句特征词放在 content 里，换语言不用改代码 */
+    var siteRe = null, siteReLang = null;
+    function sitePatterns() {
+        if (siteRe && siteReLang === C.lang) return siteRe;
+        var build = function (k) { try { return new RegExp(C.t('site.patterns.' + k)); } catch (e) { return /$^/; } };
+        siteRe = {
+            ability: build('ability'), postInfo: build('postInfo'),
+            clock: build('clock'), tags: build('tags'), streak: build('streak')
+        };
+        siteReLang = C.lang;
+        return siteRe;
+    }
+
     function siteAwareReply(t) {
         try {
             var c = siteContext();
-            if (/能做什么|会什么|功能|你能干|会干|帮我做|有什么用/.test(t)) {
-                return '能陪你读文章、记住你来了几天，也会被戳、被拖、被喂。问路也行：算法库 /algorithm/、题库 /questions/、工具 /tools/。';
+            var P = sitePatterns();
+            if (P.ability.test(t)) {
+                return C.t('site.ability');
             }
-            if (/这篇|讲的什么|说什么|内容/.test(t) && c.page === 'post') {
-                var mins = c.words > 0 ? '，大概 ' + Math.max(1, Math.round(c.words / 400)) + ' 分钟能读完' : '';
-                return '这篇属于「' + (c.tags[0] || '没打标签') + '」' + mins + '。正文我也看不懂，你自己读吧。';
+            if (P.postInfo.test(t) && c.page === 'post') {
+                var mins = c.words > 0 ? C.t('site.postMins', { n: Math.max(1, Math.round(c.words / 400)) }) : '';
+                return C.t('site.postInfo', { tag: c.tags[0] || C.t('site.postNoTag'), mins: mins });
             }
-            if (/几点|现在时间|几号|星期几/.test(t)) {
+            if (P.clock.test(t)) {
                 var d = new Date();
                 var mm = d.getMinutes() < 10 ? '0' + d.getMinutes() : d.getMinutes();
-                return '现在 ' + d.getHours() + ' 点 ' + mm + ' 分。' + (d.getHours() >= 23 ? '该睡了。' : '');
+                return C.t('site.clock', { h: d.getHours(), m: mm }) + (d.getHours() >= 23 ? C.t('site.clockLate') : '');
             }
-            if (/几个标签|多少标签|什么标签/.test(t)) {
+            if (P.tags.test(t)) {
                 return c.tags.length
-                    ? '这页有 ' + c.tags.length + ' 个标签：' + c.tags.slice(0, 3).join('、') + '。'
-                    : '这页没标签，标签总览在 /tags/。';
+                    ? C.t('site.tagCount', { n: c.tags.length, list: c.tags.slice(0, 3).join('、') })
+                    : C.t('site.tagNone');
             }
-            if (/多久|来了几天|第几天/.test(t) && state.streak) {
-                return '这是你连续来的第 ' + state.streak + ' 天，我记着呢。';
+            if (P.streak.test(t) && state.streak) {
+                return C.t('site.streak', { n: state.streak });
             }
         } catch (e) { /* ignore */ }
         return null;
@@ -637,7 +632,7 @@ var CONFIG = {
 
     function petReply(text) {
         var t = (text || '').trim();
-        if (!t) return '你想说什么呀？';
+        if (!t) return C.t('chat.empty');
         var ctxAns = siteAwareReply(t);
         if (ctxAns) return ctxAns;
 
@@ -645,20 +640,14 @@ var CONFIG = {
             var idxAns = SEARCH.answer(t);
             if (idxAns) return idxAns;
         }
-        for (var i = 0; i < REPLIES.length; i++) {
-            if (REPLIES[i].re.test(t)) {
-                var ans = pick(REPLIES[i].list);
+        var known = replyLines();
+        for (var i = 0; i < known.length; i++) {
+            if (known[i].re.test(t)) {
+                var ans = pick(known[i].lines);
                 return typeof ans === 'function' ? ans() : ans;
             }
         }
-        return pick([
-            '这个问题值得写一张知识卡片。',
-            '要不要去求职模拟抽一组题？',
-            '今天也别忘了给算法库安排一次复习。',
-            '慢慢来，先把一个问题讲清楚。',
-            '我在这里，你写你的，我不吵你。',
-            '唔……这个我还没学会，等我长大一点再回答你。'
-        ]);
+        return C.pick('chat.fallback');
     }
 
     /* 把回复里的站内路径变成可点的链接；其余文字原样输出 */
@@ -710,7 +699,7 @@ var CONFIG = {
         log.innerHTML = '';
         var list = state.chatLog.length ? state.chatLog : [{
             role: 'pet',
-            text: persona('about', '点我、拖我，或者随便和我聊聊～')
+            text: persona('about', C.t('persona.about'))
         }];
         list.forEach(function (m) {
             var msg = document.createElement('div');
@@ -788,18 +777,18 @@ var CONFIG = {
         var line;
         var greetSlot = hour < 6 ? 'late' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
         var greetLines = (personaSrc().greet || {})[greetSlot] || [];
-        line = greetLines.length ? pick(greetLines) : '你好呀。';
+        line = greetLines.length ? pick(greetLines) : C.t('persona.greet');
         var special = null;
         try { special = PetAdapter.holiday && PetAdapter.holiday(); } catch (e) { /* ignore */ }
         if (special && special.line) {
             line = special.line;
             if (director && special.act) setTimeout(function () { director.cue(special.act); }, 1600);
         } else if ((state.streak || 1) === 1) {
-            line = wasSeenBefore ? persona('again', '又见面了。') : persona('firstMeet', '第一次见？');
+            line = wasSeenBefore ? persona('again', C.t('persona.again')) : persona('firstMeet', C.t('persona.firstMeet'));
         } else if ((state.streak || 1) >= 7) {
-            line = fillNum(persona('streak7', '你来第 {n} 天啦。'), state.streak);
+            line = fillNum(persona('streak7', C.t('persona.streak7')), state.streak);
         } else if ((state.streak || 1) >= 3) {
-            line = fillNum(persona('streak3', '又见面了，第 {n} 天。'), state.streak);
+            line = fillNum(persona('streak3', C.t('persona.streak3')), state.streak);
         }
         setTimeout(function () { say(line, 5200); }, 1200);
     }
@@ -826,14 +815,14 @@ var CONFIG = {
      * say 可写成数组，元素可为 { t: '台词', w: 权重 }。
      */
     var ZONE_MAP_DEFAULT = {
-        'head': { act: 'click-shy', say: ['别戳脑袋啦。', '脑袋不能乱摸……'] },
-        'head.crown': { act: 'click-wave', say: ['头上有东西吗？'] },
-        'head.cheek': { act: 'click-shy', say: [{ t: '痒。', w: 2 }, { t: '别捏脸。' }] },
+        'head': { act: 'click-shy', say: C.list('zone.head') },
+        'head.crown': { act: 'click-wave', say: C.list('zone.crown') },
+        'head.cheek': { act: 'click-shy', say: C.list('zone.cheek') },
         'head.face': { act: 'click-shy' },
-        'body': { act: 'click-happy', say: ['干嘛呀。'] },
-        'body.fin': { act: 'spin', say: ['鳍不能拽。'] },
-        'body.belly': { act: 'click-happy', say: [{ t: '肚子软软的。', w: 2 }, { t: '别戳肚子啦。' }] },
-        'tail': { act: 'tail', say: [{ t: '尾巴会痒的。', w: 2 }, { t: '甩你一脸水。' }] }
+        'body': { act: 'click-happy', say: C.list('zone.body') },
+        'body.fin': { act: 'spin', say: C.list('zone.fin') },
+        'body.belly': { act: 'click-happy', say: C.list('zone.belly') },
+        'tail': { act: 'tail', say: C.list('zone.tail') }
     };
 
     var ZONE_MAP = (PetConfig && PetConfig.zoneReactions) ? PetConfig.zoneReactions : ZONE_MAP_DEFAULT;
@@ -918,7 +907,7 @@ var CONFIG = {
         resetIdle();
         burst('🍚');
         if (director) director.cue(ANIMATIONS.events.eat);
-        say(say_line('feed', '谢谢！'), 3600);
+        say(say_line('feed', C.t('persona.fed')), 3600);
     }
 
     /* ==================== 状态 ====================
@@ -985,8 +974,7 @@ var CONFIG = {
             updateStats();
             if (director && !chatOpen) {
                 director.cue(now ? 'yawn' : 'stretch');
-                say(now ? pick(['天黑了呢，我把音量调小一点。', '夜里安静，适合慢慢写。', '开暗色了……那我也有点困了。'])
-                        : pick(['开灯啦，精神一点！', '白天模式，冲！', '亮起来就清醒了。']), 3600);
+                say(now ? C.pick('ambient.themeDark') : C.pick('ambient.themeLight'), 3600);
             }
         }
         try {
@@ -1090,7 +1078,7 @@ var CONFIG = {
                 var text = sel ? String(sel).trim() : '';
                 if (text.length < 8) return;
                 lastAt = now;
-                say('抄走也没关系，反正我也不会写回去。', 3200);
+                say(C.t('ambient.copy'), 3200);
                 director.cue('look');
             } catch (e) { /* ignore */ }
         }, { passive: true });
@@ -1117,7 +1105,7 @@ var CONFIG = {
                     if (r > 0.92) {
                         if (!wasBottom) {
                             wasBottom = true;
-                            say('读到底了，辛苦了。', 3600);
+                            say(C.t('ambient.readEnd'), 3600);
                             director.cue('look');
                         }
                         return;
@@ -1125,7 +1113,7 @@ var CONFIG = {
 
                     if (wasBottom && r < 0.12) {
                         wasBottom = false;
-                        say(pick(['回到开头了，要再读一遍吗？', '又回到上面了。']), 3200);
+                        say(C.pick('ambient.backTop'), 3200);
                         director.cue('stretch');
                     }
                 } catch (e) {
@@ -1141,7 +1129,7 @@ var CONFIG = {
             if (!director || chatOpen || document.hidden) return;
             var name = PetAdapter.tagFromPath();
             if (!name) return;
-            say('在翻「' + name + '」相关的内容呀。', 3600);
+            say(C.t('ambient.tagPage', { name: name }), 3600);
             director.cue('hum');
         } catch (e) { /* ignore */ }
     }
@@ -1269,30 +1257,30 @@ var CONFIG = {
         root.id = hostId;
         root.className = 'dp-root';
         applyTheme();
-        var petName = persona('name', CONFIG.name || '宠物');
+        var petName = persona('name', CONFIG.name || C.t('meta.petFallback'));
         root.innerHTML = [
             '<div class="dp-bubble" role="status" aria-live="polite"></div>',
-            '<div class="dp-chat" role="dialog" aria-label="和' + petName + '聊天">',
-            '  <div class="dp-chat-head"><span>' + petName + '</span><button type="button" class="dp-chat-close" data-dp-action="chat" aria-label="关闭对话">×</button></div>',
+            '<div class="dp-chat" role="dialog" aria-label="' + C.t('ui.chatAria', { name: petName }) + '">',
+            '  <div class="dp-chat-head"><span>' + petName + '</span><button type="button" class="dp-chat-close" data-dp-action="chat" aria-label="' + C.t('ui.chatClose') + '">×</button></div>',
             '  <div class="dp-chat-log"></div>',
             '  <form class="dp-chat-form">',
-            '    <input type="text" class="dp-chat-input" maxlength="60" placeholder="和' + petName + '说点什么…" aria-label="输入消息">',
-            '    <button type="submit" class="dp-chat-send">发送</button>',
+            '    <input type="text" class="dp-chat-input" maxlength="60" placeholder="' + C.t('ui.chatPlaceholder', { name: petName }) + '" aria-label="' + C.t('ui.inputAria') + '">',
+            '    <button type="submit" class="dp-chat-send">' + C.t('ui.send') + '</button>',
             '  </form>',
-            '  <p class="dp-credit">' + persona('credit', '动画素材 <a href="https://github.com/PC2005-cloud/dsh-pet" target="_blank" rel="noopener nofollow">dsh-pet</a> · 角色 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank" rel="noopener nofollow">CC BY-NC-SA 4.0</a>') + '</p>',
+            '  <p class="dp-credit">' + persona('credit', C.t('ui.credit')) + '</p>',
             '</div>',
             '<div class="dp-actions">',
-            '  <button type="button" class="dp-action" data-dp-action="feed" title="投喂" aria-label="投喂">' + icon('feed', '🍚') + '</button>',
-            '  <button type="button" class="dp-action" data-dp-action="chat" title="聊天" aria-label="聊天">💬</button>',
-            '  <button type="button" class="dp-action" data-dp-action="hide" title="隐藏" aria-label="隐藏' + petName + '">×</button>',
+            '  <button type="button" class="dp-action" data-dp-action="feed" title="' + C.t('ui.feed') + '" aria-label="' + C.t('ui.feed') + '">' + icon('feed', '🍚') + '</button>',
+            '  <button type="button" class="dp-action" data-dp-action="chat" title="' + C.t('ui.chat') + '" aria-label="' + C.t('ui.chat') + '">💬</button>',
+            '  <button type="button" class="dp-action" data-dp-action="hide" title="' + C.t('ui.hide', { name: petName }) + '" aria-label="' + C.t('ui.hide', { name: petName }) + '">×</button>',
             '</div>',
-            '<div class="dp-character" data-dp-action="pet" role="button" tabindex="0" aria-label="摸摸' + petName + '">',
+            '<div class="dp-character" data-dp-action="pet" role="button" tabindex="0" aria-label="' + C.t('ui.pet', { name: petName }) + '">',
             '  <div class="dp-shadow"></div>',
             '  <div class="dp-body">',
             '    <div class="dp-stage"><img class="dp-art" src="' + CONFIG.image + '" alt="' + persona('alt', petName) + '" draggable="false"></div>',
             '  </div>',
             '</div>',
-            '<div class="dp-restore" data-dp-action="restore" title="召回' + petName + '" role="button" tabindex="0">' + icon('restore', '🐳') + '</div>'
+            '<div class="dp-restore" data-dp-action="restore" title="' + C.t('ui.restore', { name: petName }) + '" role="button" tabindex="0">' + icon('restore', '🐳') + '</div>'
         ].join('');
         document.body.appendChild(root);
 
@@ -1306,7 +1294,7 @@ var CONFIG = {
             var el = e.target.closest ? e.target.closest('[data-dp-action]') : null;
             if (!el || !root.contains(el)) return;
             var action = el.getAttribute('data-dp-action');
-            if (action === 'restore') { hidePet(false); say('我回来啦。', 2600); return; }
+            if (action === 'restore') { hidePet(false); say(C.t('persona.back'), 2600); return; }
             if (action === 'hide') { hidePet(true); return; }
             if (action === 'chat') { setChatOpen(!chatOpen); return; }
             if (action === 'feed') { doFeed(); return; }
@@ -1478,8 +1466,13 @@ window.PetKernel = window.PetKernel || PetKernel;
 window.PetSearch = PetSearch;
 window.PetZones = PetZones;
 window.PetDebug = window.PetDebug || {};
+window.PetContent = PetContent;
 window.PetDebug[CONFIG.hostId || 'deepseek-pet'] = {
     kernel: KERNEL, search: PetSearch, zones: PetZones, adapter: PetAdapter, config: CONFIG,
+    content: PetContent,
+    reply: function (text) { return petReply(text); },
+    mood: function () { return mood(); },
+    get state() { return state; },
     get director() { return director; },
     get player() { return player; }
 };

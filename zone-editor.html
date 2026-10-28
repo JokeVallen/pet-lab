@@ -82,6 +82,7 @@
     <button onclick="addZone()" data-i18n="zone.add">＋ 子分区</button>
     <button onclick="download()" data-i18n="zone.export">导出 YAML</button>
     <button class="primary" onclick="saveZones()" data-i18n="zone.save">保存并编译</button>
+    <button onclick="resetFactory()" data-i18n="zone.factory">恢复出厂默认</button>
 </header>
 
 <main>
@@ -185,6 +186,9 @@ async function confirmOverwrite(rel) {
         '现在保存会用页面里的分区覆盖它，那些改动会丢。\n\n仍然要保存吗？'
     );
 }
+
+/* 文案查询：页面文案走 PetI18n，缺省原样返回中文 */
+const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
 
 let zones = [
     { id: 'head', yMin: 0, yMax: 0.42 },
@@ -1034,6 +1038,27 @@ async function saveZones() {
         status.textContent = data.ok ? (window.PetI18n ? PetI18n.s('msg.saved') : '已保存') : ((window.PetI18n ? PetI18n.s('msg.failed') : '失败：') + (data.error || data.stderr || '').slice(0, 100));
     } catch (e) {
         status.textContent = window.PetI18n ? PetI18n.s('msg.needServer') : '需要本地服务器';
+    }
+}
+
+/* 恢复出厂默认：只替换 zones / zoneReactions，其它段不碰 */
+async function resetFactory() {
+    if (!confirm(T('用 config/pet.default.yaml 里的出厂默认值替换当前内容？') + '\n' + T('（只是载入到编辑器，点「保存并编译」才会写盘）'))) return;
+    try {
+        const r = await fetch('config/pet.default.yaml?ts=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const text = new TextDecoder('utf-8').decode(await r.arrayBuffer());
+        const data = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+        if (data && Array.isArray(data.zones) && data.zones.length) zones = data.zones;
+        if (data && data.zoneReactions) reactions = data.zoneReactions;
+        zones.forEach(norm);
+        selected = 0;
+        selectedSet = new Set(zones.length ? [0] : []);
+        draw();
+        pushHistory();
+        document.getElementById('status').textContent = T('已载入出厂默认分区，点「保存并编译」写回');
+    } catch (e) {
+        document.getElementById('status').textContent = T('读不到 config/pet.default.yaml：') + e.message;
     }
 }
 

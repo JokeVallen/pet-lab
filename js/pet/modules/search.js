@@ -5,6 +5,10 @@
  * 索引本身由站点构建期生成（博客里是 scripts/pet-index.js）。
  */
 
+import { PetContent } from '../content/index.js';
+
+const C = PetContent;
+
 
     function createSearch(opts) {
         var url = (opts && opts.url) || '/pet-index.json';
@@ -66,29 +70,41 @@
                 if (!idxRows) {
                     idxPending = q;
                     loadPetIndex();
-                    return '让我翻一下索引……';
+                    return C.t('search.pending');
                 }
-                return '没找到相关的内容，换个词试试？';
+                return C.t('search.notFound');
             }
             var top = hits[0].r;
-            var kindName = top.k === 'card' ? '卡片' : (top.k === 'page' ? '页面' : '文章');
-            var head = '最接近的是' + kindName + '「' + top.t + '」';
+            var kindName = top.k === 'card' ? C.t('search.kindCard')
+                : (top.k === 'page' ? C.t('search.kindPage') : C.t('search.kindPost'));
             if (maxResults <= 1) {
-                var more = hits.length > 1 ? '，另外还有 ' + (hits.length - 1) + ' 条' : '';
-                return head + more + '：' + top.u;
+                var more = hits.length > 1 ? C.t('search.andMore', { n: hits.length - 1 }) : '';
+                return C.t('search.closest', { kind: kindName, title: top.t, more: more, url: top.u });
             }
             // 配了更多条数：按顺序列出来
-            var lines = [head + '：' + top.u];
+            var lines = [C.t('search.listHead', { kind: kindName, title: top.t, url: top.u })];
             var extra = Math.min(maxResults, hits.length) - 1;
             for (var i = 1; i <= extra; i++) {
-                lines.push('· 「' + hits[i].r.t + '」' + hits[i].r.u);
+                lines.push(C.t('search.listItem', { title: hits[i].r.t, url: hits[i].r.u }));
             }
-            if (hits.length > maxResults) lines.push('……还有 ' + (hits.length - maxResults) + ' 条');
+            if (hits.length > maxResults) lines.push(C.t('search.listMore', { n: hits.length - maxResults }));
             return lines.join('\n');
         }
 
+        /* 停用词和意图正则都随语言变化，按语言缓存 */
+        var stopRe = null, intentRe = null, reLang = null;
+        function ensureRes() {
+            if (reLang === C.lang && stopRe && intentRe) return;
+            var esc = function (x) { return String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+            var sw = C.list('search.stopwords').map(esc);
+            stopRe = new RegExp('^(' + sw.join('|') + ')$');
+            try { intentRe = new RegExp(C.t('search.intent')); } catch (e) { intentRe = /$^/; }
+            reLang = C.lang;
+        }
+
         function splitTerms(q) {
-            var STOP = /^(有没有|有没|没有|关于|相关|相关的|文章|卡片|知识|一下|帮我|找找|看看|什么|哪些|这个|那个|的|了|吗|呢|和|与)$/;
+            ensureRes();
+            var STOP = stopRe;
             var raw = String(q).toLowerCase()
                 .replace(/[，。！？、,.!?：:；;（）()「」"']/g, ' ')
                 .split(/\s+/)
@@ -114,7 +130,7 @@
         }
 
         return {
-            matches: function (text) { var INDEX_INTENT = /有没有|找一下|帮我找|搜一[下搜]|查一下|关于|相关的|哪篇|哪张|哪些文章|站内/; return INDEX_INTENT.test(text); },
+            matches: function (text) { ensureRes(); return intentRe.test(text); },
             ensure: loadPetIndex,
             search: indexSearch,
             reply: function (q) {

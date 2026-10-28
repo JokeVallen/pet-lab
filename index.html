@@ -23,6 +23,17 @@
     pre { background: #eef2f8; padding: 14px; border-radius: 8px; overflow: auto; font-size: 13px; }
 
     /* 模拟站点信号的控制台 */
+    .lab { max-height: 72vh; overflow: auto; }
+    .lab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .lab-head h3 { margin:0; }
+    .lab-mini { font-size:11px; padding:2px 8px; }
+    .lab-read { font:11.5px/1.6 Consolas,monospace; color:#5f6b7d; background:#f5f8fd; border-radius:6px; padding:6px 8px; margin:6px 0 8px; word-break:break-all; }
+    .lab details { margin:6px 0 4px; }
+    .lab summary { cursor:pointer; font-size:12.5px; color:#3f4c5f; padding:3px 0; font-weight:600; }
+    .lab details .lab-row { padding:4px 0 6px; }
+    .lab-row input[type=text] { width:100%; box-sizing:border-box; margin-bottom:4px; }
+    .lab-out { font:11.5px/1.5 Consolas,monospace; color:#5f6b7d; background:#f5f8fd; border-radius:6px; padding:6px 8px; margin:6px 0 0; white-space:pre-wrap; word-break:break-all; }
+
     .lab {
         position: fixed; left: 16px; bottom: 16px; z-index: 200;
         background: #fff; border: 1px solid #e2e8f2; border-radius: 12px;
@@ -69,16 +80,79 @@
     <p style="color:#94a3b8" data-i18n="demo.bottom">页面底部 —— 滚动到这里应触发“读到底了”。</p>
 </main>
 
-<div class="lab">
-    <h3 data-i18n="demo.lab">模拟站点信号</h3>
-    <button onclick="sim('nav:home')" data-i18n="demo.sim1">导航到首页</button>
-    <button onclick="sim('content:item')" data-i18n="demo.sim2">进入一篇文章</button>
-    <button onclick="sim('progress:1')" data-i18n="demo.sim3">滚动到底（信号）</button>
-    <button onclick="sim('visitor:first')" data-i18n="demo.sim4">模拟首次访问</button>
-    <button onclick="window.scrollTo({top:0,behavior:'smooth'})" data-i18n="demo.sim5">滚回顶部</button>
-    <button onclick="sim('feed')" data-i18n="demo.sim6">喂食（驱动 eat）</button>
-    <button onclick="sim('pet:head')" data-i18n="demo.sim7">戳脑袋（click-shy）</button>
-    <button onclick="location.reload()" data-i18n="demo.sim8">刷新（重置会话）</button>
+<div class="lab" id="lab">
+    <div class="lab-head">
+        <h3 data-i18n="demo.lab">测试面板</h3>
+        <button class="lab-mini" onclick="document.getElementById('lab').classList.toggle('is-open')" data-i18n="demo.lab.toggle">收起</button>
+    </div>
+
+    <div class="lab-read" id="labRead">…</div>
+
+    <details open>
+        <summary data-i18n="demo.g.act">动作（直接 cue）</summary>
+        <div class="lab-row" id="labActs"></div>
+    </details>
+
+    <details>
+        <summary data-i18n="demo.g.state">状态与睡眠</summary>
+        <div class="lab-row">
+            <button onclick="labState('idle')" data-i18n="demo.state.idle">待机</button>
+            <button onclick="labState('busy')" data-i18n="demo.state.busy">忙碌</button>
+            <button onclick="labState('sleepy')" data-i18n="demo.state.sleepy">困倦</button>
+            <button onclick="labSleep()" data-i18n="demo.sleep">强制入睡</button>
+            <button onclick="labWake()" data-i18n="demo.wake">叫醒</button>
+        </div>
+    </details>
+
+    <details>
+        <summary data-i18n="demo.g.interact">互动</summary>
+        <div class="lab-row">
+            <button onclick="labFeed()" data-i18n="demo.feed">喂食</button>
+            <button onclick="labPoke('head')" data-i18n="demo.poke.head">戳脑袋</button>
+            <button onclick="labPoke('tail')" data-i18n="demo.poke.tail">戳尾巴</button>
+            <button onclick="labBurst()" data-i18n="demo.particles">粒子 ×1</button>
+        </div>
+    </details>
+
+    <details>
+        <summary data-i18n="demo.g.speech">说话</summary>
+        <div class="lab-row">
+            <button onclick="labSpeech('ambient')" data-i18n="demo.speech.ambient">闲话</button>
+            <button onclick="labSpeech('context')" data-i18n="demo.speech.context">情境</button>
+            <button onclick="labSpeech('reply')" data-i18n="demo.speech.reply">回答</button>
+            <button onclick="labSpeech('dialog')" data-i18n="demo.speech.dialog">进对话框</button>
+        </div>
+    </details>
+
+    <details>
+        <summary data-i18n="demo.g.ask">问一句（走检索 / 句库）</summary>
+        <div class="lab-row">
+            <input id="labQ" type="text" placeholder="有没有讲算法的？" data-i18n-placeholder="demo.ask.ph">
+            <button onclick="labAsk()" data-i18n="demo.ask">提问</button>
+        </div>
+        <p class="lab-out" id="labAns">…</p>
+    </details>
+
+    <details>
+        <summary data-i18n="demo.g.lang">语言与配置</summary>
+        <div class="lab-row">
+            <button onclick="labLang('zh')">中文</button>
+            <button onclick="labLang('en')">English</button>
+            <button onclick="labShowConfig()" data-i18n="demo.showConfig">看配置</button>
+            <button onclick="location.reload()" data-i18n="demo.reload">刷新（重置会话）</button>
+        </div>
+        <p class="lab-out" id="labCfg">…</p>
+    </details>
+
+    <details>
+        <summary data-i18n="demo.g.site">模拟站点信号</summary>
+        <div class="lab-row">
+            <button onclick="sim('nav:home')" data-i18n="demo.sim1">导航到首页</button>
+            <button onclick="sim('content:item')" data-i18n="demo.sim2">进入一篇文章</button>
+            <button onclick="sim('progress:1')" data-i18n="demo.sim3">滚动到底</button>
+            <button onclick="window.scrollTo({top:0,behavior:'smooth'})" data-i18n="demo.sim5">滚回顶部</button>
+        </div>
+    </details>
 </div>
 <script>
     /* 实验台：把面板按钮翻译成内核意图，验证真实通路。
@@ -114,6 +188,116 @@
         // 也支持外部直接派发 lab:signal
         window.addEventListener('lab:signal', function (e) { /* 保留钩子，供未来 adapter 接入 */ });
     })();
+</script>
+<script>
+/* ---------------- 测试面板 ----------------
+ * 所有按钮都只是"发信号"，不直接改宠物内部状态：
+ * 动作走 intent.action，状态走 intent.state，说话走 speech.act，问句走 PetDebug.reply。
+ * 想加测试项，往 ACTS 里塞一个名字就行（动画名来自 config 的 animations / states）。
+ */
+(function () {
+    var ACTS = ['idle', 'look', 'think', 'hum', 'stretch', 'yawn', 'doze', 'spin', 'tail',
+                'angry', 'puzzle', 'click-shy', 'click-wave', 'click-happy', 'eat', 'drag-up'];
+
+    function dbg() { return window.PetDebug && window.PetDebug['deepseek-pet']; }
+    function T(zh) { return (window.PetI18n && PetI18n.lang === 'en') ? (window.PetI18n.t(zh)) : zh; }
+
+    function emit(method, payload) {
+        var K = window.PetKernel;
+        if (!K || !K[method]) return false;
+        K[method](payload);
+        return true;
+    }
+
+    function buildActs() {
+        var host = document.getElementById('labActs');
+        if (!host) return;
+        ACTS.forEach(function (name) {
+            var b = document.createElement('button');
+            b.textContent = name;
+            b.onclick = function () { emit('action', { act: name, level: 'direct', duration: 3000 }); };
+            host.appendChild(b);
+        });
+    }
+
+    window.labState = function (name) { emit('state', { state: name }); refresh(); };
+    window.labSleep = function () { var d = dbg(); if (d && d.director) d.director.sleep(); refresh(); };
+    window.labWake = function () { var d = dbg(); if (d && d.director) d.director.wake(); refresh(); };
+    window.labFeed = function () { emit('action', { act: 'eat', level: 'direct' }); refresh(); };
+    window.labPoke = function (zone) {
+        var d = dbg();
+        if (d && d.director) d.director.cue(zone === 'tail' ? 'tail' : 'click-shy');
+        var line = zone === 'tail' ? T('尾巴会痒的。') : T('别戳脑袋啦。');
+        emit('speech', { text: line, channel: 'auto', priority: 'context', ttl: 2600 });
+    };
+    window.labBurst = function () {
+        var root = document.querySelector('.dp-root');
+        if (!root) return;
+        var el = document.createElement('span');
+        el.className = 'dp-particle';
+        el.textContent = '\u{1F497}';
+        el.style.left = (52 + Math.random() * 60) + 'px';
+        root.appendChild(el);
+        setTimeout(function () { el.remove(); }, 1400);
+    };
+    window.labSpeech = function (kind) {
+        var text = T('（测试台词）');
+        var act = { text: text, channel: 'auto', priority: 'ambient', ttl: 2600 };
+        if (kind === 'context') act.priority = 'context';
+        if (kind === 'reply') act.priority = 'reply';
+        if (kind === 'dialog') act.channel = 'dialog';
+        emit('speech', act);
+    };
+    window.labAsk = function () {
+        var d = dbg(), q = document.getElementById('labQ').value;
+        var box = document.getElementById('labAns');
+        if (!d || !q) { box.textContent = '…'; return; }
+        box.textContent = String(d.reply(q));
+    };
+    window.labLang = function (code) {
+        var d = dbg();
+        if (d && d.content) d.content.setLang(code);
+        // 工具页文案走 PetI18n，宠物台词走 content，两边一起切才一致
+        if (window.PetI18n) window.PetI18n.setLang(code);
+        document.documentElement.lang = code === 'en' ? 'en' : 'zh-CN';
+        refresh();
+    };
+    window.labShowConfig = function () {
+        var d = dbg(), box = document.getElementById('labCfg');
+        if (!d) return;
+        var c = d.config;
+        box.textContent = JSON.stringify({
+            name: (c.persona && c.persona.name) || c.name,
+            lang: d.content && d.content.lang,
+            drag: c.drag && c.drag.enabled,
+            particles: c.click && c.click.particleCount,
+            bubbleTtl: c.speech && c.speech.bubbleTtl,
+            sleepLoop: c.states && c.states.sleepy && c.states.sleepy.loop,
+            idleSleepMs: c.idleSleepMs
+        }, null, 1);
+    };
+
+    function refresh() {
+        var box = document.getElementById('labRead');
+        var d = dbg();
+        if (!box || !d) return;
+        var st = d.state || {};
+        var sleeping = !!(d.director && d.director.isSleeping());
+        box.textContent = [
+            'lang=' + (d.content && d.content.lang),
+            'act=' + (d.player && d.player.name ? d.player.name() : '-'),
+            'sleep=' + (sleeping ? 'yes' : 'no'),
+            'mood=' + (d.mood ? d.mood() : '-'),
+            'full=' + (st.fullness | 0),
+            'aff=' + (st.affinity | 0),
+            'streak=' + (st.streak || 1)
+        ].join('  ·  ');
+    }
+
+    buildActs();
+    setInterval(refresh, 600);
+    setTimeout(refresh, 1500);
+})();
 </script>
 <script>
     /* 配置改动后其它标签页会写入时间戳，这里自动重载 */
