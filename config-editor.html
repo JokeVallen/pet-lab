@@ -310,11 +310,8 @@ const SCHEMA = [
     },
     {
         title: '站点对接',
-        desc: '宠物只通过 window.SiteAPI 与站点对话；这两项决定它什么时候去敲站点的门。',
-        fields: [
-            { path: ['site', 'readyDelayMs'], label: '就绪延迟', hint: 'SiteAPI.ready() 会让站点加载内容库，延迟执行可以避开首屏', type: 'number', min: 0, max: 60000, step: 500, unit: 'ms' },
-            { path: ['site', 'postMeta'], label: '读取文章元信息', hint: '文章页按需取标签与字数（走内容库，一页只取一次）；关掉后相关台词不会出现', type: 'bool' }
-        ]
+        desc: '宠物只通过 window.SiteAPI 与站点对话，这里没有任何可调项：页面类型、标签、字数、主题都由站点在 currentContext() 里给。',
+        fields: []
     },
 
 ];

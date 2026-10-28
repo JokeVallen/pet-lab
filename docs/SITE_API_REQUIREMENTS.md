@@ -3,8 +3,31 @@
 > **消费者**：pet-lab 的桌宠（大肥鱼）。它**只**通过 `window.SiteAPI` 与站点对话，
 > 不查 DOM、不读 `content-db` 内部表、不碰 `localStorage`。
 > **依据**：`SITE_API_INTEGRATION_GUIDE.md`、`SITE_API.md`（v1.0.0）。
-> **提出方**：宠物侧。**状态**：13 条，按优先级排列；P0 是性能/正确性问题，P1 是功能恢复，P2 是打磨。
+> **提出方**：宠物侧。共 13 条，按优先级排列；P0 是性能/正确性问题，P1 是功能恢复，P2 是打磨。
+> **状态：已在 SiteAPI 1.1.0 全部交付并接入验证**（站点侧变更见 `SITE_API_CHANGELOG.md`）。
+> 本文保留原始诉求与验收方式，作为契约依据；下面的对接状态表说明每条的落地情况。
 > **英文版**：[SITE_API_REQUIREMENTS.en.md](SITE_API_REQUIREMENTS.en.md)
+
+## 对接状态（宠物侧实测，2026-10-28）
+
+| ID | 状态 | 落地方式 |
+| --- | --- | --- |
+| R1 | ✅ 已接入 | `ready()` 轻量 + `readyContent()`；宠物挂载即 `ready()`，滚动跟踪从首屏开始 |
+| R2 | ✅ 已接入 | `currentContext().tags` / `wordCount`；文章页不再加载内容库（实测 0 次 `content-db.json`） |
+| R3 | ✅ 已接入 | `currentContext().contentId`；按 ID 取详情走 `ensureContent()` |
+| R4 | ✅ 已接入 | `type` 直接取站点给的值，宠物不再解析路径（旧版才有兜底） |
+| R5 | ✅ 已接入 | `theme` + `context:change`；两条主题台词已恢复（实测切深色/浅色都会说话） |
+| R6 | ✅ 已接入 | `comments` + `commentsAvailable`；`false` 时宠物视为"不知道"（`null`），相关规则不命中 |
+| R7 | ◐ 部分 | 新增 `/search-index.json`（1.2 MB）承担检索，实测搜索不再拉 5.2 MB 内容库；`content-db.json` 仍未压缩 |
+| R8 | ✅ 已接入 | 搜索行带 `paperId` / `questionId`（宠物暂未用，接口已具备） |
+| R9 | ✅ 已接入 | `err.code` 已用于区分取消与失败 |
+| R10 | ✅ 已说明 | `ready()` / `readyContent()` 幂等 |
+| R11 | ✅ 已接入 | `capabilities()` 返回 `contextFields` / `actions` |
+| R12 | ✅ 已说明 | 指南与 changelog 标注 action 可用页面 |
+| R13 | ✅ 已说明 | `userState()` 前缀、8 KB 上限、`keys()` / `clear()` |
+
+> 剩余唯一未完全落地的是 **R7 的后半段**（`content-db.json` 仍是 5.2 MB、未预压缩）。
+> 宠物侧已经不再在页面浏览时加载它，只有显式 `readyContent()` 才会拉，所以影响面已收窄到"确实要看全文"的场景。
 
 ---
 

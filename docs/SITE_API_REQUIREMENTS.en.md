@@ -3,9 +3,32 @@
 > **Consumer**: the pet-lab desktop pet. It talks to the site **only** through `window.SiteAPI`:
 > no DOM queries, no direct `content-db` access, no `localStorage`.
 > **Based on**: `SITE_API_INTEGRATION_GUIDE.md`, `SITE_API.md` (v1.0.0).
-> **Status**: 13 items, prioritised. P0 = performance/correctness, P1 = restore lost behaviour,
-> P2 = contract clarity.
+> **Status: all 13 items shipped in SiteAPI 1.1.0 and integrated/verified from the pet side**
+> (site changes: `SITE_API_CHANGELOG.md`). This document is kept as the contract of record;
+> the table below records how each item landed.
 > **Chinese version**: [SITE_API_REQUIREMENTS.md](SITE_API_REQUIREMENTS.md)
+
+## Delivery status (verified from the pet, 2026-10-28)
+
+| ID | Status | How it landed |
+| --- | --- | --- |
+| R1 | ✅ integrated | light `ready()` + `readyContent()`; the pet calls `ready()` on mount, scroll tracking from first paint |
+| R2 | ✅ integrated | `currentContext().tags` / `wordCount`; post pages never load the content DB (0 `content-db.json` requests measured) |
+| R3 | ✅ integrated | `currentContext().contentId`; full text via `ensureContent()` |
+| R4 | ✅ integrated | `type` taken directly from the site; no path parsing (the guess remains only as a 1.0 fallback) |
+| R5 | ✅ integrated | `theme` + `context:change`; both theme lines restored (verified for dark and light) |
+| R6 | ✅ integrated | `comments` + `commentsAvailable`; when false the pet treats it as unknown (`null`), so the rules stay dormant |
+| R7 | ◐ partial | new `/search-index.json` (1.2 MB) serves search, so searching no longer pulls the 5.2 MB DB; `content-db.json` itself is still uncompressed |
+| R8 | ✅ integrated | search rows carry `paperId` / `questionId` (unused by the pet so far, but available) |
+| R9 | ✅ integrated | `err.code` is used to tell a cancelled confirmation from a failure |
+| R10 | ✅ documented | `ready()` / `readyContent()` are idempotent |
+| R11 | ✅ integrated | `capabilities()` returns `contextFields` / `actions` |
+| R12 | ✅ documented | guide and changelog note when each action exists |
+| R13 | ✅ documented | `userState()` prefix, 8 KB cap, `keys()` / `clear()` |
+
+> The only item not fully landed is the second half of **R7** (`content-db.json` is still 5.2 MB and
+> uncompressed). The pet no longer loads it while browsing — only an explicit `readyContent()` does — so
+> the blast radius is limited to "actually needs the full text". 
 
 ---
 

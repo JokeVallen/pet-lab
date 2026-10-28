@@ -109,13 +109,22 @@ function emptyCtx() {
     };
 }
 
+/* SiteAPI 1.1 起由站点给 type（home/post/tag/category/404/paper/...）；
+   老版本只给 'page'，那时才退化成看路径。 */
+var SITE_TYPES = {
+    home: 1, post: 1, tag: 1, category: 1, '404': 1, page: 1,
+    paper: 1, algorithm: 1, mock: 1, stats: 1, questions: 1, knowledge: 1
+};
+
 function pageTypeOf(site) {
     var type = String((site && site.type) || 'page');
+    if (SITE_TYPES[type]) return type === 'page' ? guessPageType(site) : type;
+    return guessPageType(site);
+}
+
+/* 只有站点给不出具体类型时才用的兜底（v1.0 兼容） */
+function guessPageType(site) {
     var p = String((site && site.path) || '/');
-    if (type === 'post') return 'post';
-    if (type === 'paper') return 'paper';
-    if (type === 'algorithm') return 'algorithm';
-    if (type === 'mock') return 'mock';
     if (/^\/tags\//.test(p)) return 'tag';
     if (/^\/categories\//.test(p)) return 'category';
     if (p === '/' || p === '/index.html') return 'home';
@@ -135,10 +144,6 @@ function tagName() {
     }
 }
 
-function metaOf(type) {
-    return type === 'post' || type === 'paper' || type === 'knowledge' || type === 'algorithm';
-}
-
 /** 只读 SiteAPI 的页面上下文，构造规则用的快照 */
 function context() {
     if (cache.ctx) return cache.ctx;
@@ -148,82 +153,45 @@ function context() {
 function recompute() {
     var site = cache.site || {};
     var type = pageTypeOf(site);
-    var doc = (cache.doc && cache.docPath === site.path) ? cache.doc : null;
+    var commentsReady = site.commentsAvailable === true;
     cache.ctx = {
         page: type === 'post' ? 'post' : (type === 'home' ? 'home' : 'other'),
         type: type,
         path: site.path || '/',
         title: site.title || '',
         id: site.id || '',
-        tags: (doc && Array.isArray(doc.tags)) ? doc.tags.slice(0, 12) : [],
-        words: (doc && Number(doc.word_count)) || 0,
-        comments: null,          // SiteAPI 不提供评论数：相关规则自然不命中
-        dark: null,              // 主题不在上下文里：相关规则自然不命中
+        contentId: site.contentId || '',
+        tags: Array.isArray(site.tags) ? site.tags.slice(0, 12) : [],
+        categories: Array.isArray(site.categories) ? site.categories.slice(0, 6) : [],
+        words: Number(site.wordCount) || 0,
+        /* commentsAvailable=false 时是"不知道"，不是"零条" */
+        comments: commentsReady ? (Number(site.comments) || 0) : null,
+        dark: site.theme ? site.theme === 'dark' : null,
         scroll: cache.scroll,
         hour: new Date().getHours()
     };
     return cache.ctx;
 }
 
-/* 哪些字段真的会被用到：配置里的规则 + 内置上下文规则 */
-function rulesNeed(field) {
-    var keys = [field];
-    var lists = [
-        (PetConfig && PetConfig.rules && PetConfig.rules.items) || [],
-        (PetConfig && PetConfig.policy && PetConfig.policy.stateRules) || []
-    ];
-    for (var i = 0; i < lists.length; i++) {
-        for (var j = 0; j < lists[i].length; j++) {
-            var when = lists[i][j].when || {};
-            for (var k = 0; k < keys.length; k++) {
-                if (Object.prototype.hasOwnProperty.call(when, keys[k])) return true;
-            }
-        }
-    }
-    return false;
-}
-
-/**
- * 文章元信息按需加载：只有规则里真的用到了 tags/words 才去内容库取。
- * 取一次缓存一页；失败就当没有，不重试、不阻塞。
- */
-function loadMeta() {
-    var cfg = (PetConfig && PetConfig.site) || {};
-    if (cfg.postMeta === false) return Promise.resolve(null);
-    var path = cache.site && cache.site.path;
-    if (!path || !metaOf(pageTypeOf(cache.site))) return Promise.resolve(null);
-    if (cache.doc && cache.docPath === path) return Promise.resolve(cache.doc);
-    if (cache.docLoading) return cache.docLoading;
-    if (!rulesNeed('tagsAny') && !rulesNeed('wordsGt') && !rulesNeed('wordsLt')) {
-        return Promise.resolve(null);
-    }
-    cache.docLoading = ensureReady().then(function () {
-        return PetSite.documentByPath(path);
-    }).then(function (doc) {
-        cache.docLoading = null;
-        if (doc) {
-            cache.doc = doc;
-            cache.docPath = path;
-            recompute();
-        }
-        return doc;
-    }).catch(function () {
-        cache.docLoading = null;
-        return null;
-    });
-    return cache.docLoading;
-}
-
-/* ---------------- 站点就绪（节流） ----------------
- * SiteAPI.ready() 会让站点加载内容库（content-db.json，5MB 级），
- * 所以不在首屏调用：等到"需要内容"或者过了 readyDelayMs 再来。
+/* ---------------- 站点就绪 ----------------
+ * SiteAPI 1.1 起 ready() 是轻量的（不再拉 content-db.json），
+ * 所以挂载时直接调用；需要完整内容时才显式 readyContent()。
+ * 两个都是幂等的，重复调用没关系。
  */
 var readyPromise = null;
+var contentPromise = null;
 
 function ensureReady() {
     if (!PetSite.available()) return Promise.resolve(false);
     if (!readyPromise) readyPromise = PetSite.ready();
     return readyPromise;
+}
+
+/** 显式加载内容库（只在按 ID 取详情这类"真要全文"的场合用） */
+function ensureContent() {
+    if (!PetSite.available()) return Promise.resolve(false);
+    if (!contentPromise) contentPromise = ensureReady().then(function () { return PetSite.readyContent(); });
+    return contentPromise;
 }
 
 /** 主动刷新一次站点上下文（pjax / context:change 之后） */
@@ -270,17 +238,8 @@ function init() {
     timer.unref && timer.unref();
 
     return started.then(function () {
-        var cfg = (PetConfig && PetConfig.site) || {};
-        var delay = Number(cfg.readyDelayMs);
-        if (!Number.isFinite(delay) || delay < 0) delay = 6000;
-
-        // 到点再让站点就绪：阅读位置跟踪也在这之后才开始
-        setTimeout(function () {
-            ensureReady().then(function () { refresh(); });
-        }, delay);
-
-        // 元信息更晚：先让页面喘口气
-        setTimeout(function () { loadMeta(); }, delay + 2000);
+        /* ready() 现在是轻量的：立刻调用，阅读位置跟踪马上开始 */
+        ensureReady().then(function () { refresh(); });
         return context();
     });
 }
@@ -295,9 +254,22 @@ function scrollRatio() { return cache.scroll; }
 function headingText() { return tagName(); }
 function tagFromPath() { return tagName(); }
 
-/** 主题：SiteAPI 没有这个字段，所以永远是"不知道" */
-function isDark() { return null; }
-function onThemeChange() { return function () {}; }
+/** 主题：来自 currentContext().theme；站点没给就是"不知道" */
+function isDark() {
+    var c = context();
+    return c.dark == null ? null : c.dark;
+}
+
+/** 主题切换订阅：站点在 context:change 里带 theme，这里只挑变化转发 */
+function onThemeChange(fn) {
+    var last = isDark();
+    return PetSite.on('context:change', function (site) {
+        var now = site && site.theme ? site.theme === 'dark' : last;
+        if (now === last) return;
+        last = now;
+        try { fn(now); } catch (e) { /* ignore */ }
+    });
+}
 
 /* ---------------- 本地状态（走 userState，不自建存储） ---------------- */
 
@@ -368,8 +340,18 @@ var CTX_RULES = [
         act: 'look'
     },
     {
+        id: 'post.hot',
+        when: function (c) { return c.page === 'post' && c.comments != null && c.comments >= 3; },
+        say: function () { return C.t('adapter.hot'); }
+    },
+    {
+        id: 'post.noComment',
+        when: function (c) { return c.page === 'post' && c.comments === 0 && c.scroll > 0.5; },
+        say: function () { return C.t('adapter.noComment'); }
+    },
+    {
         id: 'home.late',
-        when: function (c) { return c.page === 'home' && c.hour >= 23; },
+        when: function (c) { return c.page === 'home' && c.dark === true && c.hour >= 23; },
         say: function () { return C.t('adapter.late'); },
         act: 'doze'
     },
@@ -408,7 +390,7 @@ export const PetAdapter = {
     refresh: refresh,
     context: context,
     ensureReady: ensureReady,
-    loadMeta: loadMeta,
+    ensureContent: ensureContent,
     available: function () { return PetSite.available(); },
     site: PetSite,
 

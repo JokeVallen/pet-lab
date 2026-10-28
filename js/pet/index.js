@@ -735,7 +735,6 @@ var CONFIG = {
         resetIdle();
         if (director) director.cue('hum');       // "在想"的动作
         setTimeout(function () {
-            PetAdapter.loadMeta();   // 先摸一下元信息，回答"这篇讲什么"才有料
             Promise.resolve(petReply(text)).then(function (reply) {
                 appendMessage('pet', reply);
                 updateStats();
@@ -1085,6 +1084,18 @@ var CONFIG = {
         }, { passive: true });
     }
 
+    /* 主题切换：站点在 context:change 里带 theme，宠物只负责说一句 */
+    function watchThemeChange() {
+        if (watchThemeChange.done) return;
+        watchThemeChange.done = true;
+        PetAdapter.onThemeChange(function (dark) {
+            if (!director || chatOpen) return;
+            director.cue(dark ? 'yawn' : 'stretch');
+            say(dark ? C.pick('ambient.themeDark') : C.pick('ambient.themeLight'), 3600);
+            updateStats();
+        });
+    }
+
     function watchScroll() {
         if (watchScroll.done) return;
         watchScroll.done = true;
@@ -1342,6 +1353,7 @@ var CONFIG = {
 
         watchScroll();
         watchSelection();
+        watchThemeChange();
 
         // 首次挂载也评估一次：主题若是整页跳转（不走 pjax），换页后走不到 pjax 分支
         setTimeout(function () {

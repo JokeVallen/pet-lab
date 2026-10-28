@@ -42,36 +42,19 @@ so changing the horizontal offset visibly moves the ground shadow — only the c
 **Impact**: questions outside the phrase library get template answers.
 **Fix**: swapping in an LLM only replaces the text producer; the `speech.act` channel stays.
 
-## 4. Theme and comment count are unavailable, so those rules never fire
-
-**Symptom**: the "late night" branch only looks at the hour; `post.hot` / `post.noComment` never trigger.
-**Cause**: the pet only talks to `window.SiteAPI`, and `currentContext()` exposes neither `theme` nor
-`comments`. `adapter` pins them to `null` instead of scraping the DOM.
-**Fix**: let the site add `theme: 'dark' | 'light'` and `comments: number` to `currentContext()`, then wire
-`ctx.dark` / `ctx.comments` back in `adapter.js` (one line each). This is an intentional boundary, not an oversight.
-
-## 4.5 Reading progress waits for `SiteAPI.ready()`
-
-**Symptom**: scroll-driven lines (reached the end, back to top) depend on the site's `reading:position`
-events, which only start after `SiteAPI.ready()` runs `SiteReadingPosition.start()`.
-The pet delays that call by 6s (`site.readyDelayMs`) because `ready()` also loads the content library.
-**Impact**: scrolling during the first seconds of a visit is not observed.
-**Fix**: split `ready()` on the site into "light ready" and "content library load"; the pet could then
-track reading position immediately.
-
-## 5. `.chrome-smoke` accumulates
+## 4. `.chrome-smoke` accumulates
 
 **Symptom**: each smoke run leaves a Chrome profile of roughly 10 MB.
 **Fix**: delete it periodically, or clean up when `smoke.js` exits (file handles may still be held on Windows — needs retries).
 
-## 6. Saving loses YAML comments
+## 5. Saving loses YAML comments
 
 **Symptom**: after “Save & build”, comments in `config/pet.yaml` are gone.
 **Cause**: `tools/apply-patch.js` re-serialises the whole file with js-yaml; comments are not part of the parsed result.
 **Impact**: data is complete; only prose is lost.
 **Fix**: hand-edit (the dev server rebuilds automatically) when comments matter, or switch to段-level text replacement (more logic, more ways to break).
 
-## 7. The server is local-only
+## 6. The server is local-only
 
 **Status**: `start.bat` → `tools/serve.py` binds `127.0.0.1` and writes only under `config/`.
 **Impact**: cannot be deployed publicly; this is a deliberate boundary.
@@ -80,6 +63,13 @@ track reading position immediately.
 ---
 
 ## Historical bugs (fixed, kept for reference)
+
+- **Theme and comment count were unavailable** (SiteAPI 1.0): `currentContext()` had neither `theme` nor
+  `comments`, so those rules could only stay dormant. Since 1.1 the context carries `theme`, `comments`
+  and `commentsAvailable`; the pet uses the flag to tell "zero" from "unknown", so the rules are back.
+- **Reading progress had to wait for `ready()`** (SiteAPI 1.0): `ready()` also pulled the 5 MB content
+  library, forcing a 6 s delay and hiding the first seconds of scrolling. 1.1 splits `ready()`, so the pet
+  calls it on mount and tracks scrolling from the first paint.
 
 - Undeclared globals silently killed handlers (`justDragged` / `lastScrollSeen` / `mdKey`)
 - `dropTimer` was not cleared alongside `rollTimer`, so delayed actions interrupted later ones

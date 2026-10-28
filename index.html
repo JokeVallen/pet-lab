@@ -162,6 +162,7 @@
             <button onclick="mockScroll(0.95)" data-i18n="demo.sim3">滚动到 90%</button>
             <button onclick="mockScroll(0)" data-i18n="demo.sim4">滚回顶部</button>
             <button onclick="mockBookmark()" data-i18n="demo.sim7">收藏这页</button>
+            <button onclick="mockTheme()" data-i18n="demo.sim8">切主题</button>
         </div>
         <p class="lab-out" id="labSite">…</p>
     </details>
@@ -207,16 +208,21 @@
             var ctx = window.mockSite.state.ctx;
             var ad = petAdapter();
             el.textContent = 'ctx=' + ctx.type + ' ' + ctx.path +
+                ' · theme=' + (ctx.theme || '?') +
                 ' · ratio=' + window.mockSite.state.scroll +
                 ' · 宠物看到: ' + (ad ? JSON.stringify(ad.context()) : 'n/a');
         }
         window.mockCtx = function (kind) {
             if (!siteOn()) return showSite();
             var map = {
-                post: { type: 'post', id: 'mock-post', title: '演示用的文章', path: '/posts/mock/' },
-                tag: { type: 'page', id: '/tags/Unity/', title: '标签：Unity', path: '/tags/Unity/' },
-                home: { type: 'page', id: '/', title: '演示首页', path: '/' },
-                '404': { type: 'page', id: '/404.html', title: '找不到页面', path: '/404.html' }
+                post: {
+                    type: 'post', id: 'mock-post', contentId: 'post:_posts/mock.md',
+                    title: '演示用的文章', path: '/posts/mock/',
+                    tags: ['Unity', 'C#'], categories: ['技术'], wordCount: 5200
+                },
+                tag: { type: 'tag', id: '/tags/Unity/', title: '标签：Unity', path: '/tags/Unity/', tags: [], wordCount: 0 },
+                home: { type: 'home', id: '/', title: '演示首页', path: '/', tags: [], wordCount: 0 },
+                '404': { type: '404', id: '/404.html', title: '找不到页面', path: '/404.html', tags: [], wordCount: 0 }
             };
             window.mockSite.setContext(map[kind] || map.post);
             setTimeout(function () { try { petAdapter().refresh(); } catch (e) { /* ignore */ } showSite(); }, 60);
@@ -225,6 +231,12 @@
             if (!siteOn()) return showSite();
             window.mockSite.setScroll(ratio);
             setTimeout(showSite, 60);
+        };
+        window.mockTheme = function () {
+            if (!siteOn()) return showSite();
+            var next = window.mockSite.state.ctx.theme === 'dark' ? 'light' : 'dark';
+            window.mockSite.setTheme(next);
+            setTimeout(showSite, 80);
         };
         window.mockBookmark = function () {
             if (!siteOn()) return showSite();

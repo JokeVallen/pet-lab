@@ -320,7 +320,3 @@ persona:
   streak3: 又见面了，第 {n} 天。
   streak7: 你来第 {n} 天啦，我已经认得你了。
 
-# 与站点的对接：宠物只通过 window.SiteAPI 说话（见 SITE_API_INTEGRATION_GUIDE.md）
-site:
-  readyDelayMs: 6000   # 多久之后才让 SiteAPI 就绪；ready() 会加载内容库，别抢首屏
-  postMeta: true       # 文章页是否按需读取 tags / 字数（走内容库，一页只取一次）

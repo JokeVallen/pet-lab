@@ -41,11 +41,18 @@ export const PetSite = {
         return a && a.version ? String(a.version) : null;
     },
 
-    /** 等站点就绪；没有站点直接 resolve(false) */
+    /** 等站点就绪（1.1 起是轻量的，不加载内容库）；没有站点直接 resolve(false) */
     ready() {
         const a = api();
         if (!a || typeof a.ready !== 'function') return Promise.resolve(false);
         return Promise.resolve(a.ready()).then(() => true).catch(() => false);
+    },
+
+    /** 显式加载内容库：只在按 ID 取详情、需要全文时才调 */
+    readyContent() {
+        const a = api();
+        if (!a || typeof a.readyContent !== 'function') return Promise.resolve(false);
+        return Promise.resolve(a.readyContent()).then(() => true).catch(() => false);
     },
 
     capabilities() {
@@ -216,7 +223,12 @@ export const PetSite = {
         const options = Object.assign({}, opts || {});
         return Promise.resolve(acts.invoke(id, payload || {}, options))
             .then((res) => ({ ok: true, result: res }))
-            .catch((err) => ({ ok: false, error: String((err && err.message) || err) }));
+            .catch((err) => ({
+                ok: false,
+                /* 1.1 起站点给稳定错误码；老站点只有 message */
+                code: (err && err.code) || '',
+                error: String((err && err.message) || err)
+            }));
     },
 
     /** 语义导航：不拼 URL、不点链接 */

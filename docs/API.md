@@ -332,14 +332,17 @@ await PetSite.action('bookmark.toggle', { type: 'post', id, title, path });
 写操作一律走 `actions().invoke`，并且**不伪造 `confirmed`**：需要确认的交给 SiteAPI 自己弹窗，
 用户拒绝就当没做（`site.action()` 返回 `{ ok:false, error }`）。
 
-### 8.2 节流：不抢首屏
+### 8.2 两层加载
 
-`SiteAPI.ready()` 会让站点加载内容库（`content-db.json`，5MB 级），所以宠物不在首屏调用它：
+SiteAPI 1.1 把"就绪"拆成了两段，宠物对应地分两层：
 
-- 挂载时只读 `currentContext()`（纯内存，无请求）；
-- 过 `site.readyDelayMs`（默认 6s）才 `ready()`，阅读位置跟踪也从这时开始；
-- 文章元信息（tags / 字数）再晚 2s 按需取一次，且只在规则真的用到 `tagsAny` / `wordsGt` / `wordsLt` 时才取；
-- `site.postMeta: false` 可以整段关掉。
+| 层 | 调用 | 代价 | 什么时候用 |
+| --- | --- | --- | --- |
+| 轻量 | `ready()` + `currentContext()` | 一个 `/page-context.json`（几十 KB） | 挂载时立刻调用，阅读位置跟踪也随之开始 |
+| 内容库 | `readyContent()` | `/content-db.json`（5 MB 级） | 只有需要全文时才调（`ensureContent()`） |
+
+文章页需要的 `tags` / `wordCount` / `contentId` / `theme` / `comments` 全在上下文里，
+所以**宠物不在文章页加载内容库**；检索走站点的 `/search-index.json`，同理不碰内容库。
 
 ### 8.3 `adapter.js` 对外成员
 
@@ -347,11 +350,13 @@ await PetSite.action('bookmark.toggle', { type: 'post', id, title, path });
 | --- | --- | --- |
 | `init()` / `refresh()` | `Promise<ctx>` | 启动 / 换页后重新取上下文 |
 | `context()` | `ctx` | 同步快照，规则引擎读这个 |
-| `ensureReady()` | `Promise<boolean>` | 节流的 `SiteAPI.ready()` |
-| `loadMeta()` | `Promise<doc \| null>` | 按需取文章元信息 |
+| `ensureReady()` | `Promise<boolean>` | `SiteAPI.ready()`（幂等，轻量） |
+| `ensureContent()` | `Promise<boolean>` | `SiteAPI.readyContent()`，只在要全文时调 |
 | `pageType()` | `'post' \| 'tag' \| 'category' \| 'home' \| '404' \| 'paper' \| ...` | 页面类型（由 `context.type` + `path` 推断） |
-| `tags()` / `wordCount()` | `string[]` / `number` | 来自内容库；没取到就是空 |
-| `commentCount()` / `isDark()` | `null` | SiteAPI 不提供，恒为"不知道" |
+| `tags()` / `wordCount()` | `string[]` / `number` | 来自 `currentContext()`，不查内容库 |
+| `commentCount()` | `number \| null` | `commentsAvailable` 为假时是 `null`（不知道，不是 0） |
+| `isDark()` | `boolean \| null` | 来自 `theme`；缺失时 `null` |
+| `onThemeChange(fn)` | `() => void` | 订阅 `context:change` 里的主题变化 |
 | `scrollRatio()` | `0~1` | 来自站点的 `reading:position` 事件 |
 | `tagName()` | `string` | 标签页名（从 `path` 解析，不查 DOM） |
 | `rawGet/rawSet/rawRemove` | 任意 | 落在 `userState('pet.*')` |

@@ -525,10 +525,11 @@
         '最多返回几条': 'Max results',
         '站点对接': 'Site integration', '就绪延迟': 'Ready delay', '读取文章元信息': 'Read post metadata',
         '404': '404', '收藏这页': 'Bookmark this page', '带模拟站点重载': 'Reload with mock site',
+        '切主题': 'Toggle theme',
         '对话里问「有没有讲 X 的」时，检索请求交给站点的 SiteAPI（收录哪些内容由站点决定，宠物不维护索引）。':
             'When you ask "do you have anything on X", the query goes to the site SiteAPI — the site decides what is indexed; the pet keeps no index.',
-        '宠物只通过 window.SiteAPI 与站点对话；这两项决定它什么时候去敲站点的门。':
-            'The pet talks to the site only through window.SiteAPI; these two decide when it knocks.',
+        '宠物只通过 window.SiteAPI 与站点对话，这里没有任何可调项：页面类型、标签、字数、主题都由站点在 currentContext() 里给。':
+            'The pet talks to the site only through window.SiteAPI. Nothing to tune here: page type, tags, word count and theme all come from currentContext().',
         'SiteAPI.ready() 会让站点加载内容库，延迟执行可以避开首屏':
             'SiteAPI.ready() makes the site load its content library, so it runs after first paint',
         '文章页按需取标签与字数（走内容库，一页只取一次）；关掉后相关台词不会出现':

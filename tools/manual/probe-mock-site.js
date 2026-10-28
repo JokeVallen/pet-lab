@@ -49,6 +49,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         console.log('SiteAPI(mock):', await ev('window.SiteAPI && SiteAPI.version'));
         console.log('宠物挂载:', await ev("!!document.querySelector('.dp-root')"));
         console.log('初始 context:', await ev("JSON.stringify(PetDebug['deepseek-pet'].context())"));
+        await ev('mockTheme()');
+        await sleep(700);
+        console.log('切主题后 theme:', await ev("PetDebug['deepseek-pet'].adapter.isDark()"));
+        console.log('切主题气泡:', await ev("(document.querySelector('.dp-bubble')||{}).textContent || '（无）'"));
+        await ev('mockTheme()');
+        await sleep(700);
+        console.log('切回后 theme:', await ev("PetDebug['deepseek-pet'].adapter.isDark()"));
 
         console.log('--- 切标签页上下文 ---');
         await ev("mockCtx('tag')");

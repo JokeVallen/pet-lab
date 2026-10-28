@@ -336,16 +336,18 @@ Anything the site does not expose is treated as unknown (empty value) instead of
 Writes always go through `actions().invoke`, and the pet **never fakes `confirmed`**:
 operations that need consent let the SiteAPI prompt, and a refusal is simply not done.
 
-### 8.2 Throttling: keep the first paint light
+### 8.2 Two loading layers
 
-`SiteAPI.ready()` makes the site load its content library (a multi-megabyte `content-db.json`),
-so the pet does not call it during first paint:
+SiteAPI 1.1 split "ready" in two, and the pet follows:
 
-- on mount it only reads `currentContext()` (no network);
-- after `site.readyDelayMs` (default 6s) it calls `ready()`, which also starts reading-position tracking;
-- post metadata (tags / word count) is fetched 2s later, and only if the configured rules really use
-  `tagsAny` / `wordsGt` / `wordsLt`;
-- `site.postMeta: false` turns that step off entirely.
+| Layer | Call | Cost | When |
+| --- | --- | --- | --- |
+| Light | `ready()` + `currentContext()` | one `/page-context.json` (tens of KB) | on mount, immediately; reading tracking starts here |
+| Content | `readyContent()` | `content-db.json` (multi-megabyte) | only when full text is needed (`ensureContent()`) |
+
+Everything a post page needs (`tags`, `wordCount`, `contentId`, `theme`, `comments`) is in the context,
+so **the pet never loads the content library on a post page**; search uses the site's
+`/search-index.json` and does not touch it either.
 
 ### 8.3 Members
 
@@ -353,11 +355,13 @@ so the pet does not call it during first paint:
 | --- | --- | --- |
 | `init()` / `refresh()` | `Promise<ctx>` | start / re-read after navigation |
 | `context()` | `ctx` | synchronous snapshot the rule engine reads |
-| `ensureReady()` | `Promise<boolean>` | throttled `SiteAPI.ready()` |
-| `loadMeta()` | `Promise<doc \| null>` | on-demand post metadata |
+| `ensureReady()` | `Promise<boolean>` | `SiteAPI.ready()` (idempotent, light) |
+| `ensureContent()` | `Promise<boolean>` | `SiteAPI.readyContent()`, only for full text |
 | `pageType()` | `'post' \| 'tag' \| ...` | derived from `context.type` + `path` |
-| `tags()` / `wordCount()` | `string[]` / `number` | from the content library, empty when absent |
-| `commentCount()` / `isDark()` | `null` | not exposed by SiteAPI: always unknown |
+| `tags()` / `wordCount()` | `string[]` / `number` | from `currentContext()`, never the content library |
+| `commentCount()` | `number \| null` | `null` when `commentsAvailable` is false (unknown, not zero) |
+| `isDark()` | `boolean \| null` | from `theme`; `null` when missing |
+| `onThemeChange(fn)` | `() => void` | subscribes to theme changes in `context:change` |
 | `scrollRatio()` | `0~1` | from the site's `reading:position` events |
 | `tagName()` | `string` | parsed from `path`, no DOM |
 | `rawGet/rawSet/rawRemove` | any | stored under `userState('pet.*')` |

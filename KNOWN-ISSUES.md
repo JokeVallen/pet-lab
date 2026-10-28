@@ -42,35 +42,19 @@
 **影响**：问超出句库的问题会得到模板化回答。
 **修法**：接 LLM 时只需替换文本生产者，`speech.act` 通道不用改。
 
-## 4. 主题与评论数拿不到，相关规则不会命中
-
-**现象**：`home.late` 里的"深夜"逻辑只看小时；`post.hot` / `post.noComment` 两条规则永远不触发。
-**原因**：宠物只认 `window.SiteAPI`，而 `currentContext()` 里没有 `theme` / `comments` 字段，
-`adapter` 把它们固定为 `null`，不回头去爬 DOM。
-**修法**：站点在 `currentContext()` 里补 `theme: 'dark' | 'light'` 与 `comments: number`，
-宠物侧把 `ctx.dark` / `ctx.comments` 接回即可（`adapter.js` 里各一行）。这是刻意的边界，不是遗漏。
-
-## 4.5 阅读进度要等 `SiteAPI.ready()`
-
-**现状**：滚动相关台词（读到底、回到顶部）依赖站点的 `reading:position` 事件，
-而这条链路要等 `SiteAPI.ready()` 把 `SiteReadingPosition.start()` 跑起来——
-宠物默认延迟 6 秒（`site.readyDelayMs`）才调用，因为它会顺带加载内容库。
-**影响**：进页面头几秒的滚动不会被感知。
-**修法**：站点把 `ready()` 拆成"轻量就绪 / 内容库加载"两段，宠物就能立刻开始跟踪阅读位置。
-
-## 5. `.chrome-smoke` 会残留
+## 4. `.chrome-smoke` 会残留
 
 **现象**：每次跑冒烟测试生成一个 Chrome profile，约 10 MB。
 **修法**：定期删除，或让 `smoke.js` 在退出时清理（Windows 上句柄可能未释放，需重试）。
 
-## 6. 保存会丢失 YAML 注释
+## 5. 保存会丢失 YAML 注释
 
 **现象**：用编辑器「保存并编译」后，`config/pet.yaml` 里的注释消失。
 **原因**：`tools/apply-patch.js` 用 js-yaml 重新序列化整个文件，注释不在解析结果里。
 **影响**：数据完整，只是少了说明文字。
 **修法**：想保留注释就手写配置（服务器会自动编译，不用敲命令）；或改成按段落做文本替换（逻辑更复杂、更易出错）。
 
-## 7. 服务只能本地跑
+## 6. 服务只能本地跑
 
 **现状**：`start.bat` → `tools/serve.py` 只监听 `127.0.0.1`，写操作限定在 `config/`。
 **影响**：不能部署到公网；这是有意的安全边界。
@@ -79,6 +63,12 @@
 ---
 
 ## 历史上的坑（已修复，留作参考）
+
+- **主题与评论数拿不到**（SiteAPI 1.0）：`currentContext()` 没有 `theme` / `comments`，相关规则只能挂着不命中。
+  1.1 起站点在上下文里给了 `theme`、`comments`、`commentsAvailable`，宠物按 `commentsAvailable` 判断
+  "零条"还是"不知道"，规则已恢复。
+- **阅读进度要等 `ready()`**（SiteAPI 1.0）：`ready()` 会顺带加载 5 MB 内容库，宠物被迫延迟 6 秒调用，
+  进页面头几秒的滚动感知不到。1.1 把 `ready()` 拆成轻量初始化，宠物挂载即调用，滚动跟踪从首屏开始。
 
 - 未声明的全局变量导致交互静默失效（`justDragged` / `lastScrollSeen` / `mdKey`）
 - `dropTimer` 未随 `rollTimer` 清理，延迟动作打断后续交互

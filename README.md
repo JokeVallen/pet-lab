@@ -163,10 +163,12 @@ PetContent.setLang('en')                     // 运行时切换（已渲染的�
 三条硬规矩：
 
 1. **写操作一律走 `actions().invoke`**，需要用户确认的交给 SiteAPI 自己弹窗，宠物不伪造 `confirmed`；
-2. **不抢首屏**：`SiteAPI.ready()` 会让站点加载内容库（5MB 级），所以默认延迟 6s 再调（`site.readyDelayMs`），
-   文章元信息再晚 2s 且只在规则真的用到时才取（`site.postMeta`）；
-3. **站点没给的就不猜**：主题（`dark`）和评论数（`comments`）不在 SiteAPI 里，对应规则不会命中，
-   不会再回头去爬页面。要恢复这些台词，正确做法是站点在 `currentContext()` 里补字段。
+   失败时按 `err.code`（`E_CONFIRM` / `E_UNKNOWN_ACTION` / …）区分"用户取消"和"真的坏了"。
+2. **分两层加载**：`ready()` 是轻量的（只取 `currentContext()` 和 `/page-context.json`），挂载时就调；
+   `readyContent()` 才会拉 5 MB 的内容库，宠物只在需要全文时用。文章页的标签、字数、主题都来自上下文，
+   **不碰内容库**；检索走站点的轻量索引 `/search-index.json`。
+3. **站点没给的就不猜**：`commentsAvailable: false` 表示"评论数不可用"，宠物把 `comments` 当作
+   `null` 而不是 0；`theme` 缺失时同理。宁可那条规则不命中，也不回头爬 DOM。
 
 没有 SiteAPI 的页面（比如本仓库的 `index.html` 演示页）宠物照样跑：动作、对话、句库都在本地，
 只是没有站点上下文与检索，提问会回一句"这一页没接上站点的检索接口"。
