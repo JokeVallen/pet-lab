@@ -136,6 +136,31 @@ The CSS root selector is `.dp-root`, not an id, so `hostId` is free to change.
 sheets mean replacing `js/pet/modules/player.js`, whose surface is just
 `play / ready / warm / setMirror`.
 
+### Looping only the sleeping part
+
+`sleep.webm` is one long take — dozing off, lying down, sleeping, waking up — so looping the whole
+clip makes her stand up and sit down every ten seconds. A `loop` block under `states.sleepy` loops
+just the "already asleep" stretch:
+
+```yaml
+states:
+  sleepy:
+    clip: sleep
+    loop:
+      intro: 4.65   # play 0→4.65 once (the lying-down part)
+      end: 6.85     # then loop 4.65→6.85 forever
+```
+
+Drop `loop` and it falls back to looping the whole clip. To measure the boundary yourself:
+
+```powershell
+ffmpeg -i images/pet/anim/sleep.webm -c:v libvpx-vp9 -vsync 0 -pix_fmt rgba frames/f_%03d.png
+```
+
+(`-c:v libvpx-vp9` is required, otherwise alpha is lost.) Compare frames to find the pair whose
+poses match best; that pair is the loop window.
+
+
 **Site side**: `js/pet/adapter.js` and `modules/search.js` target Hexo + Butterfly; porting to
 another framework means rewriting those two files only.
 

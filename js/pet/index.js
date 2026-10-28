@@ -313,7 +313,18 @@ var CONFIG = {
             clearTimeout(dropTimer);   // 取消上一次拖拽的安全网，否则它会把正在播的动作顶掉
             var clip = (hooks.sleepyClip && hooks.sleepyClip()) || ANIMATIONS.events.sleep;
             currentAct = clip;
-            player.play(clip, false);
+            var range = (hooks.sleepyLoop && hooks.sleepyLoop()) || null;
+            if (range && player.playRange) {
+                // 先播一次"躺下"的过程，再只循环已经睡着的那一段
+                player.playRange(clip, 0, range.intro, {
+                    loop: false,
+                    done: function () {
+                        if (sleeping) player.playRange(clip, range.intro, range.end, { loop: true });
+                    }
+                });
+            } else {
+                player.play(clip, false);
+            }
         }
 
         /* 醒来。silent = 紧接着要播别的动作，别再闪一下待机 */
@@ -936,6 +947,19 @@ var CONFIG = {
         return (s && s.clip) || 'sleep';
     }
 
+    /* 睡眠片段的循环区间：{ intro, end }
+     * 素材是一整段"打瞌睡→躺下→睡着→醒来"，整段循环会反复起身；
+     * 配了区间就只播一次前段，之后循环"已经睡着"的那截。 */
+    function sleepyLoop() {
+        var s = STATES.sleepy;
+        var r = s && s.loop;
+        if (!r) return null;
+        var a = Number(r.intro);
+        var b = Number(r.end);
+        if (!isFinite(a) || !isFinite(b) || b <= a) return null;
+        return { intro: a, end: b };
+    }
+
     /* ==================== 昼夜 ==================== */
     function isDark() {
         return PetAdapter.isDark();
@@ -1388,7 +1412,8 @@ var CONFIG = {
             },
             categories: categoriesForNow,
             idleClip: idleClip,
-            sleepyClip: sleepyClip
+            sleepyClip: sleepyClip,
+            sleepyLoop: sleepyLoop
         });
         director.start();
 

@@ -16,11 +16,8 @@ drag:
   thresholdPx: 6
 click:
   particleCount: 3
-# 界面时序：左边那排动作按钮（投喂 / 聊天 / 隐藏）
 ui:
-  # 鼠标离开后等多久才收起——留出"从角色挪到按钮"的时间
   actionHideDelayMs: 320
-  # 淡入淡出时长
   actionFadeMs: 140
 speech:
   dedupeMs: 8000
@@ -224,6 +221,9 @@ states:
       - puzzle
   sleepy:
     clip: sleep
+    loop:
+      intro: 4.65
+      end: 6.85
     pool:
       - yawn
       - doze
@@ -283,29 +283,21 @@ policy:
     12-31:
       act: hum
       line: 今年最后一天了，辛苦啦。
-
-# ---------- 可移植性：换一只宠物只改这一段 ----------
-# 素材格式：player 会拼成 <animDir><clip>.<clipExt>
 clipExt: webm
-# 挂载点 id（同一页要放两只宠物时改成不同值）
 hostId: deepseek-pet
-# 立绘框尺寸，与素材同比例；CSS 通过 --dp-w / --dp-h 读取
 size:
   width: 200
   height: 177
-# 主题色，覆盖 CSS 里的 --dp-primary / --dp-primary-2 / --dp-cyan
 accent:
   primary: '#4a8cf7'
   primary2: '#7c5cf0'
   cyan: '#62d9f5'
-
-# 人设：所有台词都在这里，JS 里不再有角色专属文案
 persona:
   name: 大肥鱼
   alt: 鲸鱼娘大肥鱼
   icons:
-    feed: "🍚"
-    restore: "🐳"
+    feed: 🍚
+    restore: 🐳
   about: 我是大肥鱼，一只住在博客里的鲸鱼娘。点我、拖我、喂我白米饭，或者随便和我聊聊～
   sleep: ……（大肥鱼靠着鲸鱼尾巴睡着了）
   feed:

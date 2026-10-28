@@ -330,6 +330,10 @@ export default {
         },
         "sleepy": {
             "clip": "sleep",
+            "loop": {
+                "intro": 4.65,
+                "end": 6.85
+            },
             "pool": [
                 "yawn",
                 "doze",

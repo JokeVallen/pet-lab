@@ -130,6 +130,29 @@ CSS 的根选择器是 `.dp-root` 而不是 id，所以 `hostId` 可以随便改
 
 **素材格式**：目前播放器只吃带 alpha 的 WebM（双 `<video>` 缓冲）。GIF / APNG / 序列帧要换掉 `js/pet/modules/player.js`，它对外的接口只有 `play / ready / warm / setMirror`。
 
+### 睡眠片段的循环区间
+
+`sleep.webm` 是一整段「打瞌睡 → 躺下 → 睡着 → 醒来」，整段循环会每 10 秒站起坐下一次。
+在 `states.sleepy` 里加 `loop` 就能只循环"已经睡着"的那一截：
+
+```yaml
+states:
+  sleepy:
+    clip: sleep
+    loop:
+      intro: 4.65   # 0→4.65 只播一次（躺下的过程）
+      end: 6.85     # 之后只在 4.65→6.85 之间循环
+```
+
+去掉 `loop` 就退回整段循环。边界值可以用 ffmpeg 按帧测出来：
+
+```powershell
+ffmpeg -i images/pet/anim/sleep.webm -c:v libvpx-vp9 -vsync 0 -pix_fmt rgba frames/f_%03d.png
+```
+
+（必须带 `-c:v libvpx-vp9`，否则 alpha 会丢；帧图逐帧比对就能找到姿态最接近的一对起止点。）
+
+
 **站点侧**：`js/pet/adapter.js` 与 `modules/search.js` 是给 Hexo + Butterfly 写的，换博客框架时只重写这两个文件。
 
 ### 同页放两只
