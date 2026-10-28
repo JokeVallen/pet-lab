@@ -7,13 +7,12 @@
  *
  * 站点没给的东西（主题、评论数）就当作不知道——
  * 对应的规则自然不命中，而不是回头去爬页面。
+ *
+ * 规则表不在这里手写：config/pet.yaml 的 rules.items 才是唯一来源（见 buildRules）。
  */
 import PetConfig from './config.js';
 import { PetRules } from './modules/rules.js';
-import { PetContent } from './content/index.js';
 import { PetSite } from './site.js';
-
-const C = PetContent;
 
 /* ---------------- 配置里的规则 ---------------- */
 
@@ -300,89 +299,11 @@ function sessionSet(key, value) {
     return PetSite.set('pet.' + key, { v: value, at: Date.now() });
 }
 
-/* ---------------- 上下文规则（站点知识） ---------------- */
+/* ---------------- 上下文规则（站点知识） ----------------
+ * 规则表不在这里手写：它由 config/pet.yaml 的 rules.items 生成（见 buildRules）。
+ * 这里只负责把站点上下文翻成规则认识的字段，具体条件与台词归配置管。
+ */
 
-function pick(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function keywordsOf(name) {
-    return C.list('adapter.keywords.' + name);
-}
-
-var CTX_RULES = [
-    {
-        id: 'post.unity',
-        when: function (c) { return c.page === 'post' && PetRules.matchTag(c.tags, keywordsOf('unity')); },
-        say: function () { return C.t('adapter.unity'); }
-    },
-    {
-        id: 'post.algorithm',
-        when: function (c) { return c.page === 'post' && PetRules.matchTag(c.tags, keywordsOf('algorithm')); },
-        say: function () { return C.t('adapter.algorithm'); }
-    },
-    {
-        id: 'post.finished',
-        when: function (c) { return c.page === 'post' && c.scroll > 0.85; },
-        say: function () { return C.pick('adapter.finished'); },
-        act: 'look'
-    },
-    {
-        id: 'post.long',
-        when: function (c) { return c.page === 'post' && c.words > 4000; },
-        say: function () { return C.pick('adapter.long'); },
-        act: function () { return pick(['think', 'doze']); }
-    },
-    {
-        id: 'post.short',
-        when: function (c) { return c.page === 'post' && c.words > 0 && c.words < 600; },
-        say: function () { return C.pick('adapter.short'); },
-        act: 'look'
-    },
-    {
-        id: 'post.hot',
-        when: function (c) { return c.page === 'post' && c.comments != null && c.comments >= 3; },
-        say: function () { return C.t('adapter.hot'); }
-    },
-    {
-        id: 'post.noComment',
-        when: function (c) { return c.page === 'post' && c.comments === 0 && c.scroll > 0.5; },
-        say: function () { return C.t('adapter.noComment'); }
-    },
-    {
-        id: 'home.late',
-        when: function (c) { return c.page === 'home' && c.dark === true && c.hour >= 23; },
-        say: function () { return C.t('adapter.late'); },
-        act: 'doze'
-    },
-    {
-        id: 'home.streak',
-        when: function (c, env) { return c.page === 'home' && (env.streak || 1) >= 3; },
-        say: function (c, env) { return C.t('adapter.streak', { n: env.streak }); }
-    },
-    {
-        id: 'post.backToTop',
-        when: function (c, env) { return c.page === 'post' && env.lastScroll > 0.8 && c.scroll < 0.25; },
-        say: function () { return C.pick('adapter.backTop'); },
-        act: 'stretch'
-    },
-    {
-        id: 'page.tag',
-        when: function (c) { return c.type === 'tag'; },
-        say: function () {
-            var name = tagName();
-            if (!name) return '';
-            return C.pick('adapter.tag').replace(/\{name\}/g, name);
-        },
-        act: 'hum'
-    },
-    {
-        id: 'page.404',
-        when: function (c) { return c.type === '404'; },
-        say: function () { return C.pick('adapter.notFound'); },
-        act: function () { return pick(['puzzle', 'angry']); }
-    }
-];
 
 export const PetAdapter = {
     /* 站点能力 */

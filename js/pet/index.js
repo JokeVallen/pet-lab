@@ -1040,7 +1040,7 @@ var CONFIG = {
      * 顺序即优先级；when/say/act 可以是值，也可以是 (ctx, env) => 值。
      * 站点相关的判断全部通过 PetAdapter 提供的字段进行，宠物不认识 DOM。
      */
-    /* 规则表属于站点层：见 adapter.js 的 CTX_RULES */
+    /* 规则表由配置生成（config/pet.yaml 的 rules.items），adapter 只做编译 */
     var CTX_RULES = (PetAdapter && PetAdapter.rules) || [];
 
     var ctxEngine = (PetRules ? PetRules.createEngine(CTX_RULES, { cooldown: CONFIG.rules.defaultCooldown }) : null);

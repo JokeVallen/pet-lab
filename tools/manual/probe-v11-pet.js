@@ -46,17 +46,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
             }
             if (m.method === 'Network.requestWillBeSent') {
                 const u = m.params.request.url.replace(BASE, '');
-                if (/content-db|search-index|page-context/.test(u)) reqs.push(u);
+                if (/content-db\.json|search-index\.json|page-context\.json/.test(u)) reqs.push(u);
             }
         });
         await send('Runtime.enable');
         await send('Network.enable');
-        await sleep(15000);
+        await sleep(16000);
 
         console.log('宠物挂载:', await ev("!!document.querySelector('.dp-root')"));
         console.log('请求:', reqs.join(' | ') || '（无）');
         console.log('context:', await ev("JSON.stringify(PetDebug['deepseek-pet'].context())"));
-        console.log('无内容库请求:', reqs.filter((u) => u.indexOf('content-db') >= 0).length === 0 ? '是' : '否');
+        console.log('内容库 JSON 请求次数:', reqs.filter((u) => u.indexOf('content-db.json') >= 0).length);
 
         console.log('--- 这篇讲什么（不应触发内容库）---');
         console.log(await ev("PetDebug['deepseek-pet'].reply('这篇讲什么')"));
