@@ -156,13 +156,31 @@ if (p.add.length || p.update.length || p.remove.length) {
 
 if (!BUILD) process.exit(0);
 
-console.log('\n构建中：npx hexo generate');
+/* clean + generate 是一对：public/ 里残留的旧文件会让版本戳覆盖不全
+ * （实测不 clean 时 stamped 只有 263，clean 后是 318）。--no-clean 可跳过。 */
+const CLEAN = !process.argv.includes('--no-clean');
+
 /* 优先用博客自己的 hexo 入口，避免 shell 与 npx 的转义问题 */
 const hexoBin = path.join(BLOG, 'node_modules', 'hexo', 'bin', 'hexo');
-const r = fs.existsSync(hexoBin)
-    ? spawnSync(process.execPath, [hexoBin, 'generate'], { cwd: BLOG, encoding: 'utf8' })
-    : spawnSync(process.platform === 'win32' ? 'npx.cmd' : 'npx',
-        ['hexo', 'generate'], { cwd: BLOG, encoding: 'utf8', shell: process.platform === 'win32' });
+function hexo(args) {
+    return fs.existsSync(hexoBin)
+        ? spawnSync(process.execPath, [hexoBin, ...args], { cwd: BLOG, encoding: 'utf8' })
+        : spawnSync(process.platform === 'win32' ? 'npx.cmd' : 'npx',
+            ['hexo', ...args], { cwd: BLOG, encoding: 'utf8', shell: process.platform === 'win32' });
+}
+
+if (CLEAN) {
+    console.log('\n清理中：hexo clean');
+    const c = hexo(['clean']);
+    if (c.status !== 0) {
+        console.error('✗ 清理失败：\n' + ((c.stdout || '') + (c.stderr || '')).split('\n').slice(-8).join('\n'));
+        process.exit(1);
+    }
+    console.log('  已清理 public/ 与 db.json');
+}
+
+console.log('构建中：hexo generate');
+const r = hexo(['generate']);
 const out = (r.stdout || '') + (r.stderr || '');
 const line = out.split('\n').find((l) => /pet version:/.test(l));
 if (r.status !== 0) {
@@ -170,3 +188,26 @@ if (r.status !== 0) {
     process.exit(1);
 }
 console.log('  ' + (line || '').trim().replace(/^INFO\s+/, ''));
+
+/* 生成完再点一遍数：public 里的 HTML 数应和打过版本戳的数一致 */
+const pub = path.join(BLOG, 'public');
+if (fs.existsSync(pub)) {
+    let total = 0;
+    let stamped = 0;
+    const walk = (d) => {
+        for (const name of fs.readdirSync(d)) {
+            const abs = path.join(d, name);
+            if (fs.statSync(abs).isDirectory()) walk(abs);
+            else if (name.endsWith('.html')) {
+                total++;
+                if (fs.readFileSync(abs, 'utf8').includes('?v=')) stamped++;
+            }
+        }
+    };
+    walk(pub);
+    console.log('  public/ HTML ' + total + ' 个，带版本戳 ' + stamped + ' 个');
+    if (stamped !== total) {
+        console.error('✗ 有 ' + (total - stamped) + ' 个 HTML 没被版本戳覆盖，检查 scripts/pet-version.js');
+        process.exit(1);
+    }
+}

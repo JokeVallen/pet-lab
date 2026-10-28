@@ -179,8 +179,12 @@ ui:
 ```powershell
 node tools/sync-blog.js --check    # 只看差异
 node tools/sync-blog.js            # 复制 + 校验
-node tools/sync-blog.js --build    # 复制 + 校验 + npx hexo generate
+node tools/sync-blog.js --build    # 复制 + 校验 + hexo clean + hexo generate
 ```
+
+`--build` 默认**先 clean 再 generate**：`public/` 里残留上一次的产物会让版本戳覆盖不全
+（实测不 clean 时 263/318，clean 后 318/318）。确实要增量构建时加 `--no-clean`。
+生成后脚本会自己数一遍 `public/` 里的 HTML 与带 `?v=` 的数量，对不上就报错退出。
 
 只同步三样，博客侧独有的东西（`custom-global.js`、`scripts/pet-*.js`、主题配置）不碰：
 

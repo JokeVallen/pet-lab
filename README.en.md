@@ -192,8 +192,13 @@ movements. Tune the numbers to taste.
 ```powershell
 node tools/sync-blog.js --check    # show the diff only
 node tools/sync-blog.js            # copy and verify
-node tools/sync-blog.js --build    # copy, verify, then npx hexo generate
+node tools/sync-blog.js --build    # copy, verify, hexo clean, hexo generate
 ```
+
+`--build` runs **clean before generate**: leftovers in `public/` break the cache-busting pass
+(measured 263/318 HTML without clean, 318/318 with it). Pass `--no-clean` for an incremental build.
+Afterwards the script recounts `public/` HTML files against those carrying `?v=` and fails on a
+mismatch.
 
 Only three payloads are synced; blog-only files (`custom-global.js`, `scripts/pet-*.js`, theme
 config) are left alone:
