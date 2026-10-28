@@ -119,6 +119,7 @@ pet-lab/
 | [docs/INTERACTION.md](docs/INTERACTION.md) | Interaction protocol **draft**: consent, voice input (not implemented) |
 | [HANDOFF.md](HANDOFF.md) | Pre-refactor history and decisions |
 | [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | Known issues with causes and fixes |
+| [docs/SITE_API_REQUIREMENTS.md](docs/SITE_API_REQUIREMENTS.md) | **Requirements for the site side** (13 items with acceptance checks) |
 
 Chinese versions use the `.en`-less names (`README.md`, `STATUS.md`, `docs/API.md`, `docs/INTERACTION.md`, `HANDOFF.md`, `KNOWN-ISSUES.md`).
 

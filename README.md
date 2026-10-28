@@ -115,8 +115,9 @@ pet-lab/
 | [docs/INTERACTION.md](docs/INTERACTION.md) | 交互协议**设计稿**：能力授权、语音输入（未实现） |
 | [HANDOFF.md](HANDOFF.md) | 重构前的历史与决策 |
 | [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | 已知问题清单（含原因与修法） |
+| [docs/SITE_API_REQUIREMENTS.md](docs/SITE_API_REQUIREMENTS.md) | **给站点侧的对接需求清单**（13 条，含验收方式） |
 
-英文版：`README.en.md`、`STATUS.en.md`、`docs/API.en.md`、`docs/INTERACTION.en.md`、`HANDOFF.en.md`、`KNOWN-ISSUES.en.md`。
+英文版：`README.en.md`、`STATUS.en.md`、`docs/API.en.md`、`docs/INTERACTION.en.md`、`HANDOFF.en.md`、`KNOWN-ISSUES.en.md`、`docs/SITE_API_REQUIREMENTS.en.md`。
 
 ## 内容与文案（换角色 / 换语言只改这里）
 
