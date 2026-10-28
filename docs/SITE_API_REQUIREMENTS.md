@@ -391,8 +391,9 @@ R5 / R6 决定两条主题台词和两条评论台词能不能复活；R7 决定
 
 ### 7.4 留给站点侧的两个小尾巴（不影响宠物）
 
-1. `.gz` 产物是 `before_exit` 过滤器写在 `public/` 里的，**不是 hexo 路由**，所以 `hexo server` 下会 404
-   （前端会回退到原始 JSON）。要让本地预览也走 gzip，把 `.gz` 作为路由返回即可。
+1. `.gz` 产物由 `scripts/compress-content-db.js` 在 `before_exit` 与 `deployBefore` 两个时机写进 `public/`——
+   单独 `hexo generate` 与 `hexo g -d` 都能覆盖，但它们是**落在磁盘上的文件、不是 hexo 路由**，
+   所以 `hexo server` 下会 404（前端回退到原始 JSON）。要让本地预览也走 gzip，把 `.gz` 注册成路由即可。
 2. Gitalk 评论数仍然依赖 frontmatter 的 `comment_count`；没有该字段的页面 `commentsAvailable` 为 `false`，
    宠物按"不知道"处理，两条评论台词不会出现——这是设计，不是缺陷。
 

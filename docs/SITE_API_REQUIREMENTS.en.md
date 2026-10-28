@@ -385,9 +385,10 @@ None. All 13 items are `integrated` or `documented`.
 
 ### 7.4 Two loose ends on the site side (neither blocks the pet)
 
-1. The `.gz` artefacts are written into `public/` by a `before_exit` filter, so they are **not hexo routes**
-   and 404 under `hexo server` (the client falls back to the raw JSON). Registering them as routes would
-   make local preview exercise the gzip path too.
+1. The `.gz` artefacts are written into `public/` by `scripts/compress-content-db.js` on both `before_exit`
+   and `deployBefore`, which covers `hexo generate` and `hexo g -d`. They are **files on disk, not hexo
+   routes**, so they 404 under `hexo server` (the client falls back to the raw JSON). Registering them as
+   routes would make local preview exercise the gzip path too.
 2. Gitalk counts still depend on a frontmatter `comment_count`; pages without it report
    `commentsAvailable: false`, and the pet treats that as unknown, so the two comment lines stay dormant.
    That is by design, not a defect.
