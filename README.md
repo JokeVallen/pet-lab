@@ -174,6 +174,29 @@ ui:
 鼠标横穿时 `:hover` 会瞬间断开，按钮在指针到达前就消失了。现在间距用 `padding` 补齐（指针一直在
 元素范围内），再叠加 320ms 宽限，正常速度移动都能点中。数值按手感调即可。
 
+## 同步到博客
+
+```powershell
+node tools/sync-blog.js --check    # 只看差异
+node tools/sync-blog.js            # 复制 + 校验
+node tools/sync-blog.js --build    # 复制 + 校验 + npx hexo generate
+```
+
+只同步三样，博客侧独有的东西（`custom-global.js`、`scripts/pet-*.js`、主题配置）不碰：
+
+| 源（pet-lab） | 目标（Blogs） |
+| --- | --- |
+| `js/pet/**` | `source/js/pet/**` |
+| `css/deepseek-pet.css` | `source/css/deepseek-pet.css` |
+| `images/pet/anim/**` | `source/images/pet/anim/**` |
+
+素材目录是镜像式的：上游删掉的文件在博客里也会删掉；`source/images/pet/whale-girl.png`（博客自己的图）不在范围内。
+文本按 LF 复制，复制完会重新比对一遍，不一致就报错。
+
+版本戳由博客自己的 `scripts/pet-version.js` 在构建时算：改完源码重新 `hexo generate` 就会换新的 `?v=`
+（`pet version: <hash> | html stamped: <n>`）。
+
+两边目录不在一起时用环境变量：`$env:PET_BLOG_DIR = 'D:\path\to\Blogs'`。
 ## 测试
 
 ```powershell

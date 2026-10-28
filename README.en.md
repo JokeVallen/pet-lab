@@ -187,6 +187,31 @@ crossing that gap used to drop `:hover`, so the menu vanished before the pointer
 now filled with `padding` (the pointer stays inside the element) and the extra 320ms covers slower
 movements. Tune the numbers to taste.
 
+## Syncing into the blog
+
+```powershell
+node tools/sync-blog.js --check    # show the diff only
+node tools/sync-blog.js            # copy and verify
+node tools/sync-blog.js --build    # copy, verify, then npx hexo generate
+```
+
+Only three payloads are synced; blog-only files (`custom-global.js`, `scripts/pet-*.js`, theme
+config) are left alone:
+
+| Source (pet-lab) | Target (Blogs) |
+| --- | --- |
+| `js/pet/**` | `source/js/pet/**` |
+| `css/deepseek-pet.css` | `source/css/deepseek-pet.css` |
+| `images/pet/anim/**` | `source/images/pet/anim/**` |
+
+The clip directory is mirrored, so files removed upstream are removed in the blog too;
+`source/images/pet/whale-girl.png` (the blog's own illustration) is out of scope. Text is copied as
+LF and the result is re-compared afterwards — any mismatch fails the run.
+
+Cache busting is the blog's own business: `scripts/pet-version.js` computes a hash at build time, so
+`hexo generate` rolls a new `?v=` (`pet version: <hash> | html stamped: <n>`).
+
+Point at another checkout with `$env:PET_BLOG_DIR = 'D:\path\to\Blogs'`.
 ## Tests
 
 ```powershell
