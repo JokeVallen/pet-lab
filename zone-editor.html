@@ -156,7 +156,36 @@
     </aside>
 </main>
 
+<script src="vendor/js-yaml.min.js"></script>
 <script>
+/* ---------- 磁盘版本守卫（同 config-editor） ---------- */
+let baseHash = null;
+
+async function fileSha1(text) {
+    try {
+        if (!(window.crypto && crypto.subtle)) return null;
+        const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text));
+        return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) { return null; }
+}
+
+async function currentFileSha1(rel) {
+    try {
+        const r = await fetch(rel + '?ts=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) return null;
+        return await fileSha1(new TextDecoder('utf-8').decode(await r.arrayBuffer()));
+    } catch (e) { return null; }
+}
+
+async function confirmOverwrite(rel) {
+    const diskHash = await currentFileSha1(rel);
+    if (!diskHash || !baseHash || diskHash === baseHash) return true;
+    return confirm(
+        '磁盘上的 ' + rel + ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\n\n' +
+        '现在保存会用页面里的分区覆盖它，那些改动会丢。\n\n仍然要保存吗？'
+    );
+}
+
 let zones = [
     { id: 'head', yMin: 0, yMax: 0.42 },
     { id: 'head.crown', yMin: 0, yMax: 0.14, parent: 'head' },
@@ -978,14 +1007,30 @@ function copyOut() {
 async function saveZones() {
     const status = document.getElementById('status');
     status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
+    if (!(await confirmOverwrite('config/pet.yaml'))) {
+        status.textContent = '已取消保存：磁盘文件已被改过';
+        return;
+    }
     try {
+        // 只发"真的需要写下来"的字段：norm() 会把 xMin/xMax 补成 0/1，
+        // 原样发过去会让每一行都多出 xMax: 1 这种噪音（语义一样，但白改文件）
+        const cleanZones = zones.map((z) => {
+            const o = { id: z.id, yMin: round(z.yMin), yMax: round(z.yMax) };
+            if (z.xMin > 0) o.xMin = round(z.xMin);
+            if (z.xMax < 1) o.xMax = round(z.xMax);
+            if (z.parent) o.parent = z.parent;
+            return o;
+        });
         const res = await fetch('/api/patch', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ patch: { zones: zones, zoneReactions: reactions } })
+            body: JSON.stringify({ patch: { zones: cleanZones, zoneReactions: reactions } })
         });
         const data = await res.json();
-        if (data.ok) { try { localStorage.setItem('pet-config-ts', String(Date.now())); } catch (e) {} }
+        if (data.ok) {
+            baseHash = await currentFileSha1('config/pet.yaml');
+            try { localStorage.setItem('pet-config-ts', String(Date.now())); } catch (e) {}
+        }
         status.textContent = data.ok ? (window.PetI18n ? PetI18n.s('msg.saved') : '已保存') : ((window.PetI18n ? PetI18n.s('msg.failed') : '失败：') + (data.error || data.stderr || '').slice(0, 100));
     } catch (e) {
         status.textContent = window.PetI18n ? PetI18n.s('msg.needServer') : '需要本地服务器';
@@ -1031,8 +1076,28 @@ bindLook();
 loadActs();
 draw();
 pushHistory();
+
+/* 启动时读真实配置：以前这里用的是写死的默认分区，一保存就会把 YAML 里的分区冲掉 */
+(async function loadZonesFromYaml() {
+    try {
+        const res = await fetch('config/pet.yaml?ts=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const text = new TextDecoder('utf-8').decode(await res.arrayBuffer());
+        const data = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+        if (data && Array.isArray(data.zones) && data.zones.length) zones = data.zones;
+        if (data && data.zoneReactions && typeof data.zoneReactions === 'object') reactions = data.zoneReactions;
+        zones.forEach(norm);
+        selected = 0;
+        selectedSet = new Set(zones.length ? [0] : []);
+        baseHash = await fileSha1(text);
+        draw();
+        pushHistory();
+        document.getElementById('status').textContent = '已读取 config/pet.yaml（' + zones.length + ' 个分区）';
+    } catch (e) {
+        document.getElementById('status').textContent = '读不到 config/pet.yaml，用的是内置默认分区';
+    }
+})();
 </script>
-<script src="vendor/js-yaml.min.js"></script>
 <script src="assets/i18n.js"></script>
 </body>
 </html>

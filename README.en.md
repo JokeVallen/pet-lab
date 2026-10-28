@@ -35,6 +35,26 @@ Two lines:
 - **Exports must not overreach.** The rules page exports only `policy.stateRules` and
   `rules.items`; it no longer carries `states`, whose paste-back would wipe clip/pool/weight.
 
+### Saving checks the file first
+
+All three editors write back into the same `config/pet.yaml`, which invites one specific accident:
+the tab was opened ten minutes ago, someone else changed the file (another tab, or by hand), and
+saving silently reverts their work. What happens now:
+
+| Page | How it saves | Protection |
+| --- | --- | --- |
+| `config-editor` | replaces the whole YAML | stores a content hash on load, recomputes before save; mismatch → confirm dialog |
+| `zone-editor` | patches `zones` / `zoneReactions` only | same check; also reads the YAML on startup and only falls back to built-in zones if that fails |
+| `rules-editor` | patches `rules.items` / `policy.stateRules` only | same check; **refuses to save** when the config was never loaded (otherwise it would write empty rules) |
+
+You can cancel and hit "reload" to pick up the latest file. The hash uses SHA-1 via `crypto.subtle`,
+which only exists in secure contexts like `127.0.0.1`; when no hash is available the check is
+skipped rather than blocking a normal save.
+
+`zone-editor` used to render a hard-coded zone array from its own HTML, independent of
+`pet.yaml` — one save would replace the real zones with those defaults. It now loads the config on
+startup, with the built-in array kept only as a fallback.
+
 ## Running
 
 **Double-click `start.bat`**: it locates Python, starts a local server and opens the browser. Close the black window to stop.

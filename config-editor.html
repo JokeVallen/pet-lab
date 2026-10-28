@@ -934,6 +934,39 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
+let baseHash = null;    // 上次读/存时磁盘文件的哈希
+
+/* ---------- 磁盘版本守卫 ----------
+ * 这些页面保存的是"内存里的那份配置"。如果页面是在文件被改之前打开的，
+ * 保存就会把磁盘上的新改动整份冲掉。保存前先比一次内容哈希。 */
+async function fileSha1(text) {
+    try {
+        if (!(window.crypto && crypto.subtle)) return null;
+        const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text));
+        return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) { return null; }
+}
+
+async function currentFileSha1(rel) {
+    try {
+        const r = await fetch(rel + '?ts=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) return null;
+        return await fileSha1(new TextDecoder('utf-8').decode(await r.arrayBuffer()));
+    } catch (e) { return null; }
+}
+
+/* 返回 true = 可以继续保存；false = 用户选择放弃 */
+async function confirmOverwrite(rel) {
+    const diskHash = await currentFileSha1(rel);
+    if (!diskHash || !baseHash || diskHash === baseHash) return true;
+    return confirm(
+        '磁盘上的 ' + rel + ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\n\n' +
+        '现在保存会用页面里的内容覆盖它，那些改动会丢。\n' +
+        '建议先取消，点「重新读取」，再重新改一遍。\n\n' +
+        '仍然要保存吗？'
+    );
+}
+
 async function reload() {
     const status = document.getElementById('status');
     status.textContent = '正在读取…';
@@ -943,6 +976,7 @@ async function reload() {
         const text = new TextDecoder('utf-8').decode(await res.arrayBuffer());
         cfg = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
         base = JSON.parse(JSON.stringify(cfg));
+        baseHash = await fileSha1(text);
         document.getElementById('banner').style.display = 'none';
         render();
         resetHistory();
@@ -990,7 +1024,12 @@ function copyYaml() {
 async function saveAndBuild() {
     const status = document.getElementById('status');
     const yamlText = document.getElementById('yaml').textContent;
+
     status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
+    if (!(await confirmOverwrite('config/pet.yaml'))) {
+        status.textContent = '已取消保存：磁盘文件已被改过，请先点「重新读取」';
+        return;
+    }
     try {
         const save = await fetch('/api/save', {
             method: 'POST',
@@ -1004,6 +1043,8 @@ async function saveAndBuild() {
         const build = await fetch('/api/build', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         const buildRes = await build.json();
         if (buildRes.ok) {
+            baseHash = await fileSha1(yamlText);
+            base = JSON.parse(JSON.stringify(cfg));
             try { localStorage.setItem('pet-config-ts', String(Date.now())); } catch (e) {}
             status.textContent = window.PetI18n ? PetI18n.s('msg.saved') : '已保存并编译完成';
         } else {

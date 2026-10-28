@@ -103,6 +103,34 @@
 
 <script src="vendor/js-yaml.min.js"></script>
 <script>
+/* ---------- 磁盘版本守卫（同 config-editor） ---------- */
+let baseHash = null;
+
+async function fileSha1(text) {
+    try {
+        if (!(window.crypto && crypto.subtle)) return null;
+        const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text));
+        return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) { return null; }
+}
+
+async function currentFileSha1(rel) {
+    try {
+        const r = await fetch(rel + '?ts=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) return null;
+        return await fileSha1(new TextDecoder('utf-8').decode(await r.arrayBuffer()));
+    } catch (e) { return null; }
+}
+
+async function confirmOverwrite(rel) {
+    const diskHash = await currentFileSha1(rel);
+    if (!diskHash || !baseHash || diskHash === baseHash) return true;
+    return confirm(
+        '磁盘上的 ' + rel + ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\n\n' +
+        '现在保存会用页面里的规则覆盖它，那些改动会丢。\n\n仍然要保存吗？'
+    );
+}
+
 let rules = [];
 let stateRules = [];        // policy.stateRules：条件 → 状态
 let stateIds = [];          // 可选的目标状态（来自 config 的 states）
@@ -629,7 +657,16 @@ function addRule() {
 
 async function saveRules() {
     const status = document.getElementById('status');
+    // 没读进 pet.yaml 就保存 = 把 rules.items 清空，这里直接拦住
+    if (!window.__lastLoaded) {
+        status.textContent = '还没读取配置：先点「导入 YAML」选 config/pet.yaml，否则保存会把规则清空';
+        return;
+    }
     status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
+    if (!(await confirmOverwrite('config/pet.yaml'))) {
+        status.textContent = '已取消保存：磁盘文件已被改过，请先重新读取';
+        return;
+    }
     try {
         const res = await fetch('/api/patch', {
             method: 'POST',
@@ -637,7 +674,10 @@ async function saveRules() {
             body: JSON.stringify({ patch: { rulesItems: rules, stateRules: stateRules } })
         });
         const data = await res.json();
-        if (data.ok) { try { localStorage.setItem('pet-config-ts', String(Date.now())); } catch (e) {} }
+        if (data.ok) {
+            baseHash = await currentFileSha1('config/pet.yaml');
+            try { localStorage.setItem('pet-config-ts', String(Date.now())); } catch (e) {}
+        }
         status.textContent = data.ok ? (window.PetI18n ? PetI18n.s('msg.saved') : '已保存') : ((window.PetI18n ? PetI18n.s('msg.failed') : '失败：') + (data.error || data.stderr || '').slice(0, 100));
     } catch (e) {
         status.textContent = window.PetI18n ? PetI18n.s('msg.needServer') : '需要本地服务器';
@@ -677,6 +717,8 @@ function loadText(text, name) {
         render();
         resetHistory();
         window.__lastLoaded = name;
+        baseHash = null;
+        fileSha1(text).then((h) => { baseHash = h; });
         setStatus((window.PetI18n ? PetI18n.s('msg.loaded') : '已读取') + ' ' + name + ' (' + rules.length + ')');
     } catch (e) {
         setStatus('解析失败：' + e.message);
