@@ -2,9 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| **Document version** | `preq-1.1` |
+| **Document version** | `preq-1.2` |
 | **Targets SiteAPI** | `1.1.0` (site-side changes: `SITE_API_CHANGELOG.md`) |
-| **Last updated** | 2026-10-28 |
+| **Last updated** | 2026-10-29 |
 | **Maintained by** | pet side (pet-lab) |
 | **Items** | 13 (R1–R13) |
 | **Chinese version** | [SITE_API_REQUIREMENTS.md](SITE_API_REQUIREMENTS.md) |
@@ -28,7 +28,7 @@
 | R4 | ✅ integrated | `type` taken directly from the site; no path parsing (the guess remains only as a 1.0 fallback) |
 | R5 | ✅ integrated | `theme` + `context:change`; both theme lines restored (verified for dark and light) |
 | R6 | ✅ integrated | `comments` + `commentsAvailable`; when false the pet treats it as unknown (`null`), so the rules stay dormant |
-| R7 | ◐ partial | new `/search-index.json` (1.2 MB) serves search, so searching no longer pulls the 5.2 MB DB; `content-db.json` itself is still uncompressed |
+| R7 | ✅ integrated | `/search-index.json` serves search (319 KB gzipped); `content-db.json` goes through gzip + Cache API (1.47 MB vs 5.27 MB); full-text lookups fetch only the `.gz` |
 | R8 | ✅ integrated | search rows carry `paperId` / `questionId` (unused by the pet so far, but available) |
 | R9 | ✅ integrated | `err.code` is used to tell a cancelled confirmation from a failure |
 | R10 | ✅ documented | `ready()` / `readyContent()` are idempotent |
@@ -36,9 +36,8 @@
 | R12 | ✅ documented | guide and changelog note when each action exists |
 | R13 | ✅ documented | `userState()` prefix, 8 KB cap, `keys()` / `clear()` |
 
-> The only item not fully landed is the second half of **R7** (`content-db.json` is still 5.2 MB and
-> uncompressed). The pet no longer loads it while browsing — only an explicit `readyContent()` does — so
-> the blast radius is limited to "actually needs the full text". 
+> All 13 items have landed. `content-db.json` is now delivered gzipped (1.47 MB) through the Cache API;
+> the pet still never loads it while browsing — only an explicit `readyContent()` does. 
 
 ---
 
@@ -366,6 +365,7 @@ SiteAPI version are independent tracks, tied together by the table below.
 | --- | --- | --- | --- |
 | `preq-1.0` | 2026-10-28 | 1.0.0 | first issue: R1–R13 raised |
 | `preq-1.1` | 2026-10-28 | 1.1.0 | R1–R6, R8–R13 shipped and integrated; R7 partially shipped (search split out, `content-db.json` still uncompressed); document versioning and increment rules added |
+| `preq-1.2` | 2026-10-29 | 1.1.0 | R7 closed: `content-db.json` and `search-index.json` switched to gzip + Cache API, measured 5.27 MB → 1.47 MB and 1.20 MB → 319 KB; all 13 items closed |
 
 ### 7.2 How to add to it
 
@@ -381,7 +381,14 @@ SiteAPI version are independent tracks, tied together by the table below.
 
 ### 7.3 Open items
 
-| Item | Status | What is missing |
-| --- | --- | --- |
-| R7 | partial | `/search-index.json` now serves search; `content-db.json` is still 5.2 MB and uncompressed. Browsing no longer loads it, so only the explicit `readyContent()` path is affected |
+None. All 13 items are `integrated` or `documented`.
+
+### 7.4 Two loose ends on the site side (neither blocks the pet)
+
+1. The `.gz` artefacts are written into `public/` by a `before_exit` filter, so they are **not hexo routes**
+   and 404 under `hexo server` (the client falls back to the raw JSON). Registering them as routes would
+   make local preview exercise the gzip path too.
+2. Gitalk counts still depend on a frontmatter `comment_count`; pages without it report
+   `commentsAvailable: false`, and the pet treats that as unknown, so the two comment lines stay dormant.
+   That is by design, not a defect.
 

@@ -2,9 +2,9 @@
 
 | 项目 | 值 |
 | --- | --- |
-| **文档版本** | `preq-1.1` |
+| **文档版本** | `preq-1.2` |
 | **对应 SiteAPI** | `1.1.0`（站点侧变更见 `SITE_API_CHANGELOG.md`） |
-| **最后更新** | 2026-10-28 |
+| **最后更新** | 2026-10-29 |
 | **维护方** | 宠物侧（pet-lab） |
 | **需求条数** | 13（R1–R13） |
 | **英文版** | [SITE_API_REQUIREMENTS.en.md](SITE_API_REQUIREMENTS.en.md) |
@@ -27,7 +27,7 @@
 | R4 | ✅ 已接入 | `type` 直接取站点给的值，宠物不再解析路径（旧版才有兜底） |
 | R5 | ✅ 已接入 | `theme` + `context:change`；两条主题台词已恢复（实测切深色/浅色都会说话） |
 | R6 | ✅ 已接入 | `comments` + `commentsAvailable`；`false` 时宠物视为"不知道"（`null`），相关规则不命中 |
-| R7 | ◐ 部分 | 新增 `/search-index.json`（1.2 MB）承担检索，实测搜索不再拉 5.2 MB 内容库；`content-db.json` 仍未压缩 |
+| R7 | ✅ 已接入 | `/search-index.json` 承担检索（319 KB gzip）；`content-db.json` 走 gzip + Cache API（1.47 MB，原 5.27 MB），实测全文取详情只拉 `.gz` |
 | R8 | ✅ 已接入 | 搜索行带 `paperId` / `questionId`（宠物暂未用，接口已具备） |
 | R9 | ✅ 已接入 | `err.code` 已用于区分取消与失败 |
 | R10 | ✅ 已说明 | `ready()` / `readyContent()` 幂等 |
@@ -35,8 +35,8 @@
 | R12 | ✅ 已说明 | 指南与 changelog 标注 action 可用页面 |
 | R13 | ✅ 已说明 | `userState()` 前缀、8 KB 上限、`keys()` / `clear()` |
 
-> 剩余唯一未完全落地的是 **R7 的后半段**（`content-db.json` 仍是 5.2 MB、未预压缩）。
-> 宠物侧已经不再在页面浏览时加载它，只有显式 `readyContent()` 才会拉，所以影响面已收窄到"确实要看全文"的场景。
+> 13 条全部落地。`content-db.json` 现在以 gzip（1.47 MB）传输并进 Cache API，
+> 宠物浏览页面时仍然一次都不加载它，只有显式 `readyContent()` 才会拉。
 
 ---
 
@@ -372,6 +372,7 @@ R5 / R6 决定两条主题台词和两条评论台词能不能复活；R7 决定
 | --- | --- | --- | --- |
 | `preq-1.0` | 2026-10-28 | 1.0.0 | 首版：R1–R13 提出 |
 | `preq-1.1` | 2026-10-28 | 1.1.0 | R1–R6、R8–R13 交付并接入；R7 部分交付（检索已拆，`content-db.json` 未压缩）；文档加版本号与增量约定 |
+| `preq-1.2` | 2026-10-29 | 1.1.0 | R7 结项：`content-db.json` 与 `search-index.json` 改为 gzip + Cache API，实测 5.27 MB → 1.47 MB、1.20 MB → 319 KB；13 条全部结项 |
 
 ### 7.2 增量怎么提
 
@@ -386,7 +387,12 @@ R5 / R6 决定两条主题台词和两条评论台词能不能复活；R7 决定
 
 ### 7.3 当前未结项
 
-| 条目 | 状态 | 差什么 |
-| --- | --- | --- |
-| R7 | 部分 | `/search-index.json` 已承担检索；`content-db.json` 仍是 5.2 MB 未预压缩。宠物浏览时已不加载它，影响的只是显式 `readyContent()` 的场景 |
+无。13 条全部为"已接入/已说明"。
+
+### 7.4 留给站点侧的两个小尾巴（不影响宠物）
+
+1. `.gz` 产物是 `before_exit` 过滤器写在 `public/` 里的，**不是 hexo 路由**，所以 `hexo server` 下会 404
+   （前端会回退到原始 JSON）。要让本地预览也走 gzip，把 `.gz` 作为路由返回即可。
+2. Gitalk 评论数仍然依赖 frontmatter 的 `comment_count`；没有该字段的页面 `commentsAvailable` 为 `false`，
+   宠物按"不知道"处理，两条评论台词不会出现——这是设计，不是缺陷。
 
