@@ -34,6 +34,7 @@
     .lab details .lab-row { padding:4px 0 6px; }
     .lab-row input[type=text] { width:100%; box-sizing:border-box; margin-bottom:4px; }
     .lab-out { font:11.5px/1.5 Consolas,monospace; color:#5f6b7d; background:#f5f8fd; border-radius:6px; padding:6px 8px; margin:6px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .lab-hint { font-size:11.5px; line-height:1.6; color:#8792a3; margin:6px 0 0; }
 
     .lab {
         position: fixed; left: 16px; bottom: 16px; z-index: 200;
@@ -103,12 +104,11 @@
     <details>
         <summary data-i18n="demo.g.state">状态与睡眠</summary>
         <div class="lab-row">
-            <button onclick="labState('idle')" data-i18n="demo.state.idle">待机</button>
-            <button onclick="labState('busy')" data-i18n="demo.state.busy">忙碌</button>
-            <button onclick="labState('sleepy')" data-i18n="demo.state.sleepy">困倦</button>
             <button onclick="labSleep()" data-i18n="demo.sleep">强制入睡</button>
             <button onclick="labWake()" data-i18n="demo.wake">叫醒</button>
         </div>
+        <p class="lab-out" id="labState">…</p>
+        <p class="lab-hint" data-i18n="demo.state.note">状态不能手动设：它由站点上下文推导（页面类型、阅读进度、主题、时间）。想切换状态，到下面「站点对接」里改上下文。</p>
     </details>
 
     <details>
@@ -128,6 +128,7 @@
             <button onclick="labSpeech('context')" data-i18n="demo.speech.context">情境</button>
             <button onclick="labSpeech('reply')" data-i18n="demo.speech.reply">回答</button>
             <button onclick="labSpeech('dialog')" data-i18n="demo.speech.dialog">进对话框</button>
+            <button onclick="labChatClose()" data-i18n="demo.speech.close">关对话框</button>
         </div>
     </details>
 
@@ -154,12 +155,12 @@
     <details>
         <summary data-i18n="demo.g.site">站点对接（模拟 SiteAPI）</summary>
         <div class="lab-row">
-            <button onclick="location.search='?mock=1'" data-i18n="demo.sim9">带模拟站点重载</button>
+            <button onclick="mockToggle()" data-i18n="demo.sim9">切换模拟站点</button>
             <button onclick="mockCtx('post')" data-i18n="demo.sim1">文章页</button>
             <button onclick="mockCtx('tag')" data-i18n="demo.sim2">标签页</button>
             <button onclick="mockCtx('home')" data-i18n="demo.sim5">首页</button>
             <button onclick="mockCtx('404')" data-i18n="demo.sim6">404</button>
-            <button onclick="mockScroll(0.95)" data-i18n="demo.sim3">滚动到 90%</button>
+            <button onclick="mockScroll(0.9)" data-i18n="demo.sim3">滚动到 90%</button>
             <button onclick="mockScroll(0)" data-i18n="demo.sim4">滚回顶部</button>
             <button onclick="mockBookmark()" data-i18n="demo.sim7">收藏这页</button>
             <button onclick="mockTheme()" data-i18n="demo.sim8">切主题</button>
@@ -168,208 +169,334 @@
     </details>
 </div>
 <script>
-    /* 实验台：把面板按钮翻译成内核意图，验证真实通路。
-       这些按钮模拟的是"站点信号"，正式接入时由 adapter 发出。 */
+    /* ---------------- 测试面板 ----------------
+     * 按钮只发"意图"，不碰内部实现。三个名字是模块的公开契约：
+     *   动作 → intent.action  { act, level, duration }   （modules/actions.js）
+     *   状态 → intent.state   { state }                  （modules/actions.js → machine）
+     *   说话 → speech.act     { text, channel, priority, ttl }（modules/speech.js）
+     * 以前这里直接调 PetKernel.action()/state()/speech()，前两个根本不存在，
+     * 第三个会把动画吞掉（没人订阅 'action' 事件），看起来就是"点了没反应"。
+     */
     (function () {
-        function say(text) {
-            if (window.PetKernel) window.PetKernel.emit('speech.act', { text: text, ttl: 4200, channel: 'auto', priority: 'context' });
-        }
-        function act(name, level) {
-            if (window.PetKernel) window.PetKernel.emit('intent.action', { act: name, level: level || 'direct', duration: 4000 });
-        }
-        function state(name) {
-            if (window.PetKernel) window.PetKernel.emit('intent.state', { state: name });
+        var ACTS = ['idle', 'look', 'think', 'hum', 'stretch', 'yawn', 'doze', 'spin', 'tail',
+                    'angry', 'puzzle', 'click-shy', 'click-wave', 'click-happy', 'eat', 'drag-up'];
+
+        var saySeq = 0;
+
+        function dbg() { return window.PetDebug && window.PetDebug['deepseek-pet']; }
+        function T(zh) { return (window.PetI18n && PetI18n.lang === 'en') ? PetI18n.t(zh) : zh; }
+
+        /* 唯一的出口：向内核发意图（必须是宠物正在用的那个实例） */
+        function kernel() {
+            var d = dbg();
+            return (d && d.kernel) || window.PetKernel;
         }
 
-        var HANDLERS = {
-            'nav:home': function () { state('idle'); say('回到首页了。'); act('look'); },
-            'content:item': function () { state('reading'); say('打开一篇，我陪你读。'); act('hum'); },
-            'progress:1': function () { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); },
-            'visitor:first': function () { say('第一次见？我是大肥鱼，住在这个角落里。'); act('click-wave'); },
-            'feed': function () { say('白米饭！谢谢你。'); act('eat'); },
-            'pet:head': function () { say('别戳脑袋啦。'); act('click-shy'); }
+        function intent(type, payload) {
+            var k = kernel();
+            if (!k || typeof k.emit !== 'function') {
+                console.warn('[lab] 内核还没就绪（宠物是 ES module，重页面要等几秒）');
+                return false;
+            }
+            k.emit(type, payload);
+            return true;
+        }
+
+        function say(text, priority, ttl) {
+            if (!text) return false;
+            return intent('speech.act', {
+                text: String(text),
+                channel: 'auto',
+                priority: priority || 'context',
+                ttl: ttl || 2800
+            });
+        }
+
+        /* 配置里的 say 可能是字符串，也可能是 { t, w } 加权条目 */
+        function pickSay(list) {
+            if (!list || !list.length) return '';
+            if (typeof list[0] === 'string') return list[Math.floor(Math.random() * list.length)];
+            var total = 0, i;
+            for (i = 0; i < list.length; i += 1) total += Number(list[i].w) || 1;
+            var r = Math.random() * total;
+            for (i = 0; i < list.length; i += 1) {
+                r -= Number(list[i].w) || 1;
+                if (r <= 0) return list[i].t;
+            }
+            return list[list.length - 1].t;
+        }
+
+        function buildActs() {
+            var host = document.getElementById('labActs');
+            if (!host) return;
+            ACTS.forEach(function (name) {
+                var b = document.createElement('button');
+                b.textContent = name;
+                b.onclick = function () { labAct(name); };
+                host.appendChild(b);
+            });
+        }
+
+        /* ---- 动作 / 状态 ---- */
+        window.labAct = function (name) {
+            intent('intent.action', { act: name, level: 'direct', duration: 3000 });
+        };
+        window.labSleep = function () { var d = dbg(); if (d && d.director) d.director.sleep(); refresh(); };
+        window.labWake = function () { var d = dbg(); if (d && d.director) d.director.wake(); refresh(); };
+
+        /* ---- 互动：和真实点击走同一条路（配置里的分区反应） ---- */
+        window.labFeed = function () {
+            var d = dbg();
+            var cfg = d && d.config;
+            var act = (cfg && cfg.animations && cfg.animations.events && cfg.animations.events.eat) || 'eat';
+            if (d && d.director && d.director.isSleeping()) d.director.wake();
+            intent('intent.action', { act: act, level: 'direct', duration: 3000 });
+            if (d && d.burst) d.burst('\u{1F35A}');
+            say(T('谢谢！'), 'context', 3200);
+            refresh();
         };
 
-        /* ---- 模拟站点：直接改假 SiteAPI 的状态，看宠物怎么反应 ---- */
-        function siteOn() {
-            return !!(window.mockSite && window.PetDebug);
+        window.labPoke = function (zone) {
+            var d = dbg();
+            var rules = (d && d.config && d.config.zoneReactions) || {};
+            var rule = rules[zone] || {};
+            intent('intent.action', { act: rule.act || (zone === 'tail' ? 'tail' : 'click-shy'), level: 'direct', duration: 2600 });
+            say(pickSay(rule.say) || (zone === 'tail' ? T('尾巴会痒的。') : T('别戳脑袋啦。')), 'context', 2600);
+            if (d && d.burst) d.burst(zone === 'tail' ? '\u{1F4A7}' : '\u{1F497}');
+            refresh();
+        };
+
+        window.labBurst = function () {
+            var d = dbg();
+            if (d && d.burst) { d.burst('\u{1F497}', 1); return; }
+            // 内核还没起来时的兜底：手动造一个粒子，样式与真实的一致
+            var root = document.querySelector('.dp-root');
+            if (!root) return;
+            var el = document.createElement('span');
+            el.className = 'dp-particle';
+            el.textContent = '\u{1F497}';
+            el.style.left = (52 + Math.random() * 60) + 'px';
+            root.appendChild(el);
+            setTimeout(function () { el.remove(); }, 1400);
+        };
+
+        /* ---- 说话：四种优先级 / 通道 ---- */
+        window.labSpeech = function (kind) {
+            saySeq += 1;
+            // 带上序号：同句 8 秒内会被去重，带序号才能连点连看
+            var text = T('（测试台词）') + ' #' + saySeq;
+            var act = { text: text, channel: 'auto', priority: 'ambient', ttl: 2600 };
+            if (kind === 'context') act.priority = 'context';
+            if (kind === 'reply') act.priority = 'reply';
+            if (kind === 'dialog') {
+                var d = dbg();
+                if (d && d.chat) d.chat(true);   // 先开面板，否则投进对话框看不见
+                act.channel = 'dialog';
+            }
+            intent('speech.act', act);
+        };
+
+        /* ---- 问一句：真的走 PetDebug.reply（内部可能检索，返回 Promise） ---- */
+        /* 对话框开着时所有台词都投进对话框，气泡不会再冒——测完记得关 */
+        window.labChatClose = function () {
+            var d = dbg();
+            if (d && d.chat) d.chat(false);
+        };
+
+        window.labAsk = function () {
+            var d = dbg();
+            var input = document.getElementById('labQ');
+            var box = document.getElementById('labAns');
+            var q = input ? String(input.value || '').trim() : '';
+            if (!d) { box.textContent = '宠物还没加载完（等几秒再点）'; return; }
+            if (!q) { box.textContent = '先写一句话再点提问'; return; }
+            box.textContent = '…';
+            Promise.resolve(d.reply(q)).then(function (text) {
+                box.textContent = String(text);
+            }).catch(function (err) {
+                box.textContent = '出错了：' + ((err && err.message) || err);
+            });
+        };
+
+        window.labLang = function (code) {
+            var d = dbg();
+            if (d && d.content) d.content.setLang(code);
+            if (window.PetI18n) window.PetI18n.setLang(code);
+            document.documentElement.lang = code === 'en' ? 'en' : 'zh-CN';
+            refresh();
+        };
+
+        window.labShowConfig = function () {
+            var d = dbg(), box = document.getElementById('labCfg');
+            if (!d) return;
+            var c = d.config;
+            box.textContent = JSON.stringify({
+                name: (c.persona && c.persona.name) || c.name,
+                lang: d.content && d.content.lang,
+                drag: c.drag && c.drag.enabled,
+                particles: c.click && c.click.particleCount,
+                bubbleTtl: c.speech && c.speech.bubbleTtl,
+                sleepLoop: c.states && c.states.sleepy && c.states.sleepy.loop,
+                idleSleepMs: c.idleSleepMs,
+                rules: (c.rules && c.rules.items || []).map(function (r) { return r.id; })
+            }, null, 1);
+        };
+
+        /* ---- 读数 ---- */
+        function refresh() {
+            var box = document.getElementById('labRead');
+            var d = dbg();
+            if (!box) return;
+            if (!d) { box.textContent = '宠物还没加载完…'; return; }
+            var st = d.state || {};
+            var sleeping = !!(d.director && d.director.isSleeping());
+            var mstate = (d.machine && d.machine.state) ? d.machine.state() : '-';
+            box.textContent = [
+                'lang=' + (d.content && d.content.lang),
+                'act=' + (d.player && d.player.name ? d.player.name() : '-'),
+                'sleep=' + (sleeping ? 'yes' : 'no'),
+                'mood=' + (d.mood ? d.mood() : '-'),
+                'full=' + (st.fullness | 0),
+                'aff=' + (st.affinity | 0),
+                'streak=' + (st.streak || 1)
+            ].join('  ·  ');
+
+            // 状态是推导出来的：这里把"当前上下文 → 状态 → 片段池"整条链摊开
+            var stBox = document.getElementById('labState');
+            if (stBox) {
+                var ctx = d.context ? d.context() : null;
+                var id = 'idle';
+                try { id = (d.adapter && d.adapter.pickState && d.adapter.pickState(ctx)) || 'idle'; } catch (e) { /* ignore */ }
+                var stc = (d.config.states || {})[id] || {};
+                stBox.textContent = 'state=' + id +
+                    '  ·  clip=' + (stc.clip || '-') +
+                    '  ·  pool=' + ((stc.pool || []).join(',') || '-') +
+                    '  ·  ctx=' + (ctx ? ctx.type + ' scroll=' + Number(ctx.scroll || 0).toFixed(2) + ' dark=' + ctx.dark : 'n/a');
+            }
         }
-        function petAdapter() {
-            var d = window.PetDebug && window.PetDebug['deepseek-pet'];
-            return d && d.adapter;
-        }
-        function showSite() {
+
+        buildActs();
+        setInterval(refresh, 600);
+        setTimeout(refresh, 1500);
+    })();
+</script>
+<script>
+    /* ---------------- 站点对接（模拟 SiteAPI） ----------------
+     * 只有带 ?mock=1 才有 mockSite；这里改的是假站点的状态，
+     * 宠物只通过 window.SiteAPI 感知，走的是和真实站点完全一样的链路。
+     */
+    (function () {
+        function dbg() { return window.PetDebug && window.PetDebug['deepseek-pet']; }
+        function mock() { return window.mockSite; }
+        function adapter() { var d = dbg(); return d && d.adapter; }
+
+        function box(text) {
             var el = document.getElementById('labSite');
-            if (!el) return;
-            if (!siteOn()) {
-                el.textContent = '未挂载模拟站点：点「带模拟站点重载」再试。';
+            if (el) el.textContent = text;
+        }
+
+        function intro(zh, en) {
+            var d = dbg();
+            var text = (window.PetI18n && PetI18n.lang === 'en') ? en : zh;
+            if (d && d.kernel) {
+                d.kernel.emit('speech.act', { text: text, channel: 'auto', priority: 'reply', ttl: 3200 });
+            }
+        }
+
+        function render() {
+            var m = mock();
+            var d = dbg();
+            if (!m || !d) {
+                box('未挂载模拟站点：点「切换模拟站点」重载页面后可用。');
                 return;
             }
-            var ctx = window.mockSite.state.ctx;
-            var ad = petAdapter();
-            el.textContent = 'ctx=' + ctx.type + ' ' + ctx.path +
-                ' · theme=' + (ctx.theme || '?') +
-                ' · ratio=' + window.mockSite.state.scroll +
-                ' · 宠物看到: ' + (ad ? JSON.stringify(ad.context()) : 'n/a');
+            var c = m.state.ctx;
+            var seen = adapter() ? adapter().context() : null;
+            box('假站点: ' + c.type + ' ' + c.path +
+                ' · theme=' + (c.theme || '?') +
+                ' · ratio=' + m.state.scroll +
+                '\n宠物看到: ' + (seen ? JSON.stringify(seen) : '（adapter 未就绪）'));
         }
-        window.mockCtx = function (kind) {
-            if (!siteOn()) return showSite();
-            var map = {
+
+        /* 每个页面类型都给完整上下文，避免上一个页面的字段残留 */
+        function ctxOf(kind) {
+            var m = mock();
+            var base = {
+                id: '', contentId: '', title: '', path: '/',
+                tags: [], categories: [], wordCount: 0,
+                comments: 0, commentsAvailable: false,
+                theme: (m && m.state.ctx.theme) || 'light'
+            };
+            var extra = {
                 post: {
                     type: 'post', id: 'mock-post', contentId: 'post:_posts/mock.md',
                     title: '演示用的文章', path: '/posts/mock/',
                     tags: ['Unity', 'C#'], categories: ['技术'], wordCount: 5200
                 },
-                tag: { type: 'tag', id: '/tags/Unity/', title: '标签：Unity', path: '/tags/Unity/', tags: [], wordCount: 0 },
-                home: { type: 'home', id: '/', title: '演示首页', path: '/', tags: [], wordCount: 0 },
-                '404': { type: '404', id: '/404.html', title: '找不到页面', path: '/404.html', tags: [], wordCount: 0 }
-            };
-            window.mockSite.setContext(map[kind] || map.post);
-            setTimeout(function () { try { petAdapter().refresh(); } catch (e) { /* ignore */ } showSite(); }, 60);
+                tag: {
+                    type: 'tag', id: '/tags/Unity/', title: '标签：Unity',
+                    path: '/tags/Unity/', tags: [], wordCount: 0
+                },
+                home: {
+                    type: 'home', id: '/', title: '演示首页', path: '/', tags: [], wordCount: 0
+                },
+                '404': {
+                    type: '404', id: '/404.html', title: '找不到页面',
+                    path: '/404.html', tags: [], wordCount: 0
+                }
+            }[kind] || {};
+            return Object.assign(base, extra);
+        }
+
+        window.mockCtx = function (kind) {
+            var m = mock();
+            if (!m) { render(); return; }
+            m.setContext(ctxOf(kind));
+            intro('切到「' + kind + '」了。', 'Switched to "' + kind + '".');
+            setTimeout(render, 80);
         };
+
         window.mockScroll = function (ratio) {
-            if (!siteOn()) return showSite();
-            window.mockSite.setScroll(ratio);
-            setTimeout(showSite, 60);
+            var m = mock();
+            if (!m) { render(); return; }
+            m.setScroll(ratio);
+            setTimeout(render, 80);
         };
+
         window.mockTheme = function () {
-            if (!siteOn()) return showSite();
-            var next = window.mockSite.state.ctx.theme === 'dark' ? 'light' : 'dark';
-            window.mockSite.setTheme(next);
-            setTimeout(showSite, 80);
+            var m = mock();
+            if (!m) { render(); return; }
+            m.setTheme(m.state.ctx.theme === 'dark' ? 'light' : 'dark');
+            setTimeout(render, 120);
         };
+
         window.mockBookmark = function () {
-            if (!siteOn()) return showSite();
-            window.PetDebug['deepseek-pet'].site.action('bookmark.toggle', {
-                type: 'post', id: 'mock-post', title: '演示用的文章', path: '/posts/mock/'
+            var m = mock();
+            var d = dbg();
+            if (!m || !d || !d.site) { render(); return; }
+            var c = m.state.ctx;
+            d.site.action('bookmark.toggle', {
+                type: c.type, id: c.id, title: c.title, path: c.path
             }).then(function (r) {
-                say(r.ok ? (r.result && r.result.active ? '收藏好了。' : '取消收藏了。') : '收藏没成：' + r.error);
-                showSite();
+                if (r.ok) {
+                    var on = !!(r.result && r.result.active);
+                    intro(on ? '收藏好了。' : '取消收藏了。', on ? 'Bookmarked.' : 'Bookmark removed.');
+                } else {
+                    intro('收藏没成：' + r.error, 'Bookmark failed: ' + r.error);
+                }
+                setTimeout(render, 100);
             });
         };
-        setInterval(function () { if (document.getElementById('labSite')) showSite(); }, 3000);
 
-        window.sim = function (name) {
-            console.log('[lab] signal:', name);
-            window.dispatchEvent(new CustomEvent('lab:signal', { detail: { name: name } }));
-            var fn = HANDLERS[name];
-            if (fn) { try { fn(); } catch (e) { console.error('[lab]', e); } }
-            else if (window.PetKernel) window.PetKernel.log && console.log('[lab] no handler for', name);
+        window.mockToggle = function () {
+            location.search = mock() ? '' : '?mock=1';
         };
 
-        // 也支持外部直接派发 lab:signal
-        window.addEventListener('lab:signal', function (e) { /* 保留钩子，供未来 adapter 接入 */ });
+        setInterval(function () {
+            if (document.getElementById('labSite')) render();
+        }, 1500);
+        setTimeout(render, 800);
     })();
-</script>
-<script>
-/* ---------------- 测试面板 ----------------
- * 所有按钮都只是"发信号"，不直接改宠物内部状态：
- * 动作走 intent.action，状态走 intent.state，说话走 speech.act，问句走 PetDebug.reply。
- * 想加测试项，往 ACTS 里塞一个名字就行（动画名来自 config 的 animations / states）。
- */
-(function () {
-    var ACTS = ['idle', 'look', 'think', 'hum', 'stretch', 'yawn', 'doze', 'spin', 'tail',
-                'angry', 'puzzle', 'click-shy', 'click-wave', 'click-happy', 'eat', 'drag-up'];
-
-    function dbg() { return window.PetDebug && window.PetDebug['deepseek-pet']; }
-    function T(zh) { return (window.PetI18n && PetI18n.lang === 'en') ? (window.PetI18n.t(zh)) : zh; }
-
-    function emit(method, payload) {
-        var K = window.PetKernel;
-        if (!K || !K[method]) return false;
-        K[method](payload);
-        return true;
-    }
-
-    function buildActs() {
-        var host = document.getElementById('labActs');
-        if (!host) return;
-        ACTS.forEach(function (name) {
-            var b = document.createElement('button');
-            b.textContent = name;
-            b.onclick = function () { emit('action', { act: name, level: 'direct', duration: 3000 }); };
-            host.appendChild(b);
-        });
-    }
-
-    window.labState = function (name) { emit('state', { state: name }); refresh(); };
-    window.labSleep = function () { var d = dbg(); if (d && d.director) d.director.sleep(); refresh(); };
-    window.labWake = function () { var d = dbg(); if (d && d.director) d.director.wake(); refresh(); };
-    window.labFeed = function () { emit('action', { act: 'eat', level: 'direct' }); refresh(); };
-    window.labPoke = function (zone) {
-        var d = dbg();
-        if (d && d.director) d.director.cue(zone === 'tail' ? 'tail' : 'click-shy');
-        var line = zone === 'tail' ? T('尾巴会痒的。') : T('别戳脑袋啦。');
-        emit('speech', { text: line, channel: 'auto', priority: 'context', ttl: 2600 });
-    };
-    window.labBurst = function () {
-        var root = document.querySelector('.dp-root');
-        if (!root) return;
-        var el = document.createElement('span');
-        el.className = 'dp-particle';
-        el.textContent = '\u{1F497}';
-        el.style.left = (52 + Math.random() * 60) + 'px';
-        root.appendChild(el);
-        setTimeout(function () { el.remove(); }, 1400);
-    };
-    window.labSpeech = function (kind) {
-        var text = T('（测试台词）');
-        var act = { text: text, channel: 'auto', priority: 'ambient', ttl: 2600 };
-        if (kind === 'context') act.priority = 'context';
-        if (kind === 'reply') act.priority = 'reply';
-        if (kind === 'dialog') act.channel = 'dialog';
-        emit('speech', act);
-    };
-    window.labAsk = function () {
-        var d = dbg(), q = document.getElementById('labQ').value;
-        var box = document.getElementById('labAns');
-        if (!d || !q) { box.textContent = '…'; return; }
-        box.textContent = String(d.reply(q));
-    };
-    window.labLang = function (code) {
-        var d = dbg();
-        if (d && d.content) d.content.setLang(code);
-        // 工具页文案走 PetI18n，宠物台词走 content，两边一起切才一致
-        if (window.PetI18n) window.PetI18n.setLang(code);
-        document.documentElement.lang = code === 'en' ? 'en' : 'zh-CN';
-        refresh();
-    };
-    window.labShowConfig = function () {
-        var d = dbg(), box = document.getElementById('labCfg');
-        if (!d) return;
-        var c = d.config;
-        box.textContent = JSON.stringify({
-            name: (c.persona && c.persona.name) || c.name,
-            lang: d.content && d.content.lang,
-            drag: c.drag && c.drag.enabled,
-            particles: c.click && c.click.particleCount,
-            bubbleTtl: c.speech && c.speech.bubbleTtl,
-            sleepLoop: c.states && c.states.sleepy && c.states.sleepy.loop,
-            idleSleepMs: c.idleSleepMs
-        }, null, 1);
-    };
-
-    function refresh() {
-        var box = document.getElementById('labRead');
-        var d = dbg();
-        if (!box || !d) return;
-        var st = d.state || {};
-        var sleeping = !!(d.director && d.director.isSleeping());
-        box.textContent = [
-            'lang=' + (d.content && d.content.lang),
-            'act=' + (d.player && d.player.name ? d.player.name() : '-'),
-            'sleep=' + (sleeping ? 'yes' : 'no'),
-            'mood=' + (d.mood ? d.mood() : '-'),
-            'full=' + (st.fullness | 0),
-            'aff=' + (st.affinity | 0),
-            'streak=' + (st.streak || 1)
-        ].join('  ·  ');
-    }
-
-    buildActs();
-    setInterval(refresh, 600);
-    setTimeout(refresh, 1500);
-})();
 </script>
 <script>
     /* 配置改动后其它标签页会写入时间戳，这里自动重载 */

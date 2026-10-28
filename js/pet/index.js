@@ -22,10 +22,16 @@ import { PetSite } from './site.js';
 
 /* 同页多实例：每个模块实例自己 new 一个内核，事件总线/动作裁决/存储互不共享。
    第二个实例加载的是 ?pet=xxx 这样的不同 URL，模块会被重新求值。 */
-var KERNEL = (PetKernel && typeof PetKernel.create === 'function') ? PetKernel.create() : PetKernel;
+/* 工厂与实例分开：window.PetKernel 指向"活着的那一个"（面板/工具直接用），
+   工厂留在 window.PetKernelFactory，供 ?pet=xxx 这种同页多实例再 create() 一次。 */
+var KERNEL_FACTORY = (window.PetKernelFactory && typeof window.PetKernelFactory.create === 'function')
+    ? window.PetKernelFactory
+    : PetKernel;
+var KERNEL = (KERNEL_FACTORY && typeof KERNEL_FACTORY.create === 'function')
+    ? KERNEL_FACTORY.create()
+    : KERNEL_FACTORY;
 import { PetAdapter } from './adapter.js';
 import { PetPlayer } from './modules/player.js';
-import { PetMachine } from './modules/machine.js';
 import { PetActions } from './modules/actions.js';
 import { PetSpeech } from './modules/speech.js';
 import { PetRenderers } from './modules/renderers.js';
@@ -502,8 +508,9 @@ var CONFIG = {
             release: function () {
                 if (director && director.drop) director.drop('drag-down');
             },
-            setState: function (state) {
-                if (PetMachine && PetMachine.set) PetMachine.set(state);
+            setState: function () {
+                /* 状态不从外部强制：它由站点上下文推导（PetAdapter.pickState），
+                   这里只留接口，避免将来接状态机时改协议。 */
             }
         }));
         KERNEL.start();
@@ -1490,7 +1497,8 @@ var CONFIG = {
     catch (e) { window.__petBootErr = String((e && e.stack) || e); console.error('[pet] mountSpeech failed', e); }
 
 /* 调试入口：控制台与冒烟测试用；其余模块保持在模块作用域内 */
-window.PetKernel = window.PetKernel || PetKernel;
+window.PetKernel = KERNEL;              // 面板/调试工具直接对着活实例说话
+window.PetKernelFactory = KERNEL_FACTORY;
 window.PetSearch = PetSearch;
 window.PetZones = PetZones;
 window.PetDebug = window.PetDebug || {};
@@ -1504,5 +1512,8 @@ window.PetDebug[CONFIG.hostId || 'deepseek-pet'] = {
     mood: function () { return mood(); },
     get state() { return state; },
     get director() { return director; },
-    get player() { return player; }
+    get player() { return player; },
+    /* 演示页/调试用：直接复用真实实现，避免面板里再造一份 */
+    burst: function (emoji, count) { return burst(emoji, count); },
+    chat: function (open) { return setChatOpen(open); }
 };

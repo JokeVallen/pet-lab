@@ -524,8 +524,11 @@
         '默认冷却': 'Default cooldown', '索引地址': 'Index URL', '预取延迟': 'Preload delay',
         '最多返回几条': 'Max results',
         '站点对接': 'Site integration', '就绪延迟': 'Ready delay', '读取文章元信息': 'Read post metadata',
-        '404': '404', '收藏这页': 'Bookmark this page', '带模拟站点重载': 'Reload with mock site',
+        '404': '404', '收藏这页': 'Bookmark this page', '切换模拟站点': 'Toggle mock site',
         '切主题': 'Toggle theme',
+        '关对话框': 'Close chat',
+        '状态不能手动设：它由站点上下文推导（页面类型、阅读进度、主题、时间）。想切换状态，到下面「站点对接」里改上下文。':
+            'State cannot be forced: it is derived from the site context (page type, reading progress, theme, time). To switch it, change the context in the "Site integration" group below.',
         '对话里问「有没有讲 X 的」时，检索请求交给站点的 SiteAPI（收录哪些内容由站点决定，宠物不维护索引）。':
             'When you ask "do you have anything on X", the query goes to the site SiteAPI — the site decides what is indexed; the pet keeps no index.',
         '宠物只通过 window.SiteAPI 与站点对话，这里没有任何可调项：页面类型、标签、字数、主题都由站点在 currentContext() 里给。':

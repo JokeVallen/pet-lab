@@ -51,7 +51,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         });
         await send('Runtime.enable');
         await send('Network.enable');
-        await sleep(16000);
+        await sleep(15000);
 
         console.log('宠物挂载:', await ev("!!document.querySelector('.dp-root')"));
         console.log('请求:', reqs.join(' | ') || '（无）');
