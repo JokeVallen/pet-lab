@@ -78,14 +78,14 @@
     </ol>
 
     <h2 data-i18n="demo.how">怎么用这一页</h2>
-    <p data-i18n="demo.p4">左下角的面板用于模拟站点信号：滚动到底、切到文章页、喂食、触发问候。这些按钮模拟的是未来适配器应当 emit 的东西。</p>
+    <p data-i18n="demo.p4">左下角是测试面板：动作、状态与睡眠、互动、说话通道、提问、语言与配置、站点对接。按钮只发意图（intent.action / intent.state / speech.act），不直接改宠物内部状态。</p>
     <p data-i18n="demo.p5">要验证滚动相关行为，直接滚动本页即可——页面下半部分有足够的空白。</p>
 
     <h2 data-i18n="demo.assets">素材</h2>
     <p data-i18n="demo.p6">32 段动画，4.55 MB，全部为带 alpha 的 VP9 WebM，路径与博客一致（/images/pet/anim/），所以宠物代码不需要改动路径。</p>
 
     <div style="height:120vh"></div>
-    <p style="color:#94a3b8" data-i18n="demo.bottom">页面底部 —— 滚动到这里应触发“读到底了”。</p>
+    <p style="color:#94a3b8" data-i18n="demo.bottom">页面底部 —— 滚动到这里应触发「读到底了」。</p>
 </main>
 
 <div class="lab" id="lab">
@@ -104,11 +104,15 @@
     <details>
         <summary data-i18n="demo.g.state">状态与睡眠</summary>
         <div class="lab-row">
+            <button onclick="labState('idle')" data-i18n="demo.state.idle">待机</button>
+            <button onclick="labState('busy')" data-i18n="demo.state.busy">忙碌</button>
+            <button onclick="labState('sleepy')" data-i18n="demo.state.sleepy">困倦</button>
+            <button onclick="labFollow()" data-i18n="demo.state.follow">跟随上下文</button>
             <button onclick="labSleep()" data-i18n="demo.sleep">强制入睡</button>
             <button onclick="labWake()" data-i18n="demo.wake">叫醒</button>
         </div>
         <p class="lab-out" id="labState">…</p>
-        <p class="lab-hint" data-i18n="demo.state.note">状态不能手动设：它由站点上下文推导（页面类型、阅读进度、主题、时间）。想切换状态，到下面「站点对接」里改上下文。</p>
+        <p class="lab-hint" data-i18n="demo.state.note">状态机默认跟随上下文（页面类型、阅读进度、主题、时间）；手动切换相当于临时指定，换页后自动回到跟随。</p>
     </details>
 
     <details>
@@ -241,6 +245,17 @@
         window.labAct = function (name) {
             intent('intent.action', { act: name, level: 'direct', duration: 3000 });
         };
+        window.labState = function (name) {
+            if (!intent('intent.state', { state: name })) return;
+            refresh();
+        };
+
+        window.labFollow = function () {
+            var d = dbg();
+            if (d && d.follow) d.follow();
+            refresh();
+        };
+
         window.labSleep = function () { var d = dbg(); if (d && d.director) d.director.sleep(); refresh(); };
         window.labWake = function () { var d = dbg(); if (d && d.director) d.director.wake(); refresh(); };
 
@@ -365,12 +380,14 @@
             var stBox = document.getElementById('labState');
             if (stBox) {
                 var ctx = d.context ? d.context() : null;
-                var id = 'idle';
-                try { id = (d.adapter && d.adapter.pickState && d.adapter.pickState(ctx)) || 'idle'; } catch (e) { /* ignore */ }
-                var stc = (d.config.states || {})[id] || {};
+                var m = d.machine;
+                var id = (m && m.state && m.state()) || '-';
+                var pool = (m && m.actions && m.actions()) || [];
+                var want = '-';
+                try { want = (m && m.want && m.want(ctx || {})) || '-'; } catch (e) { /* ignore */ }
                 stBox.textContent = 'state=' + id +
-                    '  ·  clip=' + (stc.clip || '-') +
-                    '  ·  pool=' + ((stc.pool || []).join(',') || '-') +
+                    '  ·  pool=' + (pool.join(',') || '-') +
+                    '  ·  ctx→' + want +
                     '  ·  ctx=' + (ctx ? ctx.type + ' scroll=' + Number(ctx.scroll || 0).toFixed(2) + ' dark=' + ctx.dark : 'n/a');
             }
         }

@@ -32,6 +32,7 @@ var KERNEL = (KERNEL_FACTORY && typeof KERNEL_FACTORY.create === 'function')
     : KERNEL_FACTORY;
 import { PetAdapter } from './adapter.js';
 import { PetPlayer } from './modules/player.js';
+import { PetMachine } from './modules/machine.js';
 import { PetActions } from './modules/actions.js';
 import { PetSpeech } from './modules/speech.js';
 import { PetRenderers } from './modules/renderers.js';
@@ -508,9 +509,8 @@ var CONFIG = {
             release: function () {
                 if (director && director.drop) director.drop('drag-down');
             },
-            setState: function () {
-                /* 状态不从外部强制：它由站点上下文推导（PetAdapter.pickState），
-                   这里只留接口，避免将来接状态机时改协议。 */
+            setState: function (state) {
+                setStateExplicit(state);
             }
         }));
         KERNEL.start();
@@ -941,12 +941,65 @@ var CONFIG = {
         ? PetConfig.states
         : { idle: { clip: 'idle', pool: ['look'] } };
 
-    function stateId() {
-        var ctx = null;
-        try { ctx = siteContext(); } catch (e) { /* ignore */ }
-        try { return (PetAdapter && PetAdapter.pickState && PetAdapter.pickState(ctx)) || 'idle'; }
-        catch (e) { return 'idle'; }
+    /* 站点换页/改上下文时，状态机立刻重新对齐；手动指定在换页后自动失效 */
+    var watchingState = false;
+    function watchContextState() {
+        if (watchingState) return;
+        watchingState = true;
+        PetSite.on('context:change', function () {
+            // 让 adapter 先更新自己的缓存，再同步状态机
+            setTimeout(syncState, 0);
+        });
     }
+
+    /* 状态机：宠物"处于什么基调"的唯一来源。
+       输入是站点上下文（resolve → PetAdapter.pickState），输出是当前状态与动作池。
+       外部想让宠物进入某个状态，发 intent.state 即可（视为手动指定，直到换页）。 */
+    var statePin = '';
+    var statePinPath = '';
+
+    function resolveState(ctx) {
+        if (statePin) return statePin;
+        try {
+            return (PetAdapter && PetAdapter.pickState && PetAdapter.pickState(ctx)) || 'idle';
+        } catch (e) {
+            return 'idle';
+        }
+    }
+
+    var MACHINE = (PetMachine && PetMachine.createMachine)
+        ? PetMachine.createMachine({ states: STATES, initial: 'idle', resolve: resolveState })
+        : null;
+
+    function currentPath() {
+        try { return (PetAdapter.context() || {}).path || ''; } catch (e) { return ''; }
+    }
+
+    /** 跟着上下文走：换页时清掉手动指定 */
+    function syncState() {
+        var ctx = null;
+        try { ctx = siteContext(); } catch (e) { ctx = null; }
+        if (statePin && statePinPath && currentPath() !== statePinPath) statePin = '';
+        if (!MACHINE) return 'idle';
+        MACHINE.sync(ctx || {});
+        return MACHINE.state() || 'idle';
+    }
+
+    /** 手动进入某个状态（intent.state）：换页后自动回到跟随上下文 */
+    function setStateExplicit(name) {
+        if (!name || !STATES[name]) return false;
+        statePin = name;
+        statePinPath = currentPath();
+        if (MACHINE) MACHINE.set(name);
+        return true;
+    }
+
+    function followState() {
+        statePin = '';
+        statePinPath = '';
+        return syncState();
+    }
+
 
     function stateClips(id) {
         var s = STATES[id] || STATES.idle;
@@ -983,9 +1036,11 @@ var CONFIG = {
     }
 
     function categoriesForNow() {
-        // 状态由站点层挑，宠物只把该状态的片段池交回去
-        var id = stateId();
-        return [{ id: id, weight: 1, actions: stateClips(id) }];
+        // 状态机说了算：上下文 → 状态 → 池子
+        var id = syncState();
+        var pool = (MACHINE && MACHINE.actions()) || [];
+        if (!pool.length) pool = stateClips(id);
+        return [{ id: id, weight: 1, actions: pool }];
     }
 
 
@@ -1457,6 +1512,7 @@ var CONFIG = {
             lastCtxAt = 0;                       // 换页了，重置冷却
             /* 换页后重新问一次站点"这是哪一页"，再决定说什么 */
             PetAdapter.refresh().then(function () {
+                syncState();
                 setTimeout(function () {
                     tagPageLine();
                     runContext();
@@ -1473,6 +1529,8 @@ var CONFIG = {
 
         /* 站点上下文是异步的：先让宠物出来，落地后再补一次判断 */
         PetAdapter.init().then(function () {
+            syncState();
+            watchContextState();
             lastCtxAt = 0;
             setTimeout(function () {
                 tagPageLine();
@@ -1513,6 +1571,9 @@ window.PetDebug[CONFIG.hostId || 'deepseek-pet'] = {
     get state() { return state; },
     get director() { return director; },
     get player() { return player; },
+    get machine() { return MACHINE; },
+    setState: function (name) { return setStateExplicit(name); },
+    follow: function () { return followState(); },
     /* 演示页/调试用：直接复用真实实现，避免面板里再造一份 */
     burst: function (emoji, count) { return burst(emoji, count); },
     chat: function (open) { return setChatOpen(open); }
