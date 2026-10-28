@@ -24,21 +24,22 @@
 
     /* 模拟站点信号的控制台 */
     .lab { max-height: 72vh; overflow: auto; }
-    .lab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .lab-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
     .lab-head h3 { margin:0; }
-    .lab-mini { font-size:11px; padding:2px 8px; }
-    .lab-read { font:11.5px/1.6 Consolas,monospace; color:#5f6b7d; background:#f5f8fd; border-radius:6px; padding:6px 8px; margin:6px 0 8px; word-break:break-all; }
+    .lab-row { display:flex; flex-wrap:wrap; gap:6px; }
+    .lab-row input[type=text] { flex:1 1 100%; }
+    .lab-read { font:11.5px/1.6 Consolas,monospace; color:#5f6b7d; background:#f5f8fd; border-radius:6px; padding:6px 8px; margin:6px 0 8px; overflow-wrap:anywhere; }
     .lab details { margin:6px 0 4px; }
     .lab summary { cursor:pointer; font-size:12.5px; color:#3f4c5f; padding:3px 0; font-weight:600; }
     .lab details .lab-row { padding:4px 0 6px; }
     .lab-row input[type=text] { width:100%; box-sizing:border-box; margin-bottom:4px; }
-    .lab-out { font:11.5px/1.5 Consolas,monospace; color:#5f6b7d; background:#f5f8fd; border-radius:6px; padding:6px 8px; margin:6px 0 0; white-space:pre-wrap; word-break:break-all; }
+    .lab-out { font:11.5px/1.5 Consolas,monospace; color:#5f6b7d; background:#f5f8fd; border-radius:6px; padding:6px 8px; margin:6px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
 
     .lab {
         position: fixed; left: 16px; bottom: 16px; z-index: 200;
         background: #fff; border: 1px solid #e2e8f2; border-radius: 12px;
         box-shadow: 0 8px 28px rgba(30, 50, 90, .12);
-        padding: 12px 14px; width: 260px;
+        padding: 10px 12px; width: 330px;
     }
     .lab h3 { margin: 0 0 8px; font-size: 12px; color: #8b97a8; letter-spacing: .04em; }
     .lab button {
@@ -50,6 +51,12 @@
     .lab button:active { transform: translateY(1px); }
     .lab .dark { background: #22303f; }
     .lab .dark body { background: #0f1720; }
+
+    /* 测试面板：按钮改成紧凑排列，别一列铺满 */
+    .lab .lab-row button { display:inline-block; width:auto; margin:0; padding:5px 10px; font-size:12px; text-align:center; }
+    .lab .lab-head h3 { margin:0; white-space:nowrap; }
+    .lab .lab-head button { display:inline-block; width:auto; margin:0; padding:2px 8px; font-size:11px; color:#8b97a8; background:transparent; border-color:transparent; }
+    .lab .lab-head button:hover { background:#f0f4fa; }
 </style>
 </head>
 <body data-title-key="demo.title">
