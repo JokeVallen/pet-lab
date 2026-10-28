@@ -16,7 +16,7 @@ export default {
     ],
     "idleSleepMs": 150000,
     "drag": {
-        "enabled": true,
+        "enabled": false,
         "thresholdPx": 6
     },
     "click": {

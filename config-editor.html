@@ -247,7 +247,8 @@ const SCHEMA = [
         title: '身份',
         desc: '它在对话里怎么称呼自己，以及状态存在哪个键下面。',
         fields: [
-            { path: ['name'], label: '名字', hint: '气泡和对话里的自称', type: 'text' },
+            { path: ['persona', 'name'], label: '名字', hint: '对话标题与自称；写进 persona.name', type: 'text' },
+            { path: ['name'], label: '内部标识', hint: '只用于日志与兜底，改它不会改称呼', type: 'text' },
             { path: ['storageKey'], label: '存储键', hint: '换掉会让访客记录、位置、聊天全部重置', type: 'text' }
         ]
     },

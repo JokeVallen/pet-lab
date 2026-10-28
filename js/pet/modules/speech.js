@@ -12,6 +12,7 @@
 
     function createSpeechModule(opts) {
         var renderBubble = opts.renderBubble;
+        var bubbleTtl = Math.max(400, Number(opts && opts.bubbleTtl) || 3600);
         var renderDialog = opts.renderDialog;
 
         var queue = [];
@@ -30,7 +31,7 @@
             if (channel === 'dialog' && renderDialog) {
                 renderDialog(act.text);
             } else if (renderBubble) {
-                renderBubble(act.text, act.ttl || 3600);
+                renderBubble(act.text, act.ttl || bubbleTtl);
             }
             return channel;
         }

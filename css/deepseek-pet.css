@@ -45,6 +45,11 @@
     animation: dp-float 8.4s ease-in-out infinite;
 }
 
+/* 关掉拖拽时换成普通指针，别暗示"能抓" */
+.dp-root.is-no-drag .dp-character {
+    cursor: pointer;
+}
+
 /* 舞台：静态立绘打底，透明视频叠在上面 */
 .dp-root .dp-stage {
     position: absolute;

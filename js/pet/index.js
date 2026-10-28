@@ -462,7 +462,7 @@ var CONFIG = {
         clearTimeout(sayTimer);
         sayTimer = setTimeout(function () {
             bubble.classList.remove('is-show');
-        }, duration || 4200);
+        }, duration || (CONFIG.speech && CONFIG.speech.bubbleTtl) || 4200);
     }
 
     /* 语言通道：所有台词走 speech.act，由 speech 模块决定投递到气泡还是对话框。
@@ -470,12 +470,11 @@ var CONFIG = {
     function say(text, ttl) {
         if (!text) return;
         if (PetKernel) {
-            KERNEL.emit('speech.act', {
-                text: text,
-                ttl: ttl || 3600,
-                channel: 'auto',
-                priority: 'context'
-            });
+            // 没显式给时长就交给 speech 模块的默认值（speech.bubbleTtl），
+            // 否则配置里的「气泡停留」永远被这里的 3600 盖掉。
+            var act = { text: text, channel: 'auto', priority: 'context' };
+            if (ttl) act.ttl = ttl;
+            KERNEL.emit('speech.act', act);
             return;
         }
         showBubble(text, ttl);
@@ -521,7 +520,8 @@ var CONFIG = {
             renderDialog: renderDlg,
             isDialogOpen: function () { return chatOpen; },
             dedupeMs: CONFIG.speech.dedupeMs,
-            maxQueue: CONFIG.speech.maxQueue
+            maxQueue: CONFIG.speech.maxQueue,
+            bubbleTtl: CONFIG.speech.bubbleTtl
         }));
         KERNEL.start();
         speechMounted = true;
@@ -530,7 +530,11 @@ var CONFIG = {
 
     function burst(emoji, count) {
         if (!root) return;
-        for (var i = 0; i < (count || 3); i++) {
+        var n = count;
+        if (n == null) n = (CONFIG.click && CONFIG.click.particleCount);
+        if (n == null) n = 3;
+        n = Math.max(0, Math.min(10, Number(n) || 0));
+        for (var i = 0; i < n; i++) {
             (function (i) {
                 var el = document.createElement('span');
                 el.className = 'dp-particle';
@@ -626,7 +630,8 @@ var CONFIG = {
 
     /* 站内检索：索引由构建期生成，模块负责加载与打分 */
     var SEARCH = (PetSearch ? PetSearch.createSearch({
-        url: '/pet-index.json',
+        url: (CONFIG.search && CONFIG.search.url) || '/pet-index.json',
+        maxResults: (CONFIG.search && CONFIG.search.maxResults) || 1,
         say: function (txt) { try { appendMessage('pet', txt); } catch (e) { /* ignore */ } }
     }) : null);
 
@@ -904,14 +909,14 @@ var CONFIG = {
         resetIdle();         // 点击算活动，入睡计时重来
         var line = rule ? ZONES_ENGINE.pickSay(rule) : null;
         if (line) say(line, 3400);
-        if (/^head/.test(zone)) burst('\u{1F497}', 3);
-        else if (zone === 'tail') burst('\u{1F4A7}', 3);
+        if (/^head/.test(zone)) burst('\u{1F497}');
+        else if (zone === 'tail') burst('\u{1F4A7}');
         try { state.petCount = (state.petCount || 0) + 1; save(); } catch (e) { /* ignore */ }
     }
 
     function doFeed() {
         resetIdle();
-        burst('🍚', 3);
+        burst('🍚');
         if (director) director.cue(ANIMATIONS.events.eat);
         say(say_line('feed', '谢谢！'), 3600);
     }
@@ -1066,7 +1071,7 @@ var CONFIG = {
 
         var hit = ctxEngine.evaluate(c, env);
         if (!hit || !hit.say) return;
-        say(hit.say, 4200);
+        say(hit.say, (CONFIG.speech && CONFIG.speech.contextTtl) || 4200);
         if (hit.act) director.cue(hit.act);
     }
 
@@ -1154,8 +1159,17 @@ var CONFIG = {
         root.style.bottom = 'auto';
     }
 
+    /* 拖拽是否允许：YAML 的 drag.enabled 优先，其次兼容旧的 CONFIG.draggable */
+    function dragEnabled() {
+        if (CONFIG.drag && CONFIG.drag.enabled === false) return false;
+        return CONFIG.draggable !== false;
+    }
+
     function initDrag() {
-        if (!CONFIG.draggable || !root) return;
+        if (!root) return;
+        // 关掉拖拽只是不允许"挪位置"，点击/摸摸仍然要能用
+        var canDrag = dragEnabled();
+        root.classList.toggle('is-no-drag', !canDrag);
         var ch = root.querySelector('.dp-character');
         if (!ch) return;
         var dragging = false, moved = false;
@@ -1164,17 +1178,19 @@ var CONFIG = {
         ch.addEventListener('pointerdown', function (e) {
             if (e.button != null && e.button !== 0) return;
             // 一按下就换成"被抓起"的姿态；素材已缓存，切源基本无等待
-            if (director) director.hold('drag-up');
+            if (canDrag && director) director.hold('drag-up');
             var rect = root.getBoundingClientRect();
             dragging = true;
             moved = false;
             start = { x: e.clientX, y: e.clientY, left: rect.left, top: rect.top };
-            root.classList.add('is-dragging');
-            if (ch.setPointerCapture) { try { ch.setPointerCapture(e.pointerId); } catch (err) {} }
+            if (canDrag) {
+                root.classList.add('is-dragging');
+                if (ch.setPointerCapture) { try { ch.setPointerCapture(e.pointerId); } catch (err) {} }
+            }
         });
 
         ch.addEventListener('pointermove', function (e) {
-            if (!dragging) return;
+            if (!dragging || !canDrag) return;
             var dx = e.clientX - start.x, dy = e.clientY - start.y;
             if (!moved && Math.abs(dx) + Math.abs(dy) < CONFIG.drag.thresholdPx) return;
             moved = true;
@@ -1198,7 +1214,7 @@ var CONFIG = {
             var wasMoved = moved;
             var y = e.clientY;
             end(e);
-            if (wasMoved) {
+            if (wasMoved && canDrag) {
                 justDragged = Date.now();   // 拖拽结束：吞掉浏览器补发的 click
                 if (director) director.drop('drag-down');   // 松手播落下，播完自动回待机
             } else {

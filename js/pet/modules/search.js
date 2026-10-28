@@ -8,6 +8,7 @@
 
     function createSearch(opts) {
         var url = (opts && opts.url) || '/pet-index.json';
+        var maxResults = Math.max(1, Math.min(10, Number(opts && opts.maxResults) || 1));
         var idxRows = null;    // 索引缓存
         var idxReq = null;     // 进行中的请求
         var idxPending = null; // 请求期间到达的问题
@@ -16,7 +17,7 @@
         function loadPetIndex() {
             if (idxRows || idxReq) return;
             try {
-                idxReq = fetch('/pet-index.json', { cache: 'force-cache' })
+                idxReq = fetch(url, { cache: 'force-cache' })
                     .then(function (r) { return r.json(); })
                     .then(function (j) { idxRows = (j && j.rows) || []; })
                     .catch(function () { idxRows = []; })
@@ -71,8 +72,19 @@
             }
             var top = hits[0].r;
             var kindName = top.k === 'card' ? '卡片' : (top.k === 'page' ? '页面' : '文章');
-            var more = hits.length > 1 ? '，另外还有 ' + (hits.length - 1) + ' 条' : '';
-            return '最接近的是' + kindName + '「' + top.t + '」' + more + '：' + top.u;
+            var head = '最接近的是' + kindName + '「' + top.t + '」';
+            if (maxResults <= 1) {
+                var more = hits.length > 1 ? '，另外还有 ' + (hits.length - 1) + ' 条' : '';
+                return head + more + '：' + top.u;
+            }
+            // 配了更多条数：按顺序列出来
+            var lines = [head + '：' + top.u];
+            var extra = Math.min(maxResults, hits.length) - 1;
+            for (var i = 1; i <= extra; i++) {
+                lines.push('· 「' + hits[i].r.t + '」' + hits[i].r.u);
+            }
+            if (hits.length > maxResults) lines.push('……还有 ' + (hits.length - maxResults) + ' 条');
+            return lines.join('\n');
         }
 
         function splitTerms(q) {

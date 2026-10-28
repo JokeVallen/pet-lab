@@ -12,7 +12,7 @@ idleRollMs:
   - 21000
 idleSleepMs: 150000
 drag:
-  enabled: true
+  enabled: false
   thresholdPx: 6
 click:
   particleCount: 3
