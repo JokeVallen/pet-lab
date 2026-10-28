@@ -206,7 +206,7 @@ function ok(cond, name, detail) {
 
         console.log('5. 站内检索');
         const search = JSON.parse(await evaluate(c, `(async function(){
-            var s = PetSearch.createSearch({ url: '/pet-index.json', say: function(){} });
+            var s = PetSearch.createSearch({ maxResults: 3 });
             s.ensure();
             await new Promise(function(r){ setTimeout(r, 1200); });
             return JSON.stringify({

@@ -152,13 +152,18 @@
     </details>
 
     <details>
-        <summary data-i18n="demo.g.site">模拟站点信号</summary>
+        <summary data-i18n="demo.g.site">站点对接（模拟 SiteAPI）</summary>
         <div class="lab-row">
-            <button onclick="sim('nav:home')" data-i18n="demo.sim1">导航到首页</button>
-            <button onclick="sim('content:item')" data-i18n="demo.sim2">进入一篇文章</button>
-            <button onclick="sim('progress:1')" data-i18n="demo.sim3">滚动到底</button>
-            <button onclick="window.scrollTo({top:0,behavior:'smooth'})" data-i18n="demo.sim5">滚回顶部</button>
+            <button onclick="location.search='?mock=1'" data-i18n="demo.sim9">带模拟站点重载</button>
+            <button onclick="mockCtx('post')" data-i18n="demo.sim1">文章页</button>
+            <button onclick="mockCtx('tag')" data-i18n="demo.sim2">标签页</button>
+            <button onclick="mockCtx('home')" data-i18n="demo.sim5">首页</button>
+            <button onclick="mockCtx('404')" data-i18n="demo.sim6">404</button>
+            <button onclick="mockScroll(0.95)" data-i18n="demo.sim3">滚动到 90%</button>
+            <button onclick="mockScroll(0)" data-i18n="demo.sim4">滚回顶部</button>
+            <button onclick="mockBookmark()" data-i18n="demo.sim7">收藏这页</button>
         </div>
+        <p class="lab-out" id="labSite">…</p>
     </details>
 </div>
 <script>
@@ -183,6 +188,54 @@
             'feed': function () { say('白米饭！谢谢你。'); act('eat'); },
             'pet:head': function () { say('别戳脑袋啦。'); act('click-shy'); }
         };
+
+        /* ---- 模拟站点：直接改假 SiteAPI 的状态，看宠物怎么反应 ---- */
+        function siteOn() {
+            return !!(window.mockSite && window.PetDebug);
+        }
+        function petAdapter() {
+            var d = window.PetDebug && window.PetDebug['deepseek-pet'];
+            return d && d.adapter;
+        }
+        function showSite() {
+            var el = document.getElementById('labSite');
+            if (!el) return;
+            if (!siteOn()) {
+                el.textContent = '未挂载模拟站点：点「带模拟站点重载」再试。';
+                return;
+            }
+            var ctx = window.mockSite.state.ctx;
+            var ad = petAdapter();
+            el.textContent = 'ctx=' + ctx.type + ' ' + ctx.path +
+                ' · ratio=' + window.mockSite.state.scroll +
+                ' · 宠物看到: ' + (ad ? JSON.stringify(ad.context()) : 'n/a');
+        }
+        window.mockCtx = function (kind) {
+            if (!siteOn()) return showSite();
+            var map = {
+                post: { type: 'post', id: 'mock-post', title: '演示用的文章', path: '/posts/mock/' },
+                tag: { type: 'page', id: '/tags/Unity/', title: '标签：Unity', path: '/tags/Unity/' },
+                home: { type: 'page', id: '/', title: '演示首页', path: '/' },
+                '404': { type: 'page', id: '/404.html', title: '找不到页面', path: '/404.html' }
+            };
+            window.mockSite.setContext(map[kind] || map.post);
+            setTimeout(function () { try { petAdapter().refresh(); } catch (e) { /* ignore */ } showSite(); }, 60);
+        };
+        window.mockScroll = function (ratio) {
+            if (!siteOn()) return showSite();
+            window.mockSite.setScroll(ratio);
+            setTimeout(showSite, 60);
+        };
+        window.mockBookmark = function () {
+            if (!siteOn()) return showSite();
+            window.PetDebug['deepseek-pet'].site.action('bookmark.toggle', {
+                type: 'post', id: 'mock-post', title: '演示用的文章', path: '/posts/mock/'
+            }).then(function (r) {
+                say(r.ok ? (r.result && r.result.active ? '收藏好了。' : '取消收藏了。') : '收藏没成：' + r.error);
+                showSite();
+            });
+        };
+        setInterval(function () { if (document.getElementById('labSite')) showSite(); }, 3000);
 
         window.sim = function (name) {
             console.log('[lab] signal:', name);
@@ -353,6 +406,26 @@
     })();
 </script>
 <script src="assets/i18n.js"></script>
-<script type="module" src="/js/pet/index.js"></script>
+<script>
+    /* 带 ?mock=1 时先挂一个假的 SiteAPI，再加载宠物：
+       这样演示页也能走"只通过 SiteAPI 对话"的真实链路。 */
+    (function () {
+        function loadPet() {
+            var p = document.createElement('script');
+            p.type = 'module';
+            p.src = '/js/pet/index.js';
+            document.body.appendChild(p);
+        }
+        if (/[?&]mock=1\b/.test(location.search)) {
+            var s = document.createElement('script');
+            s.src = '/mock-site.js';
+            s.onload = loadPet;
+            s.onerror = loadPet;
+            document.body.appendChild(s);
+        } else {
+            loadPet();
+        }
+    })();
+</script>
 </body>
 </html>

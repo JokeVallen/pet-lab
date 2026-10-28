@@ -14,14 +14,15 @@
 
 - 宠物 = 动作（必需）+ 语言（可选）+ 其他可选模块
 - 站点只提供信号，宠物不认识 Hexo / Butterfly
-- 换站点：只重写 `js/adapter.js`
+- 换站点：对方实现 `window.SiteAPI` 即可，`js/pet/site.js` 是唯一耦合面
 
 ## 二、模块地图
 
 | 文件 | 大小 | 职责 |
 | --- | --- | --- |
 | `js/core.js` | 7.6 KB | 内核：事件总线、优先级裁决、增量装配、环形日志 |
-| `js/adapter.js` | 9.1 KB | 站点层：DOM / URL / 存储 / 上下文规则表 |
+| `js/pet/site.js` | 4.9 KB | 与站点对话的唯一出口（只认 `window.SiteAPI`） |
+| `js/pet/adapter.js` | 9.8 KB | 站点层：上下文缓存 / 规则表 / 存储（不碰 DOM） |
 | `js/modules/player.js` | 7.9 KB | 双缓冲播放器（依赖注入 clips/config/pick/randInt） |
 | `js/modules/machine.js` | 3.1 KB | 分层状态机（点号层级、池子继承、onEnter） |
 | `js/modules/actions.js` | 2.5 KB | 动作端口：intent.action / state / hold / release |
@@ -29,7 +30,7 @@
 | `js/modules/renderers.js` | 2.5 KB | 气泡 / 对话框渲染 + 站内链接化 |
 | `js/modules/rules.js` | 2.3 KB | 声明式规则引擎（顺序即优先级、规则级冷却、容错） |
 | `js/modules/zones.js` | 3.0 KB | 点击分区几何 + 映射解析（子级优先、父级回落） |
-| `js/modules/search.js` | 5.4 KB | 站内检索：懒加载、二字滑窗、加权打分 |
+| `js/pet/modules/search.js` | 2.6 KB | 把提问转成 `SiteAPI` 检索，再把结果说成人话 |
 | `js/modules/config.js` | 生成物 | 由 `config/pet.yaml` 编译而来，勿手改 |
 | `js/deepseek-pet.js` | ~54 KB | 本体：交互入口、对话、待机调度、UI 构建 |
 

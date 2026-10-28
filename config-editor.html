@@ -303,11 +303,17 @@ const SCHEMA = [
     },
     {
         title: '站内检索',
-        desc: '对话里问「有没有讲 X 的」时，去哪找索引。',
+        desc: '对话里问「有没有讲 X 的」时，检索请求交给站点的 SiteAPI（收录哪些内容由站点决定，宠物不维护索引）。',
         fields: [
-            { path: ['search', 'url'], label: '索引地址', hint: '构建期生成的 JSON', type: 'path', asset: 'json' },
-            { path: ['search', 'preloadDelayMs'], label: '预取延迟', hint: '首屏多久后静默加载索引', type: 'number', min: 0, max: 60000, step: 500, unit: 'ms' },
             { path: ['search', 'maxResults'], label: '最多返回几条', hint: '问答里列出的结果数量', type: 'range', min: 1, max: 10, step: 1, unit: '条' }
+        ]
+    },
+    {
+        title: '站点对接',
+        desc: '宠物只通过 window.SiteAPI 与站点对话；这两项决定它什么时候去敲站点的门。',
+        fields: [
+            { path: ['site', 'readyDelayMs'], label: '就绪延迟', hint: 'SiteAPI.ready() 会让站点加载内容库，延迟执行可以避开首屏', type: 'number', min: 0, max: 60000, step: 500, unit: 'ms' },
+            { path: ['site', 'postMeta'], label: '读取文章元信息', hint: '文章页按需取标签与字数（走内容库，一页只取一次）；关掉后相关台词不会出现', type: 'bool' }
         ]
     },
 

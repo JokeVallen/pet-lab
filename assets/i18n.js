@@ -153,12 +153,19 @@
             '「恢复出厂默认」读 <code>config/pet.default.yaml</code>，那是一份独立保存的默认配置，改了也不会被日常编辑带走。<br>' +
             '<b>保存前会看磁盘</b>：如果这个页面打开之后文件被别的标签页或手工改过，会先弹确认，' +
             '避免用旧内容整份覆盖。取消后点「重新读取」拿到最新版本再改。<br>' +
+            '<b>站内数据从哪来</b>：宠物不读页面 DOM，只通过 <code>window.SiteAPI</code> 问站点' +
+            '（上下文、检索、阅读位置、收藏与笔记）。站点没提供的能力（比如主题、评论数）宠物就当不知道，' +
+            '相关规则不会命中——这不是坏了，是两边约定的边界。<br>' +
             '<b>命令行等价物</b>：<code>node tools/build-config.js</code> 编译；' +
             '<code>--reset</code> 用默认值覆盖并备份旧文件；<code>--snapshot</code> 把当前配置存成新的默认值。',
             '1. Click "Open YAML" and pick config/pet.yaml (auto-loads when served).<br>' +
             '2. Edit on the left; the YAML preview updates live on the right.<br>' +
             '3. Click "Save & build" to write it back and apply — no commands needed.<br>' +
             '4. Without a server, use "Download pet.yaml" then run <code>node tools/build-config.js</code>.<br>' +
+            '<b>Where site data comes from</b>: the pet never reads the page DOM. It asks ' +
+            '<code>window.SiteAPI</code> (context, search, reading position, bookmarks, notes). ' +
+            'Anything the site does not expose (theme, comment count) is simply unknown, so those rules never fire — ' +
+            'that is the agreed boundary, not a bug.<br>' +
             'Tip: sliders are for looks, chips take animation names (Enter to add), category rows are editable.<br>' +
             '<b>When changes apply</b>: "Save & build" writes the YAML back and regenerates ' +
             '<code>js/pet/config.js</code>; an open demo tab reloads itself (it polls the version every 2.5s). ' +
@@ -515,7 +522,17 @@
         '点击粒子数': 'Click particles', '气泡停留': 'Bubble duration', '情境台词停留': 'Context line duration',
         '防重复窗口': 'Dedupe window', '待说队列上限': 'Queue limit', '对话保留条数': 'Chat history',
         '默认冷却': 'Default cooldown', '索引地址': 'Index URL', '预取延迟': 'Preload delay',
-        '最多返回几条': 'Max results', '常驻待机': 'Idle loop', '点击回应': 'Click replies',
+        '最多返回几条': 'Max results',
+        '站点对接': 'Site integration', '就绪延迟': 'Ready delay', '读取文章元信息': 'Read post metadata',
+        '404': '404', '收藏这页': 'Bookmark this page', '带模拟站点重载': 'Reload with mock site',
+        '对话里问「有没有讲 X 的」时，检索请求交给站点的 SiteAPI（收录哪些内容由站点决定，宠物不维护索引）。':
+            'When you ask "do you have anything on X", the query goes to the site SiteAPI — the site decides what is indexed; the pet keeps no index.',
+        '宠物只通过 window.SiteAPI 与站点对话；这两项决定它什么时候去敲站点的门。':
+            'The pet talks to the site only through window.SiteAPI; these two decide when it knocks.',
+        'SiteAPI.ready() 会让站点加载内容库，延迟执行可以避开首屏':
+            'SiteAPI.ready() makes the site load its content library, so it runs after first paint',
+        '文章页按需取标签与字数（走内容库，一页只取一次）；关掉后相关台词不会出现':
+            'On post pages, fetch tags and word count on demand (one lookup per page); turn it off and those lines never appear', '常驻待机': 'Idle loop', '点击回应': 'Click replies',
         '拖拽动画': 'Drag clip', '睡着时': 'Sleep clip', '喂食时': 'Feed clip',
         '页面类型': 'Page type', '细分类型': 'Sub type', '标签包含': 'Tags include',
         '字数 >': 'Words >', '字数 <': 'Words <', '评论数 =': 'Comments =', '评论数 ≥': 'Comments ≥',

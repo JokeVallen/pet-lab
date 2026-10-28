@@ -91,7 +91,8 @@ pet-lab/
 ├─ js/pet/                ES 模块
 │  ├─ index.js            入口
 │  ├─ core.js             内核：总线 / 裁决 / 装配
-│  ├─ adapter.js          站点层：DOM / URL / 存储 / 规则
+│  ├─ site.js             与站点对话的唯一出口（只认 window.SiteAPI）
+│  ├─ adapter.js          站点层：上下文 / 规则 / 存储（不再碰 DOM）
 │  ├─ content/            zh.js / en.js：全部台词与回答（只放字，不放逻辑）
 │  └─ modules/            player, machine, actions, speech,
 │                         renderers, rules, zones, search
@@ -142,6 +143,32 @@ PetContent.setLang('en')                     // 运行时切换（已渲染的�
 - **工具页文案（编辑器、演示页）在 `assets/i18n.js`。** 那里是中英成对的键值表，页面上用 `data-i18n="key"` 或 `PetI18n.t('中文')` 取。
 
 语言判定顺序：`localStorage['pet-content-lang']` → `<html lang>` → 默认中文。所以博客是中文站就永远是中文，除非站点把 `lang` 改成 `en`。
+
+## 站点对接：只认 `window.SiteAPI`
+
+宠物不读页面 DOM、不认自己的 URL、不碰站点的内部对象，所有站点信息都走 `window.SiteAPI`
+（对接契约见博客仓库的 `SITE_API_INTEGRATION_GUIDE.md`）。这一层收到 `js/pet/site.js` 里，是唯一的耦合面。
+
+| 用途 | 调用 | 权限 |
+| --- | --- | --- |
+| 这是哪一页 | `currentContext()` | read |
+| 检索文章/题目/知识卡 | `content().search()` | read |
+| 文章标签与字数 | `content().list('document')` | read |
+| 阅读进度 | `reading().get()` + `reading:position` 事件 | read-local |
+| 站内跳转 | `actions().invoke('navigation.open')` | read |
+| 收藏 / 笔记 / 阅读位置 | `actions().invoke('bookmark.*' / 'note.*' / 'reading.*')` | write-local |
+| 宠物自己的状态 | `userState('pet.*')` | write-local |
+
+三条硬规矩：
+
+1. **写操作一律走 `actions().invoke`**，需要用户确认的交给 SiteAPI 自己弹窗，宠物不伪造 `confirmed`；
+2. **不抢首屏**：`SiteAPI.ready()` 会让站点加载内容库（5MB 级），所以默认延迟 6s 再调（`site.readyDelayMs`），
+   文章元信息再晚 2s 且只在规则真的用到时才取（`site.postMeta`）；
+3. **站点没给的就不猜**：主题（`dark`）和评论数（`comments`）不在 SiteAPI 里，对应规则不会命中，
+   不会再回头去爬页面。要恢复这些台词，正确做法是站点在 `currentContext()` 里补字段。
+
+没有 SiteAPI 的页面（比如本仓库的 `index.html` 演示页）宠物照样跑：动作、对话、句库都在本地，
+只是没有站点上下文与检索，提问会回一句"这一页没接上站点的检索接口"。
 
 ## 默认配置与重置
 
@@ -213,7 +240,7 @@ ffmpeg -i images/pet/anim/sleep.webm -c:v libvpx-vp9 -vsync 0 -pix_fmt rgba fram
 （必须带 `-c:v libvpx-vp9`，否则 alpha 会丢；帧图逐帧比对就能找到姿态最接近的一对起止点。）
 
 
-**站点侧**：`js/pet/adapter.js` 与 `modules/search.js` 是给 Hexo + Butterfly 写的，换博客框架时只重写这两个文件。
+**站点侧**：`js/pet/site.js` 只认 `window.SiteAPI`，`adapter.js` 与 `modules/search.js` 都骑在它上面；换博客框架时只要对方提供 SiteAPI，这三个文件都不用动。
 
 ### 同页放两只
 

@@ -177,8 +177,6 @@
     ]
   },
   "search": {
-    "url": "/pet-index.json",
-    "preloadDelayMs": 5000,
     "maxResults": 3
   },
   "animations": {
@@ -466,5 +464,9 @@
     "again": "又见面了。",
     "streak3": "又见面了，第 {n} 天。",
     "streak7": "你来第 {n} 天啦，我已经认得你了。"
+  },
+  "site": {
+    "readyDelayMs": 6000,
+    "postMeta": true
   }
 }

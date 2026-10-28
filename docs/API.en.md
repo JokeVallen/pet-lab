@@ -310,46 +310,80 @@ PetRules.registerWhen('hasQuote', {
 
 ---
 
-## 8. Site adapter `adapter.js`
+## 8. Site adapter `site.js` + `adapter.js`
 
-What a new site must provide:
+### 8.1 One door: `window.SiteAPI`
 
-| Member | Returns | Purpose |
+```js
+import { PetSite } from './site.js';
+
+await PetSite.ready();               // once per session
+const ctx = await PetSite.context();  // { type, id, title, path, ... }
+const rows = await PetSite.search('object pool', { limit: 3 });
+await PetSite.navigate('/algorithm/');
+await PetSite.action('bookmark.toggle', { type: 'post', id, title, path });
+```
+
+`site.js` contains no DOM selectors, no `location`, no `localStorage`, no `content-db`.
+Anything the site does not expose is treated as unknown (empty value) instead of being fetched behind its back.
+
+| Scope | What the pet uses it for |
+| --- | --- |
+| `read` | `currentContext()`, `content().search()`, `content().list('document')` |
+| `read-local` | `reading().get()`, `bookmarks().list()` |
+| `write-local` | `userState()`, `actions().invoke('bookmark.*' / 'reading.*' / 'note.*')` |
+
+Writes always go through `actions().invoke`, and the pet **never fakes `confirmed`**:
+operations that need consent let the SiteAPI prompt, and a refusal is simply not done.
+
+### 8.2 Throttling: keep the first paint light
+
+`SiteAPI.ready()` makes the site load its content library (a multi-megabyte `content-db.json`),
+so the pet does not call it during first paint:
+
+- on mount it only reads `currentContext()` (no network);
+- after `site.readyDelayMs` (default 6s) it calls `ready()`, which also starts reading-position tracking;
+- post metadata (tags / word count) is fetched 2s later, and only if the configured rules really use
+  `tagsAny` / `wordsGt` / `wordsLt`;
+- `site.postMeta: false` turns that step off entirely.
+
+### 8.3 Members
+
+| Member | Returns | Notes |
 | --- | --- | --- |
-| `pageType()` | `'post' \| 'tag' \| 'category' \| 'home' \| '404' \| 'other'` | Page kind |
-| `type()` | `string` | Sub type (e.g. `tag`) |
-| `tags()` | `string[]` | Tags / categories of the page |
-| `wordCount()` | `number` | Body length |
-| `commentCount()` | `number` | Comments |
-| `scrollRatio()` | `0..1` | Reading progress |
-| `headingText()` / `tagFromPath()` | `string` | Tag page title |
-| `isDark()` | `boolean` | Theme |
-| `rawGet/rawSet/rawRemove` | `string \| null` | Persistence |
-| `rules` | `Rule[]` | Context rules, compiled from config |
+| `init()` / `refresh()` | `Promise<ctx>` | start / re-read after navigation |
+| `context()` | `ctx` | synchronous snapshot the rule engine reads |
+| `ensureReady()` | `Promise<boolean>` | throttled `SiteAPI.ready()` |
+| `loadMeta()` | `Promise<doc \| null>` | on-demand post metadata |
+| `pageType()` | `'post' \| 'tag' \| ...` | derived from `context.type` + `path` |
+| `tags()` / `wordCount()` | `string[]` / `number` | from the content library, empty when absent |
+| `commentCount()` / `isDark()` | `null` | not exposed by SiteAPI: always unknown |
+| `scrollRatio()` | `0~1` | from the site's `reading:position` events |
+| `tagName()` | `string` | parsed from `path`, no DOM |
+| `rawGet/rawSet/rawRemove` | any | stored under `userState('pet.*')` |
+| `rules` | `Rule[]` | context rules |
 
-The pet body contains **no site selectors**; porting means rewriting this one file.
+### 8.4 Porting to another site
+
+As long as the site implements `window.SiteAPI` (even a minimal one: `ready / currentContext /
+content.search / actions.invoke / userState / events`), the pet needs no changes — `site.js` is the
+entire coupling surface. Without SiteAPI the pet still runs: animation, dialogue and replies are local;
+only site context and search are missing.
 
 ---
 
 ## 9. Search `modules/search.js`
 
-```js
-import { PetSearch } from './modules/search.js';
+The index belongs to the site; the pet only decides whether a sentence is a site question and
+phrases the result.
 
-const s = PetSearch.createSearch({ url: '/pet-index.json', say: (t) => {} });
-s.matches('有没有讲 TCP 的');   // → boolean
-s.ensure();                    // lazy-load the index
-s.search(q);                   // → [{ r, score }]
-s.answer(q);                   // → reply text with /path links
-s.rows();
-```
+| Member | Notes |
+| --- | --- |
+| `matches(text)` | intent regex from `content.search.intent` |
+| `answer(text)` | `Promise<string>` via `PetSite.search()`; `null` when nothing matched |
+| `ensure()` | kept as a no-op for compatibility (nothing is preloaded) |
 
-Index shape (generated at build time):
-
-```json
-{ "k": "post|card|page", "t": "Title", "u": "/path", "g": ["tags"],
-  "c": ["categories"], "d": "2026-01-08", "w": 1234, "x": "excerpt" }
-```
+Stopwords, intent regex and wording live in `content/<lang>.js` under `search`.
 
 ---
 

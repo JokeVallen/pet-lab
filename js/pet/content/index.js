@@ -9,11 +9,13 @@
  *   PetContent.replies()                       → [{ id, re, lines }]，正则在取用时编译
  *   PetContent.setLang('en')                   → 切换语言（已渲染的文字不会追溯）
  *
- * 语言判定：localStorage 记住的选择 → <html lang> → 默认中文。
+ * 语言判定：站点里的用户状态（userState）记住的选择 → <html lang> → 默认中文。
+ * 没有站点（演示页）时才退回 localStorage，保持本地调试可用。
  * 缺 key 时回落到中文，再缺就返回 key 本身（方便发现漏翻）。
  */
 import zh from './zh.js';
 import en from './en.js';
+import { PetSite } from '../site.js';
 
 const PACKS = { zh: zh, en: en };
 const FALLBACK = 'zh';
@@ -21,11 +23,27 @@ const STORE_KEY = 'pet-content-lang';
 
 let current = FALLBACK;
 
-function detect() {
+/* 语言偏好属于"访客本机状态"：有站点就存进 userState，没有才用 localStorage */
+function readSaved() {
+    if (PetSite.available()) return PetSite.get('pet.lang', null);
     try {
-        const saved = localStorage.getItem(STORE_KEY);
-        if (saved && PACKS[saved]) return saved;
-    } catch (e) { /* 隐私模式 */ }
+        return localStorage.getItem(STORE_KEY);
+    } catch (e) {
+        return null;
+    }
+}
+
+function writeSaved(code) {
+    if (PetSite.available()) {
+        PetSite.set('pet.lang', code);
+        return;
+    }
+    writeSaved(code);
+}
+
+function detect() {
+    const saved = readSaved();
+    if (saved && PACKS[saved]) return saved;
     try {
         const lang = (document.documentElement.lang || '').toLowerCase();
         if (lang && lang.indexOf('zh') !== 0) return PACKS[lang.slice(0, 2)] ? lang.slice(0, 2) : 'en';

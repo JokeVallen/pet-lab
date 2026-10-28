@@ -302,45 +302,80 @@ PetRules.registerWhen('hasQuote', {
 
 ---
 
-## 8. 站点适配 `adapter.js`
+## 8. 站点适配 `site.js` + `adapter.js`
 
-新站点需要提供：
+### 8.1 唯一入口：`window.SiteAPI`
+
+宠物与站点之间只有一扇门，写在 `site.js` 里：
+
+```js
+import { PetSite } from './site.js';
+
+await PetSite.ready();               // 站点就绪（会话级只调一次）
+const ctx = await PetSite.context();  // { type, id, title, path, ... }
+const rows = await PetSite.search('对象池', { limit: 3 });
+await PetSite.navigate('/algorithm/');
+await PetSite.action('bookmark.toggle', { type: 'post', id, title, path });
+```
+
+`site.js` 里**不出现** DOM 选择器、`location`、`localStorage`、`content-db`。
+站点没提供的能力就当作没有（返回空值），不绕到内部实现去拿。
+
+权限按 SiteAPI 的分级使用：
+
+| 等级 | 宠物用它做什么 |
+| --- | --- |
+| `read` | `currentContext()`、`content().search()`、`content().list('document')` |
+| `read-local` | `reading().get()`、`bookmarks().list()` |
+| `write-local` | `userState()`、`actions().invoke('bookmark.*' / 'reading.*' / 'note.*')` |
+
+写操作一律走 `actions().invoke`，并且**不伪造 `confirmed`**：需要确认的交给 SiteAPI 自己弹窗，
+用户拒绝就当没做（`site.action()` 返回 `{ ok:false, error }`）。
+
+### 8.2 节流：不抢首屏
+
+`SiteAPI.ready()` 会让站点加载内容库（`content-db.json`，5MB 级），所以宠物不在首屏调用它：
+
+- 挂载时只读 `currentContext()`（纯内存，无请求）；
+- 过 `site.readyDelayMs`（默认 6s）才 `ready()`，阅读位置跟踪也从这时开始；
+- 文章元信息（tags / 字数）再晚 2s 按需取一次，且只在规则真的用到 `tagsAny` / `wordsGt` / `wordsLt` 时才取；
+- `site.postMeta: false` 可以整段关掉。
+
+### 8.3 `adapter.js` 对外成员
 
 | 成员 | 返回 | 说明 |
 | --- | --- | --- |
-| `pageType()` | `'post' \| 'tag' \| 'category' \| 'home' \| '404' \| 'other'` | 页面类型 |
-| `tags()` | `string[]` | 当前页标签/分类 |
-| `wordCount()` | `number` | 正文字数 |
-| `commentCount()` | `number` | 评论数 |
-| `scrollRatio()` | `0~1` | 阅读进度 |
-| `isDark()` | `boolean` | 主题 |
-| `headingText()` / `tagFromPath()` | `string` | 标签页标题 |
-| `rawGet/rawSet/rawRemove` | `string \| null` | 持久化 |
+| `init()` / `refresh()` | `Promise<ctx>` | 启动 / 换页后重新取上下文 |
+| `context()` | `ctx` | 同步快照，规则引擎读这个 |
+| `ensureReady()` | `Promise<boolean>` | 节流的 `SiteAPI.ready()` |
+| `loadMeta()` | `Promise<doc \| null>` | 按需取文章元信息 |
+| `pageType()` | `'post' \| 'tag' \| 'category' \| 'home' \| '404' \| 'paper' \| ...` | 页面类型（由 `context.type` + `path` 推断） |
+| `tags()` / `wordCount()` | `string[]` / `number` | 来自内容库；没取到就是空 |
+| `commentCount()` / `isDark()` | `null` | SiteAPI 不提供，恒为"不知道" |
+| `scrollRatio()` | `0~1` | 来自站点的 `reading:position` 事件 |
+| `tagName()` | `string` | 标签页名（从 `path` 解析，不查 DOM） |
+| `rawGet/rawSet/rawRemove` | 任意 | 落在 `userState('pet.*')` |
 | `rules` | `Rule[]` | 情境规则表 |
 
-宠物本体不出现任何站点选择器；换站点只重写这个文件。
+### 8.4 换一个站点
+
+只要对方实现 `window.SiteAPI`（哪怕只是最小实现：`ready / currentContext / content.search /
+actions.invoke / userState / events`），宠物一行不用改；`site.js` 已经是全部耦合面。
+站点完全不提供 SiteAPI 时宠物仍能跑：动作、对话、句库都在本地，只是没有站点上下文与检索。
 
 ---
 
 ## 9. 检索 `modules/search.js`
 
-```js
-import { PetSearch } from './modules/search.js';
+索引归站点，宠物只做两件事：判断这句话是不是在问站内内容、把结果说成人话。
 
-const s = PetSearch.createSearch({ url: '/pet-index.json', say: (t) => {} });
-s.matches('有没有讲 TCP 的');   // → boolean
-s.ensure();                    // 懒加载索引
-s.search(q);                   // → [{ r, score }]
-s.answer(q);                   // → 回答文本（含 /path 链接）
-s.rows();
-```
+| 成员 | 说明 |
+| --- | --- |
+| `matches(text)` | 意图正则（来自 `content.search.intent`） |
+| `answer(text)` | `Promise<string>`；走 `PetSite.search()`，查不到返回 `null` |
+| `ensure()` | 保留的空实现（兼容旧调用，宠物不预加载任何索引） |
 
-索引格式（构建期生成）：
-
-```json
-{ "k": "post|card|page", "t": "标题", "u": "/path", "g": ["标签"],
-  "c": ["分类"], "d": "2026-01-08", "w": 1234, "x": "摘要" }
-```
+停用词、意图正则、结果措辞都在 `content/<lang>.js` 的 `search` 段；换语言不用改代码。
 
 ---
 

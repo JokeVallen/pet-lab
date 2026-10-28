@@ -18,6 +18,7 @@
     /* ==================== 条目配置（对应 config.jsonc 条目级字段） ==================== */
     import PetConfig from './config.js';
 import { PetKernel } from './core.js';
+import { PetSite } from './site.js';
 
 /* 同页多实例：每个模块实例自己 new 一个内核，事件总线/动作裁决/存储互不共享。
    第二个实例加载的是 ?pet=xxx 这样的不同 URL，模块会被重新求值。 */
@@ -623,31 +624,38 @@ var CONFIG = {
         return null;
     }
 
-    /* 站内检索：索引由构建期生成，模块负责加载与打分 */
+    /* 站内检索：查什么、怎么查都交给站点的 SiteAPI */
     var SEARCH = (PetSearch ? PetSearch.createSearch({
-        url: (CONFIG.search && CONFIG.search.url) || '/pet-index.json',
-        maxResults: (CONFIG.search && CONFIG.search.maxResults) || 1,
-        say: function (txt) { try { appendMessage('pet', txt); } catch (e) { /* ignore */ } }
+        maxResults: (CONFIG.search && CONFIG.search.maxResults) || 1
     }) : null);
 
+    /* 回答可能要走一次站内检索，所以是异步的；
+       命不中检索时仍然是本地的句库，不产生网络请求。 */
     function petReply(text) {
         var t = (text || '').trim();
-        if (!t) return C.t('chat.empty');
+        if (!t) return Promise.resolve(C.t('chat.empty'));
         var ctxAns = siteAwareReply(t);
-        if (ctxAns) return ctxAns;
+        if (ctxAns) return Promise.resolve(ctxAns);
+
+        var localAnswer = (function () {
+            var known = replyLines();
+            for (var i = 0; i < known.length; i++) {
+                if (known[i].re.test(t)) {
+                    var ans = pick(known[i].lines);
+                    return typeof ans === 'function' ? ans() : ans;
+                }
+            }
+            return null;
+        })();
 
         if (SEARCH && SEARCH.matches(t)) {
-            var idxAns = SEARCH.answer(t);
-            if (idxAns) return idxAns;
+            return SEARCH.answer(t).then(function (idxAns) {
+                return idxAns || localAnswer || C.pick('chat.fallback');
+            }).catch(function () {
+                return localAnswer || C.pick('chat.fallback');
+            });
         }
-        var known = replyLines();
-        for (var i = 0; i < known.length; i++) {
-            if (known[i].re.test(t)) {
-                var ans = pick(known[i].lines);
-                return typeof ans === 'function' ? ans() : ans;
-            }
-        }
-        return C.pick('chat.fallback');
+        return Promise.resolve(localAnswer || C.pick('chat.fallback'));
     }
 
     /* 把回复里的站内路径变成可点的链接；其余文字原样输出 */
@@ -662,6 +670,12 @@ var CONFIG = {
             a.href = m[1];
             a.className = 'dp-link';
             a.textContent = m[1];
+            a.addEventListener('click', function (ev) {
+                // 站内跳转也走 SiteAPI：不自己拼地址，也不依赖 pjax 的实现
+                if (!PetSite.available()) return;
+                ev.preventDefault();
+                PetSite.navigate(this.getAttribute('href'));
+            });
             el.appendChild(a);
             last = m.index + m[1].length;
         }
@@ -721,9 +735,12 @@ var CONFIG = {
         resetIdle();
         if (director) director.cue('hum');       // "在想"的动作
         setTimeout(function () {
-            appendMessage('pet', petReply(text));
-            updateStats();
-            if (director && Math.random() < 0.6) director.cue(pick(ANIMATIONS.clicks));
+            PetAdapter.loadMeta();   // 先摸一下元信息，回答"这篇讲什么"才有料
+            Promise.resolve(petReply(text)).then(function (reply) {
+                appendMessage('pet', reply);
+                updateStats();
+                if (director && Math.random() < 0.6) director.cue(pick(ANIMATIONS.clicks));
+            });
         }, 620);
     }
 
@@ -965,27 +982,6 @@ var CONFIG = {
         return [{ id: id, weight: 1, actions: stateClips(id) }];
     }
 
-    function watchTheme() {
-        var last = isDark();
-        function onChange() {
-            var now = isDark();
-            if (now === last) return;
-            last = now;
-            updateStats();
-            if (director && !chatOpen) {
-                director.cue(now ? 'yawn' : 'stretch');
-                say(now ? C.pick('ambient.themeDark') : C.pick('ambient.themeLight'), 3600);
-            }
-        }
-        try {
-            new MutationObserver(onChange).observe(document.documentElement, {
-                attributes: true, attributeFilter: ['data-theme', 'class', 'data-color']
-            });
-            new MutationObserver(onChange).observe(document.body, {
-                attributes: true, attributeFilter: ['class']
-            });
-        } catch (e) { /* 老浏览器忽略 */ }
-    }
 
     /* ==================== 站点上下文 ====================
      * 只读当前页面已有的信息，不新增网络请求、不新增滚动监听。
@@ -1012,18 +1008,23 @@ var CONFIG = {
 
     var lastCtxAt = 0;
 
+    /* 站点语义只从 SiteAPI 来；adapter 维护同步缓存，这里只补"此刻"的字段 */
     function siteContext() {
-        var type = PetAdapter.pageType();
-        return {
-            page: type === 'post' ? 'post' : (type === 'home' ? 'home' : 'other'),
-            type: type,
-            tags: PetAdapter.tags(),
-            words: PetAdapter.wordCount(),
-            comments: PetAdapter.commentCount(),
+        var base = PetAdapter.context();
+        var c = {
+            page: base.page,
+            type: base.type,
+            title: base.title,
+            id: base.id,
+            path: base.path,
+            tags: base.tags || [],
+            words: base.words || 0,
+            comments: base.comments == null ? null : base.comments,
+            dark: base.dark == null ? null : base.dark,
             scroll: PetAdapter.scrollRatio(),
-            dark: PetAdapter.isDark(),
             hour: new Date().getHours()
         };
+        return c;
     }
 
     function matchTag(tags, list) {
@@ -1088,46 +1089,50 @@ var CONFIG = {
         if (watchScroll.done) return;
         watchScroll.done = true;
 
-        var timer = null;
         var wasBottom = false;
+        var lastRatio = -1;
 
-        function ratio() {
-            return PetAdapter.scrollRatio();
+        /* 站点的阅读位置是节流上报的（滚动停下才发），
+           所以这里只做"到没到底"的判断，不自己监听 scroll。 */
+        function evaluate() {
+            try {
+                if (!director || chatOpen || document.hidden || root.classList.contains('is-dragging')) return;
+                var r = PetAdapter.scrollRatio();
+                if (r === lastRatio) return;
+                lastRatio = r;
+
+                if (r > 0.92) {
+                    if (!wasBottom) {
+                        wasBottom = true;
+                        say(C.t('ambient.readEnd'), 3600);
+                        director.cue('look');
+                    }
+                    return;
+                }
+
+                if (wasBottom && r < 0.12) {
+                    wasBottom = false;
+                    say(C.pick('ambient.backTop'), 3200);
+                    director.cue('stretch');
+                }
+            } catch (e) {
+                console.warn('[pet] reading position', e);
+            }
         }
 
-        window.addEventListener('scroll', function () {
-            clearTimeout(timer);
-            timer = setTimeout(function () {
-                try {
-                    if (!director || chatOpen || document.hidden || root.classList.contains('is-dragging')) return;
-                    var r = ratio();
-
-                    if (r > 0.92) {
-                        if (!wasBottom) {
-                            wasBottom = true;
-                            say(C.t('ambient.readEnd'), 3600);
-                            director.cue('look');
-                        }
-                        return;
-                    }
-
-                    if (wasBottom && r < 0.12) {
-                        wasBottom = false;
-                        say(C.pick('ambient.backTop'), 3200);
-                        director.cue('stretch');
-                    }
-                } catch (e) {
-                    console.warn('[pet] scroll handler', e);
-                }
-            }, 450);
-        }, { passive: true });
+        if (PetSite.available()) {
+            PetSite.on('reading:position', function (row) {
+                if (row && typeof row.ratio === 'number') evaluate();
+            });
+        }
+        setInterval(evaluate, 3000);
     }
 
     /* 标签 / 分类页：换页后直接说一句，不经过上下文链 */
     function tagPageLine() {
         try {
             if (!director || chatOpen || document.hidden) return;
-            var name = PetAdapter.tagFromPath();
+            var name = PetAdapter.tagName();
             if (!name) return;
             say(C.t('ambient.tagPage', { name: name }), 3600);
             director.cue('hum');
@@ -1335,7 +1340,6 @@ var CONFIG = {
             }
         });
 
-        watchTheme();
         watchScroll();
         watchSelection();
 
@@ -1421,8 +1425,6 @@ var CONFIG = {
         });
         director.start();
 
-        // 首屏之后空闲时预取索引：40KB(gzip)，换来第一次提问就能同步回答
-        setTimeout(function () { try { if (SEARCH) SEARCH.ensure(); } catch (e) { /* ignore */ } }, CONFIG.search.preloadDelayMs);
         preloadClips();
         setTimeout(function () {
             if (!player) return;
@@ -1434,10 +1436,13 @@ var CONFIG = {
         if (root && document.getElementById(CONFIG.hostId || 'deepseek-pet')) {
             applyPos();
             lastCtxAt = 0;                       // 换页了，重置冷却
-            setTimeout(function () {
-                tagPageLine();
-                runContext();
-            }, 700);
+            /* 换页后重新问一次站点"这是哪一页"，再决定说什么 */
+            PetAdapter.refresh().then(function () {
+                setTimeout(function () {
+                    tagPageLine();
+                    runContext();
+                }, 500);
+            });
             return;
         }
         load();
@@ -1446,6 +1451,17 @@ var CONFIG = {
         mountActions();
         mountZoneDebug();
         applyShadow();
+
+        /* 站点上下文是异步的：先让宠物出来，落地后再补一次判断 */
+        PetAdapter.init().then(function () {
+            lastCtxAt = 0;
+            setTimeout(function () {
+                tagPageLine();
+                runContext();
+            }, 400);
+        }).catch(function (e) {
+            console.warn('[pet] site context', e);
+        });
     }
 
     if (document.readyState === 'loading') {
@@ -1470,6 +1486,8 @@ window.PetContent = PetContent;
 window.PetDebug[CONFIG.hostId || 'deepseek-pet'] = {
     kernel: KERNEL, search: PetSearch, zones: PetZones, adapter: PetAdapter, config: CONFIG,
     content: PetContent,
+    site: PetSite,
+    context: function () { return siteContext(); },
     reply: function (text) { return petReply(text); },
     mood: function () { return mood(); },
     get state() { return state; },

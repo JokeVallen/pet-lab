@@ -42,11 +42,21 @@
 **影响**：问超出句库的问题会得到模板化回答。
 **修法**：接 LLM 时只需替换文本生产者，`speech.act` 通道不用改。
 
-## 4. 检索没有同义词
+## 4. 主题与评论数拿不到，相关规则不会命中
 
-**现象**：搜「协程」找不到标题是 *Coroutine* 的卡片。
-**原因**：中文靠二字滑窗，英文靠子串，没有词表。
-**修法**：构建期给索引加 `synonyms` 字段，检索时展开。
+**现象**：`home.late` 里的"深夜"逻辑只看小时；`post.hot` / `post.noComment` 两条规则永远不触发。
+**原因**：宠物只认 `window.SiteAPI`，而 `currentContext()` 里没有 `theme` / `comments` 字段，
+`adapter` 把它们固定为 `null`，不回头去爬 DOM。
+**修法**：站点在 `currentContext()` 里补 `theme: 'dark' | 'light'` 与 `comments: number`，
+宠物侧把 `ctx.dark` / `ctx.comments` 接回即可（`adapter.js` 里各一行）。这是刻意的边界，不是遗漏。
+
+## 4.5 阅读进度要等 `SiteAPI.ready()`
+
+**现状**：滚动相关台词（读到底、回到顶部）依赖站点的 `reading:position` 事件，
+而这条链路要等 `SiteAPI.ready()` 把 `SiteReadingPosition.start()` 跑起来——
+宠物默认延迟 6 秒（`site.readyDelayMs`）才调用，因为它会顺带加载内容库。
+**影响**：进页面头几秒的滚动不会被感知。
+**修法**：站点把 `ready()` 拆成"轻量就绪 / 内容库加载"两段，宠物就能立刻开始跟踪阅读位置。
 
 ## 5. `.chrome-smoke` 会残留
 

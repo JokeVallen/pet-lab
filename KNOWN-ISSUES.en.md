@@ -42,11 +42,22 @@ so changing the horizontal offset visibly moves the ground shadow — only the c
 **Impact**: questions outside the phrase library get template answers.
 **Fix**: swapping in an LLM only replaces the text producer; the `speech.act` channel stays.
 
-## 4. Search has no synonyms
+## 4. Theme and comment count are unavailable, so those rules never fire
 
-**Symptom**: searching 协程 will not find a card titled *Coroutine*.
-**Cause**: Chinese uses a bigram sliding window, English uses substrings; there is no lexicon.
-**Fix**: add a `synonyms` field to the build-time index and expand queries.
+**Symptom**: the "late night" branch only looks at the hour; `post.hot` / `post.noComment` never trigger.
+**Cause**: the pet only talks to `window.SiteAPI`, and `currentContext()` exposes neither `theme` nor
+`comments`. `adapter` pins them to `null` instead of scraping the DOM.
+**Fix**: let the site add `theme: 'dark' | 'light'` and `comments: number` to `currentContext()`, then wire
+`ctx.dark` / `ctx.comments` back in `adapter.js` (one line each). This is an intentional boundary, not an oversight.
+
+## 4.5 Reading progress waits for `SiteAPI.ready()`
+
+**Symptom**: scroll-driven lines (reached the end, back to top) depend on the site's `reading:position`
+events, which only start after `SiteAPI.ready()` runs `SiteReadingPosition.start()`.
+The pet delays that call by 6s (`site.readyDelayMs`) because `ready()` also loads the content library.
+**Impact**: scrolling during the first seconds of a visit is not observed.
+**Fix**: split `ready()` on the site into "light ready" and "content library load"; the pet could then
+track reading position immediately.
 
 ## 5. `.chrome-smoke` accumulates
 

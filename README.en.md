@@ -95,7 +95,8 @@ pet-lab/
 ├─ js/pet/                ES modules
 │  ├─ index.js            entry
 │  ├─ core.js             kernel: bus / arbitration / assembly
-│  ├─ adapter.js          site layer: DOM / URL / storage / rules
+│  ├─ site.js             the only door to the site (window.SiteAPI only)
+│  ├─ adapter.js          site layer: context / rules / storage (no DOM)
 │  ├─ content/            zh.js / en.js — every line and answer (text only)
 │  └─ modules/            player, machine, actions, speech,
 │                         renderers, rules, zones, search
@@ -146,6 +147,37 @@ A few rules:
 - **Tool pages (editors, demo) use `assets/i18n.js`** — paired zh/en entries read via `data-i18n="key"` or `PetI18n.t('…')`.
 
 Language resolution: `localStorage['pet-content-lang']` → `<html lang>` → Chinese. A Chinese blog therefore stays Chinese unless the site sets `lang` to `en`.
+
+## Site integration: `window.SiteAPI` only
+
+The pet never reads the page DOM, never trusts its own URL and never touches the site's internals.
+Every piece of site information comes from `window.SiteAPI` (the contract lives in the blog repo as
+`SITE_API_INTEGRATION_GUIDE.md`). All of that lives in `js/pet/site.js`, the single coupling surface.
+
+| Purpose | Call | Scope |
+| --- | --- | --- |
+| Which page is this | `currentContext()` | read |
+| Search posts / questions / cards | `content().search()` | read |
+| Post tags and word count | `content().list('document')` | read |
+| Reading progress | `reading().get()` + `reading:position` events | read-local |
+| In-site navigation | `actions().invoke('navigation.open')` | read |
+| Bookmarks / notes / reading position | `actions().invoke('bookmark.*' / 'note.*' / 'reading.*')` | write-local |
+| The pet's own state | `userState('pet.*')` | write-local |
+
+Three hard rules:
+
+1. **Every write goes through `actions().invoke`**; anything requiring consent is prompted by the
+   SiteAPI itself and the pet never fakes `confirmed`;
+2. **Never block first paint**: `SiteAPI.ready()` makes the site load its content library (multi-megabyte),
+   so it is delayed by 6s by default (`site.readyDelayMs`); post metadata comes 2s later and only when a
+   rule actually needs it (`site.postMeta`);
+3. **Do not guess what the site does not expose**: theme (`dark`) and comment count are not part of
+   SiteAPI, so those rules simply never fire instead of scraping the page. The correct fix is for the
+   site to add those fields to `currentContext()`.
+
+On pages without SiteAPI (the `index.html` demo here) the pet still runs — animation, dialogue and
+replies are local; only site context and search are missing, and questions get a short
+"this page has no site search hookup" answer.
 
 ## Defaults and resetting
 
@@ -227,8 +259,9 @@ ffmpeg -i images/pet/anim/sleep.webm -c:v libvpx-vp9 -vsync 0 -pix_fmt rgba fram
 poses match best; that pair is the loop window.
 
 
-**Site side**: `js/pet/adapter.js` and `modules/search.js` target Hexo + Butterfly; porting to
-another framework means rewriting those two files only.
+**Site side**: `js/pet/site.js` only knows `window.SiteAPI`; `adapter.js` and `modules/search.js` sit
+on top of it. Porting to another framework needs nothing changed here as long as that site exposes
+SiteAPI.
 
 ### Two pets on one page
 
