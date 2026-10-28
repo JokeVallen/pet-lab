@@ -1,12 +1,22 @@
 # Site integration requirements (for the site maintainer)
 
+| Field | Value |
+| --- | --- |
+| **Document version** | `preq-1.1` |
+| **Targets SiteAPI** | `1.1.0` (site-side changes: `SITE_API_CHANGELOG.md`) |
+| **Last updated** | 2026-10-28 |
+| **Maintained by** | pet side (pet-lab) |
+| **Items** | 13 (R1–R13) |
+| **Chinese version** | [SITE_API_REQUIREMENTS.md](SITE_API_REQUIREMENTS.md) |
+
 > **Consumer**: the pet-lab desktop pet. It talks to the site **only** through `window.SiteAPI`:
 > no DOM queries, no direct `content-db` access, no `localStorage`.
-> **Based on**: `SITE_API_INTEGRATION_GUIDE.md`, `SITE_API.md` (v1.0.0).
-> **Status: all 13 items shipped in SiteAPI 1.1.0 and integrated/verified from the pet side**
-> (site changes: `SITE_API_CHANGELOG.md`). This document is kept as the contract of record;
-> the table below records how each item landed.
-> **Chinese version**: [SITE_API_REQUIREMENTS.md](SITE_API_REQUIREMENTS.md)
+> **Based on**: `SITE_API_INTEGRATION_GUIDE.md`, `SITE_API.md`.
+> **Status**: these 13 items shipped in SiteAPI 1.1.0 and were integrated/verified from the pet side;
+> the status table below records how each one landed.
+>
+> **Citation format**: quote the document version and item id, e.g. `preq-1.1 / R7`.
+> Versioning and increment rules live in [section 7](#7-versioning-and-increments).
 
 ## Delivery status (verified from the pet, 2026-10-28)
 
@@ -341,3 +351,37 @@ SiteAPI.events().on('context:change', c => console.log('ctx changed', c.theme));
 
 R5 / R6 decide whether the theme and comment lines come back; R7 decides the first-question latency;
 the rest are contract clarity issues that do not block anything.
+
+---
+
+## 7. Versioning and increments
+
+### 7.1 How versions move
+
+`preq-<major>.<minor>`: **major** only for removed / renumbered / semantically changed items;
+**minor** for new items, status changes and added acceptance details. The document version and the
+SiteAPI version are independent tracks, tied together by the table below.
+
+| Doc version | Date | Targets SiteAPI | Change |
+| --- | --- | --- | --- |
+| `preq-1.0` | 2026-10-28 | 1.0.0 | first issue: R1–R13 raised |
+| `preq-1.1` | 2026-10-28 | 1.1.0 | R1–R6, R8–R13 shipped and integrated; R7 partially shipped (search split out, `content-db.json` still uncompressed); document versioning and increment rules added |
+
+### 7.2 How to add to it
+
+- **Ids only grow**: new requirements start at `R14`; shipped items keep their id and change status
+  instead of disappearing. Commits and changelogs on both sides can then cite the same id forever.
+- **Five fixed statuses**: `raised` → `shipped` (site side done) → `integrated` (pet side wired and
+  verified) → `partial` (half done, must say which half) → `withdrawn` (both sides agreed to drop it,
+  with a reason).
+- **Every change leaves a trace**: add a row to the version table above. Do not put timestamps inside
+  individual items — dates live in the version table only, so one event never carries two dates.
+- **Site side writes back**: cite `preq-x.y / R#` in `SITE_API_CHANGELOG.md` when shipping; the pet side
+  flips the status here after integrating. Same id on both sides means no drift.
+
+### 7.3 Open items
+
+| Item | Status | What is missing |
+| --- | --- | --- |
+| R7 | partial | `/search-index.json` now serves search; `content-db.json` is still 5.2 MB and uncompressed. Browsing no longer loads it, so only the explicit `readyContent()` path is affected |
+
