@@ -366,7 +366,7 @@ SiteAPI version are independent tracks, tied together by the table below.
 | `preq-1.0` | 2026-10-28 | 1.0.0 | first issue: R1–R13 raised |
 | `preq-1.1` | 2026-10-28 | 1.1.0 | R1–R6, R8–R13 shipped and integrated; R7 partially shipped (search split out, `content-db.json` still uncompressed); document versioning and increment rules added |
 | `preq-1.2` | 2026-10-29 | 1.1.0 | R7 closed: `content-db.json` and `search-index.json` switched to gzip + Cache API, measured 5.27 MB → 1.47 MB and 1.20 MB → 319 KB; all 13 items closed |
-| `preq-1.3` | 2026-10-29 | 1.1.0 | Cross-checked against `SITE_API_CHANGELOG.md`: the `.gz` / `hexo server` limit no longer holds (redundant script removed); Gitalk confirmed as a design boundary; `settings`/`subscribe` types pending site confirmation; `search.suggest` unused (not a gap) |
+| `preq-1.3` | 2026-10-29 | 1.1.0 | Cross-checked against `SITE_API_CHANGELOG.md`: the `.gz` / `hexo server` limit no longer holds (redundant script removed); Gitalk confirmed as a design boundary; measured `page-context.json` holds only post/page, contradicting the 12-type §3 list, awaiting a site answer; `search.suggest` unused (not a gap) |
 
 ### 7.2 How to add to it
 
@@ -386,8 +386,8 @@ None. All 13 items are `integrated` or `documented`.
 
 ### 7.4 Cross-check against the site changelog (preq-1.3)
 
-Checked `docs/SITE_API_CHANGELOG.md` (v1.1.0, 15 sections) item by item. Three documentation syncs and
-one open item on the site side:
+Checked `docs/SITE_API_CHANGELOG.md` (v1.1.0, 15 sections) item by item. Two documentation syncs plus two
+things that need an answer from the site side:
 
 **1. The `.gz` / `hexo server` limitation no longer holds (documentation sync)**
 
@@ -405,12 +405,22 @@ The extra `scripts/compress-content-db.js` the pet side used to maintain (hooks 
 Still depends on a frontmatter `comment_count`; pages without it report `commentsAvailable: false` and the
 pet treats that as unknown, so `post.hot` / `post.noComment` stay dormant.
 
-**3. `settings` / `subscribe` page types: pet side is compatible, site side has not declared them**
+**3. Actual page-type coverage does not match the contract list (needs an answer from the site side)**
 
-The changelog's §3 type list has 12 entries, but the site scripts already emit `settings` and `subscribe`.
-The pet's `guessPageType()` only falls back on path prefixes, and the two matching line rules never fire.
-The site side needs to confirm whether these are part of the contract; once confirmed, the pet side adds
-the rules and copy under `preq-1.3`.
+The changelog's §3 lists 12 types: `home post tag category 404 page paper algorithm mock stats questions
+knowledge`. The build output `public/page-context.json` contains **only two**:
+
+```text
+{"post": 156, "page": 43}
+```
+
+So `tag` / `category` / `404` / `paper` / `questions` / `knowledge` pages are all recorded as `page` right
+now, which means the pet's `page.tag` and `page.404` rules can never fire on the real site and only the
+path-regex fallback (`PetAdapter.guessPageType`, kept for v1.0 compatibility) covers them.
+
+The site side needs to confirm: is the index script simply not covering those templates, or are those pages
+meant to be `page`? If the former, it is a site-side gap; if the latter, please update the §3 type list and
+the pet side will drop the guessing.
 
 **4. `search.suggest` is listed as available on every page, but the pet does not use it**
 

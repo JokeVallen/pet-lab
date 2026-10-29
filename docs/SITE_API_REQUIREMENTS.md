@@ -373,7 +373,7 @@ R5 / R6 决定两条主题台词和两条评论台词能不能复活；R7 决定
 | `preq-1.0` | 2026-10-28 | 1.0.0 | 首版：R1–R13 提出 |
 | `preq-1.1` | 2026-10-28 | 1.1.0 | R1–R6、R8–R13 交付并接入；R7 部分交付（检索已拆，`content-db.json` 未压缩）；文档加版本号与增量约定 |
 | `preq-1.2` | 2026-10-29 | 1.1.0 | R7 结项：`content-db.json` 与 `search-index.json` 改为 gzip + Cache API，实测 5.27 MB → 1.47 MB、1.20 MB → 319 KB；13 条全部结项 |
-| `preq-1.3` | 2026-10-29 | 1.1.0 | 与 `SITE_API_CHANGELOG.md` 逐条比对：`.gz` 的 `hexo server` 限制已不成立（已删冗余脚本）；Gitalk 确认为设计边界；`settings`/`subscribe` 类型待站点侧确认；`search.suggest` 未接入（非缺项） |
+| `preq-1.3` | 2026-10-29 | 1.1.0 | 与 `SITE_API_CHANGELOG.md` 逐条比对：`.gz` 的 `hexo server` 限制已不成立（已删冗余脚本）；Gitalk 确认为设计边界；实测 `page-context.json` 只有 post/page 两种类型，与 §3 的 12 种清单不符，待站点侧回话；`search.suggest` 未接入（非缺项） |
 
 ### 7.2 增量怎么提
 
@@ -392,7 +392,7 @@ R5 / R6 决定两条主题台词和两条评论台词能不能复活；R7 决定
 
 ### 7.4 与站点文档逐条比对（preq-1.3）
 
-逐条核对 `docs/SITE_API_CHANGELOG.md`（v1.1.0，15 节）后，本次有三处**文档同步**、一处**站点补漏**：
+逐条核对 `docs/SITE_API_CHANGELOG.md`（v1.1.0，15 节）后，本次是**两处文档同步**加**两件需要站点侧回话的事**：
 
 **① `.gz` 的 `hexo server` 限制：已不成立（文档同步）**
 
@@ -409,11 +409,21 @@ R5 / R6 决定两条主题台词和两条评论台词能不能复活；R7 决定
 依赖 frontmatter 的 `comment_count`；没有该字段的页面 `commentsAvailable` 为 `false`，
 宠物按"不知道"处理，`post.hot` / `post.noComment` 两条规则保持休眠。
 
-**③ `settings` / `subscribe` 页面类型：宠物侧已兼容，站点侧未声明**
+**③ 页面类型的实际覆盖与契约清单不一致（需站点侧回话）**
 
-`docs/SITE_API_CHANGELOG.md` §3 的类型清单是 12 个，而站点脚本里已存在 `settings` 与 `subscribe`
-两种类型。宠物的 `guessPageType()` 只覆盖路径前缀兜底，两条对应的台词规则从未被触发。
-站点侧需要确认：这两种页面是否属于正式契约类型？确认后宠物侧补规则与文案，编号 `preq-1.3` 下继续。
+`docs/SITE_API_CHANGELOG.md` §3 列出 12 种类型：`home post tag category 404 page paper algorithm
+mock stats questions knowledge`。但构建产物 `public/page-context.json` 里**只出现两种**：
+
+```text
+{"post": 156, "page": 43}
+```
+
+也就是说 `tag` / `category` / `404` / `paper` / `questions` / `knowledge` 等页面目前都以 `page` 落盘，
+宠物依赖的 `page.tag`、`page.404` 两条规则在真实站点上永远不会触发，只能被路径正则兜底
+（`PetAdapter.guessPageType`，仅 v1.0 兼容路径使用）。
+
+需要站点侧确认：是索引脚本没有覆盖这些模板，还是这些页面本就统一归为 `page`？
+若是前者，属站点侧补漏；若是后者，请更新 §3 的类型清单，宠物侧据此删掉猜测逻辑。
 
 **④ `search.suggest` 标为"任何页面可用"，但宠物未接入**
 
