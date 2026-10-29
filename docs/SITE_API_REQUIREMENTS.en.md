@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Document version** | `preq-1.2` |
+| **Document version** | `preq-1.3` |
 | **Targets SiteAPI** | `1.1.0` (site-side changes: `SITE_API_CHANGELOG.md`) |
 | **Last updated** | 2026-10-29 |
 | **Maintained by** | pet side (pet-lab) |
@@ -366,6 +366,7 @@ SiteAPI version are independent tracks, tied together by the table below.
 | `preq-1.0` | 2026-10-28 | 1.0.0 | first issue: R1–R13 raised |
 | `preq-1.1` | 2026-10-28 | 1.1.0 | R1–R6, R8–R13 shipped and integrated; R7 partially shipped (search split out, `content-db.json` still uncompressed); document versioning and increment rules added |
 | `preq-1.2` | 2026-10-29 | 1.1.0 | R7 closed: `content-db.json` and `search-index.json` switched to gzip + Cache API, measured 5.27 MB → 1.47 MB and 1.20 MB → 319 KB; all 13 items closed |
+| `preq-1.3` | 2026-10-29 | 1.1.0 | Cross-checked against `SITE_API_CHANGELOG.md`: the `.gz` / `hexo server` limit no longer holds (redundant script removed); Gitalk confirmed as a design boundary; `settings`/`subscribe` types pending site confirmation; `search.suggest` unused (not a gap) |
 
 ### 7.2 How to add to it
 
@@ -383,13 +384,36 @@ SiteAPI version are independent tracks, tied together by the table below.
 
 None. All 13 items are `integrated` or `documented`.
 
-### 7.4 Two loose ends on the site side (neither blocks the pet)
+### 7.4 Cross-check against the site changelog (preq-1.3)
 
-1. The `.gz` artefacts are written into `public/` by `scripts/compress-content-db.js` on both `before_exit`
-   and `deployBefore`, which covers `hexo generate` and `hexo g -d`. They are **files on disk, not hexo
-   routes**, so they 404 under `hexo server` (the client falls back to the raw JSON). Registering them as
-   routes would make local preview exercise the gzip path too.
-2. Gitalk counts still depend on a frontmatter `comment_count`; pages without it report
-   `commentsAvailable: false`, and the pet treats that as unknown, so the two comment lines stay dormant.
-   That is by design, not a defect.
+Checked `docs/SITE_API_CHANGELOG.md` (v1.1.0, 15 sections) item by item. Three documentation syncs and
+one open item on the site side:
+
+**1. The `.gz` / `hexo server` limitation no longer holds (documentation sync)**
+
+`scripts/content-db.js` registers the `.gz` files and `content-db-version.json` as hexo routes, so both
+`hexo generate` and `hexo server` serve them. Verified with `hexo server -p 8460`: `/content-db.json.gz`,
+`/search-index.json.gz`, `/content-db-version.json`, `/search-index.json`, `/site-api-manifest.json` and
+`/page-context.json` all return 200.
+
+The extra `scripts/compress-content-db.js` the pet side used to maintain (hooks on both `before_exit` and
+`deployBefore`) was therefore a **redundant second implementation** and has been deleted — it produced
+`.gz` files equivalent to the route-based ones and only created a second source of truth.
+
+**2. Gitalk comment counts: confirmed as a design boundary, not closed out**
+
+Still depends on a frontmatter `comment_count`; pages without it report `commentsAvailable: false` and the
+pet treats that as unknown, so `post.hot` / `post.noComment` stay dormant.
+
+**3. `settings` / `subscribe` page types: pet side is compatible, site side has not declared them**
+
+The changelog's §3 type list has 12 entries, but the site scripts already emit `settings` and `subscribe`.
+The pet's `guessPageType()` only falls back on path prefixes, and the two matching line rules never fire.
+The site side needs to confirm whether these are part of the contract; once confirmed, the pet side adds
+the rules and copy under `preq-1.3`.
+
+**4. `search.suggest` is listed as available on every page, but the pet does not use it**
+
+The pet only calls `content().search()`. Not a gap (R7 only asks for working search), recorded here so
+nobody later assumes the site does not offer it.
 

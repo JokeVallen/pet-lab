@@ -2,7 +2,7 @@
 
 | 项目 | 值 |
 | --- | --- |
-| **文档版本** | `preq-1.2` |
+| **文档版本** | `preq-1.3` |
 | **对应 SiteAPI** | `1.1.0`（站点侧变更见 `SITE_API_CHANGELOG.md`） |
 | **最后更新** | 2026-10-29 |
 | **维护方** | 宠物侧（pet-lab） |
@@ -373,6 +373,7 @@ R5 / R6 决定两条主题台词和两条评论台词能不能复活；R7 决定
 | `preq-1.0` | 2026-10-28 | 1.0.0 | 首版：R1–R13 提出 |
 | `preq-1.1` | 2026-10-28 | 1.1.0 | R1–R6、R8–R13 交付并接入；R7 部分交付（检索已拆，`content-db.json` 未压缩）；文档加版本号与增量约定 |
 | `preq-1.2` | 2026-10-29 | 1.1.0 | R7 结项：`content-db.json` 与 `search-index.json` 改为 gzip + Cache API，实测 5.27 MB → 1.47 MB、1.20 MB → 319 KB；13 条全部结项 |
+| `preq-1.3` | 2026-10-29 | 1.1.0 | 与 `SITE_API_CHANGELOG.md` 逐条比对：`.gz` 的 `hexo server` 限制已不成立（已删冗余脚本）；Gitalk 确认为设计边界；`settings`/`subscribe` 类型待站点侧确认；`search.suggest` 未接入（非缺项） |
 
 ### 7.2 增量怎么提
 
@@ -389,11 +390,33 @@ R5 / R6 决定两条主题台词和两条评论台词能不能复活；R7 决定
 
 无。13 条全部为"已接入/已说明"。
 
-### 7.4 留给站点侧的两个小尾巴（不影响宠物）
+### 7.4 与站点文档逐条比对（preq-1.3）
 
-1. `.gz` 产物由 `scripts/compress-content-db.js` 在 `before_exit` 与 `deployBefore` 两个时机写进 `public/`——
-   单独 `hexo generate` 与 `hexo g -d` 都能覆盖，但它们是**落在磁盘上的文件、不是 hexo 路由**，
-   所以 `hexo server` 下会 404（前端回退到原始 JSON）。要让本地预览也走 gzip，把 `.gz` 注册成路由即可。
-2. Gitalk 评论数仍然依赖 frontmatter 的 `comment_count`；没有该字段的页面 `commentsAvailable` 为 `false`，
-   宠物按"不知道"处理，两条评论台词不会出现——这是设计，不是缺陷。
+逐条核对 `docs/SITE_API_CHANGELOG.md`（v1.1.0，15 节）后，本次有三处**文档同步**、一处**站点补漏**：
+
+**① `.gz` 的 `hexo server` 限制：已不成立（文档同步）**
+
+`.gz` 与 `content-db-version.json` 由 `scripts/content-db.js` 直接注册成 hexo 路由，
+`hexo generate` 与 `hexo server` 都能访问。实测 `hexo server -p 8460`：
+`/content-db.json.gz`、`/search-index.json.gz`、`/content-db-version.json`、`/search-index.json`、
+`/site-api-manifest.json`、`/page-context.json` 全部 200。
+
+宠物侧原先额外维护的 `scripts/compress-content-db.js`（`before_exit` + `deployBefore` 双钩子）
+因此是**冗余的第二份实现**，已删除——它产出的 `.gz` 与路由版本内容等价，留着只会制造两个真相。
+
+**② Gitalk 评论数：确认为设计边界，不结项**
+
+依赖 frontmatter 的 `comment_count`；没有该字段的页面 `commentsAvailable` 为 `false`，
+宠物按"不知道"处理，`post.hot` / `post.noComment` 两条规则保持休眠。
+
+**③ `settings` / `subscribe` 页面类型：宠物侧已兼容，站点侧未声明**
+
+`docs/SITE_API_CHANGELOG.md` §3 的类型清单是 12 个，而站点脚本里已存在 `settings` 与 `subscribe`
+两种类型。宠物的 `guessPageType()` 只覆盖路径前缀兜底，两条对应的台词规则从未被触发。
+站点侧需要确认：这两种页面是否属于正式契约类型？确认后宠物侧补规则与文案，编号 `preq-1.3` 下继续。
+
+**④ `search.suggest` 标为"任何页面可用"，但宠物未接入**
+
+宠物目前只调 `content().search()`，没有用 `search.suggest`。不算缺项（R7 只要求检索可用），
+记在这里是为了避免以后误以为站点没提供。
 
