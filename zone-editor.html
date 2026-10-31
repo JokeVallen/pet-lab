@@ -83,22 +83,44 @@ const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
  * 发行包可能被放在任何静态托管下，这里先探一次：探不到就整段跳过，
  * 不再逐个接口撞 404，界面上给一句提示，其余功能照常可用。 */
 let SERVER_OK = null;
+let SERVER_WHY = '';           /* 探测失败的原因，显示在提示里，便于排查 */
+async function probeOnce(method) {
+    const r = await fetch('/api/version', { cache: 'no-store', method: method });
+    return r.ok;
+}
 async function hasServer() {
     if (SERVER_OK !== null) return SERVER_OK;
-    try {
-        const r = await fetch('/api/version', { cache: 'no-store', method: 'HEAD' });
-        SERVER_OK = r.ok;
-    } catch (e) {
-        SERVER_OK = false;
+    /* HEAD 可能落到正在关闭的 keep-alive 连接上，或撞上服务刚启动的瞬间。
+     * 因此：失败重试两次（间隔 150ms），HEAD 不行再回退 GET。
+     * 只有三种都失败才认定「没有服务」——避免误报。 */
+    const attempts = [
+        ['HEAD', 0], ['HEAD', 150], ['GET', 0], ['GET', 300]
+    ];
+    for (let i = 0; i < attempts.length; i += 1) {
+        const method = attempts[i][0];
+        const wait = attempts[i][1];
+        if (wait) await new Promise(function (r) { setTimeout(r, wait); });
+        try {
+            if (await probeOnce(method)) {
+                SERVER_OK = true;
+                SERVER_WHY = '';
+                return true;
+            }
+            SERVER_WHY = 'HTTP ' + method + ' 未返回成功';
+        } catch (e) {
+            SERVER_WHY = (e && e.message) || 'net error';
+        }
     }
-    if (!SERVER_OK) noteNoServer();
-    return SERVER_OK;
+    SERVER_OK = false;
+    noteNoServer();
+    return false;
 }
 function noteNoServer() {
     if (document.getElementById('noServerNote')) return;
     const d = document.createElement('div');
     d.id = 'noServerNote';
-    d.textContent = T('未连接本地服务：素材列表、写盘与编译不可用，可继续导出 YAML。');
+    d.textContent = T('未连接本地服务：素材列表、写盘与编译不可用，可继续导出 YAML。') + (SERVER_WHY ? ' (' + SERVER_WHY + ')' : '');
+
     d.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:200;' +
         'background:#1f2a37;color:#fff;font:12.5px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;' +
         'padding:7px 14px;border-radius:18px;box-shadow:0 6px 20px rgba(20,40,80,.25)';
