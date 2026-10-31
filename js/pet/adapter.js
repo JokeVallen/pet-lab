@@ -126,7 +126,7 @@ function guessPageType(site) {
     var p = String((site && site.path) || '/');
     if (/^\/tags\//.test(p)) return 'tag';
     if (/^\/categories\//.test(p)) return 'category';
-    if (p === '/' || p === '/index.html') return 'home';
+    if (p === '/' || p === '/demo.html') return 'home';
     if (/404/.test(p)) return '404';
     return 'other';
 }

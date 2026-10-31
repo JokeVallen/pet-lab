@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
     const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-sandbox', '--window-size=1200,900',
         `--remote-debugging-port=${PORT}`, '--user-data-dir=D:\\Users\\User\\pet-lab\\.chrome-dg2',
-        `${BASE}/home.html`], { stdio: 'ignore' });
+        `${BASE}/index.html`], { stdio: 'ignore' });
 
     let ws, id = 0;
     const pending = new Map();
@@ -56,12 +56,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         await send('Runtime.enable');
         await send('Page.enable');
 
-        await send('Page.navigate', { url: BASE + '/home.html' });
+        await send('Page.navigate', { url: BASE + '/index.html' });
         await sleep(1200);
 
         // 用户的做法：点卡片进入演示页
         const card = JSON.parse(await ev(`(function(){
-            var a = document.querySelector('a.card[href="index.html"]');
+            var a = document.querySelector('a.card[href="demo.html"]');
             var r = a.getBoundingClientRect();
             return JSON.stringify({x: Math.round(r.left + r.width/2), y: Math.round(r.top + r.height/2)});
         })()`));

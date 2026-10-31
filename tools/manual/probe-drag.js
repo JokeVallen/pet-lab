@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
     const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-sandbox', '--window-size=1200,900',
         `--remote-debugging-port=${PORT}`, '--user-data-dir=D:\\Users\\User\\pet-lab\\.chrome-dg',
-        `${BASE}/home.html`], { stdio: 'ignore' });
+        `${BASE}/index.html`], { stdio: 'ignore' });
 
     let ws, id = 0;
     const pending = new Map();
@@ -56,11 +56,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         await send('Page.enable');
 
         // 1) home → 点「宠物演示」卡片
-        await send('Page.navigate', { url: BASE + '/home.html' });
+        await send('Page.navigate', { url: BASE + '/index.html' });
         await sleep(1500);
         console.log('home 加载，宠物节点:', await ev("!!document.getElementById('deepseek-pet')"));
 
-        await send('Page.navigate', { url: BASE + '/index.html' });
+        await send('Page.navigate', { url: BASE + '/demo.html' });
         await sleep(4000);
         console.log('演示页就绪:', await state());
 

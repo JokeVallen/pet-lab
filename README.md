@@ -2,20 +2,84 @@
 
 鲸鱼娘宠物「大肥鱼」的独立工具集。**不依赖 Hexo / Butterfly**，只靠一个静态服务器就能跑；接进任何站点只改一个适配层。
 
-> 只想把它装到自己的博客？直接下发行版：[Releases · v1.0.0](https://github.com/JokeVallen/pet-lab/releases/latest)
-> （只含运行时、素材、配置与许可）。这个 `main` 分支是开发环境，含编辑器、测试与探针。
+> 只想把它装到自己的博客？直接下发行版：[Releases · v1.0.2](https://github.com/JokeVallen/pet-lab/releases/latest)
+> （含运行时、素材、配置、三个离线编辑器与使用说明）。这个 `main` 分支是开发环境，额外含测试、探针与开发文档。
+>
+> 发行包里没有开发侧内容：测试面板、项目状态、开发沿革、已知问题这些在打包时就被删掉了，不是隐藏。
+
+## 占位符：文案不写死
+
+角色的名字、时间、页面信息都从运行时取，文案里只写占位符。改一次配置，所有句子跟着变。
+
+| 占位符 | 含义 | 取值 |
+| --- | --- | --- |
+| `{pet}` | 名字 | `persona.name`（缺省回退顶层 `name`） |
+| `{alt}` | 副名 | `persona.alt` |
+| `{n}` / `{streak}` | 连续来访天数 | 本机记录 |
+| `{affinity}` | 好感度 | 本机记录 |
+| `{fullness}` | 饱腹度 | 本机记录 |
+| `{pets}` | 被摸次数 | 本机记录 |
+| `{greeting}` | 时段问候（早上好 / 晚上好…） | 当前钟点 |
+| `{hour}` `{time}` `{weekday}` `{date}` | 时 / 分 / 星期 / 日期 | 当前时间 |
+| `{title}` | 当前页面标题 | SiteAPI context |
+| `{tag}` `{tags}` `{category}` | 标签、分类 | SiteAPI context |
+| `{words}` `{minutes}` `{percent}` `{comments}` | 字数、预计分钟（字数 ÷ `ui.wordsPerMinute`，默认 300）、阅读进度、评论数 | SiteAPI context |
+| `{page}` `{type}` | 页面类型原始值（home/post/tag…） | SiteAPI context |
+| `{pageName}` | 页面类型的可读名（首页 / 文章 / 标签页…） | `pageType.*` 文案 |
+| `{name}` | **语境名**，不是宠物名：标签页里是标签名 | 调用点传入 |
+
+生效范围是**所有出口**：气泡、对话框、检索结果、规则台词、分区反应——不管文本来自 `persona.*`、
+`js/pet/content/*.js` 还是 `rules.items[].say`，都在 `speech` 模块投递前统一替换一次，写的人不用操心。
+拿不到的值一律留空或保留原样，不会变成 `undefined`。
+
+**多语言**：`persona` 下可以按语言再覆盖一层，`persona.en.about` 优先于 `persona.about`，留空视作没写：
+
+```yaml
+persona:
+  name: 大肥鱼
+  about: 我是{pet}，一只住在博客里的鲸鱼娘。
+  en:
+    name: Dafeiyu            # 可选：英文界面下的称呼
+    about: I am {pet}, a whale girl living in this blog.
+```
+
+局部变量优先于全局：`{name}` 由标签页的调用点传进来，不会被 `{pet}` 顶掉。
+
+### 条件与后备
+
+花括号里不只能放变量名，还能放一个极小的表达式：
+
+| 写法 | 含义 | 例（pet=大肥鱼、title 有值、tag 为空） |
+| --- | --- | --- |
+| `{x}` | 取值 | `{pet}` → 大肥鱼 |
+| `{x?a:b}` | 有值用 a，没有用 b | `{tag?有标签:没标签}` → 没标签 |
+| `{x??a}` | 空值才用 a | `{title??未知}` → 未知 |
+| `{!x?a:b}` | 条件取反 | `{!tag?没标签:有标签}` → 没标签 |
+
+规则：
+
+- **空值**：空串、`0`、`"0"`、`false`、`null` 都算没有——所以 `{comments?有{comments}条:还没有}` 能直接用。
+- **分支是文本**，里面还能再嵌占位符，例如 `{title?'读《{title}》':'随便逛逛'}`。
+- 分支里出现 `?` 或 `:` 时用引号包起来：`{title?'真的?那就':'不是'}`。
+- 未知变量原样保留（`{nope}` 不会被吃掉），写错名字看得见。
+
+完整的变量表（含义 / 示例 / 取值来源 / 什么时候为空）在 **`vars.html`**，
+也是文案编辑页右上角「变量表」的入口。那份清单同时是文案页按钮的数据源，
+`tools/manual/check-vars-doc.js` 会拿它和运行时实际提供的变量对账，少一个就报。
 
 ## 页面
 
-双击 `home.html` 即可，也可以单独打开：
+双击 `index.html` 即可，也可以单独打开：
 
 | 页面 | 用途 |
 | --- | --- |
-| `home.html` | 统一入口 |
-| `index.html` | 宠物演示 + 测试面板（动作 / 状态 / 睡眠 / 说话 / 提问 / 语言 / 配置读数） |
+| `index.html` | 统一入口 |
+| `demo.html` | 宠物演示；开发态还会多一个测试面板（动作 / 状态 / 睡眠 / 说话 / 提问 / 语言 / 配置读数） |
 | `config-editor.html` | 她**是什么**：外观 / 节奏 / 语言 / 动作库 / 状态（clip、池、权重） |
 | `zone-editor.html` | 身体分区：二维框、鼠标反应、外观与底图 |
+| `copy-editor.html` | 她**说什么**：见面、对话、状态、互动的台词，中英分开编辑，逐条预览占位符效果 |
 | `rules-editor.html` | 她**何时做什么**：状态规则（条件 → 状态）+ 情境规则（条件 → 台词 / 动作），每条可单独停用 |
+| `vars.html` | 变量表：文案里能用的全部占位符、示例与取值来源 |
 | `docs.html` | Markdown 阅读器，中英文档都能看 |
 | `tests.html` | 测试面板：8 个套件可单跑，也能一键全跑 |
 
@@ -27,6 +91,8 @@
 | `states.*`（`clip` / `pool` / `weight`） | `config-editor` | 规则页不再显示权重 |
 | `policy.stateRules` | `rules-editor` | 配置页只管 `states` 定义，不碰规则 |
 | `policy.calendar` | 手改 YAML | 两个编辑器都不碰 |
+| `persona.*` 的台词 | `copy-editor` | 配置页只留名字/副名/图标 |
+| 占位符清单 | `assets/vars.js` | `vars.html` 与文案页都读它，运行时另行对账 |
 | `zones` / `zoneReactions` | `zone-editor` | — |
 | `rules.items` | `rules-editor` | 导出只含 `policy.stateRules` + `rules.items` |
 
@@ -69,8 +135,8 @@
 python -m http.server 8080
 ```
 
-- 入口：<http://127.0.0.1:8080/home.html>
-- 演示：<http://127.0.0.1:8080/index.html>（ES 模块，必须走 HTTP）
+- 入口：<http://127.0.0.1:8080/index.html>
+- 演示：<http://127.0.0.1:8080/demo.html>（ES 模块，必须走 HTTP）
 
 > 双击 HTML 走 `file://` 大多能用，但浏览器会拦截自动读取——用配置编辑器的「打开 YAML」，或者起服务。
 
@@ -78,8 +144,8 @@ python -m http.server 8080
 
 ```
 pet-lab/
-├─ home.html              统一入口
-├─ index.html             演示 + 信号面板
+├─ index.html              统一入口
+├─ demo.html             演示 + 信号面板
 ├─ config-editor.html     可视化配置
 ├─ zone-editor.html       可视化分区
 ├─ rules-editor.html      可视化规则
@@ -170,7 +236,7 @@ PetContent.setLang('en')                     // 运行时切换（已渲染的�
 3. **站点没给的就不猜**：`commentsAvailable: false` 表示"评论数不可用"，宠物把 `comments` 当作
    `null` 而不是 0；`theme` 缺失时同理。宁可那条规则不命中，也不回头爬 DOM。
 
-没有 SiteAPI 的页面（比如本仓库的 `index.html` 演示页）宠物照样跑：动作、对话、句库都在本地，
+没有 SiteAPI 的页面（比如本仓库的 `demo.html` 演示页）宠物照样跑：动作、对话、句库都在本地，
 只是没有站点上下文与检索，提问会回一句"这一页没接上站点的检索接口"。
 
 ## 默认配置与重置

@@ -4,7 +4,7 @@ const CHROME = process.env.CHROME_PATH || 'D:\\Program Files\\Google\\Chrome\\Ap
 const PORT = Number(process.argv[3] || 9408);
 const BASE = 'http://127.0.0.1:' + (process.argv[2] || '8105');
 
-const PAGES = ['index.html', 'home.html', 'config-editor.html', 'zone-editor.html', 'rules-editor.html', 'docs.html?f=STATUS.md'];
+const PAGES = ['demo.html', 'index.html', 'config-editor.html', 'zone-editor.html', 'rules-editor.html', 'docs.html?f=STATUS.md'];
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
@@ -23,7 +23,7 @@ async function connect() {
 (async () => {
     const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-sandbox',
         `--remote-debugging-port=${PORT}`, '--user-data-dir=D:\\Users\\User\\pet-lab\\.chrome-audit',
-        `${BASE}/home.html`], { stdio: 'ignore' });
+        `${BASE}/index.html`], { stdio: 'ignore' });
 
     let ws, id = 0;
     const pending = new Map();

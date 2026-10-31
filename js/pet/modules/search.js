@@ -40,6 +40,9 @@ export const PetSearch = {
             reLang = C.lang;
         }
 
+        /* 最近一次检索的 path → 标题，供链接渲染使用 */
+        let lastTitles = {};
+
         /** 去掉"有没有/找一下/关于"这类词，留下真正要查的内容 */
         function toQuery(text) {
             ensureRes();
@@ -66,22 +69,34 @@ export const PetSearch = {
 
         function format(rows, query) {
             if (!rows.length) return C.t('search.notFound');
+            /* 明细缓存：path → 标题。渲染成链接时用标题，避免明文输出路径；
+               这里只收本次检索返回的行，不额外发请求。 */
+            lastTitles = {};
+            for (const row of rows) {
+                if (row && row.path) lastTitles[row.path] = row.title || row.id || '';
+            }
+
             const first = rows[0];
             const kind = kindOf(first.type);
             if (maxResults <= 1) {
                 const more = rows.length > 1 ? C.t('search.andMore', { n: rows.length - 1 }) : '';
-                return C.t('search.closest', { kind, title: first.title || first.id, more, url: first.path || '' });
+                return C.t('search.closest', { kind, more, url: first.path || '' });
             }
-            const lines = [C.t('search.listHead', { kind, title: first.title || first.id, url: first.path || '' })];
+            const lines = [C.t('search.listHead', { kind, url: first.path || '' })];
             const extra = Math.min(maxResults, rows.length) - 1;
             for (let i = 1; i <= extra; i += 1) {
-                lines.push(C.t('search.listItem', { title: rows[i].title || rows[i].id, url: rows[i].path || '' }));
+                lines.push(C.t('search.listItem', { url: rows[i].path || '' }));
             }
             if (rows.length > maxResults) lines.push(C.t('search.listMore', { n: rows.length - maxResults }));
             return lines.join('\n');
         }
 
         return {
+            /** 链接渲染用：给定站内路径，返回已知标题；没有就返回空串 */
+            titleOf(path) {
+                return (lastTitles && lastTitles[path]) || '';
+            },
+
             matches(text) {
                 ensureRes();
                 return intentRe.test(text);

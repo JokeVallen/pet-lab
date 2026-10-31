@@ -5,15 +5,20 @@ It does not depend on Hexo or Butterfly; porting it to a site means editing a si
 
 ## Pages
 
-Double-click `home.html`, or open any page directly:
+Double-click `index.html` (the entry page), or open any page directly. The release pack ships the
+runtime, assets, config, the three offline editors and the guide — developer-only content
+(test bench, project status, dev history, known issues, API/protocol docs) is **deleted at pack
+time**, not hidden:
 
 | Page | Purpose |
 | --- | --- |
-| `home.html` | Entry point |
-| `index.html` | Live demo + test panel (actions / state / sleep / speech / ask / language / config readout) |
+| `index.html` | Entry point |
+| `demo.html` | Live demo; in dev mode it also shows the test bench (actions / state / sleep / speech / ask / language / config readout) |
 | `config-editor.html` | What she **is**: looks, timing, speech, animation library, states (clip, pool, weight) |
 | `zone-editor.html` | Body zones: 2D rects, mouse reactions, look and backdrop |
+| `copy-editor.html` | What she **says**: lines for meetings, chat, states and interactions, edited per language with live placeholder preview |
 | `rules-editor.html` | **When** she does what: state rules (condition → state) + context rules (condition → line / action); each rule can be disabled |
+| `vars.html` | Every placeholder usable in copy, with meaning, example and source |
 | `tests.html` | Test panel: 8 suites, each runnable alone or all at once |
 
 ### Division: one field, one page
@@ -73,8 +78,8 @@ You can also start a server by hand:
 python -m http.server 8080
 ```
 
-- Entry: <http://127.0.0.1:8080/home.html>
-- Demo: <http://127.0.0.1:8080/index.html> (ES modules require HTTP)
+- Entry: <http://127.0.0.1:8080/index.html>
+- Demo: <http://127.0.0.1:8080/demo.html> (ES modules require HTTP)
 
 > Doubling-clicking an HTML file mostly works (`file://`), but the browser blocks automatic reads — use “Open YAML” in the config editor, or run the server.
 
@@ -82,8 +87,8 @@ python -m http.server 8080
 
 ```
 pet-lab/
-├─ home.html              entry point
-├─ index.html             demo + signal panel
+├─ index.html              entry point
+├─ demo.html             demo + signal panel
 ├─ config-editor.html     visual settings
 ├─ zone-editor.html       visual zones
 ├─ rules-editor.html      visual rules
@@ -176,7 +181,7 @@ Three hard rules:
    SiteAPI, so those rules simply never fire instead of scraping the page. The correct fix is for the
    site to add those fields to `currentContext()`.
 
-On pages without SiteAPI (the `index.html` demo here) the pet still runs — animation, dialogue and
+On pages without SiteAPI (the `demo.html` demo here) the pet still runs — animation, dialogue and
 replies are local; only site context and search are missing, and questions get a short
 "this page has no site search hookup" answer.
 

@@ -5,6 +5,25 @@
  * so a locale can start small and grow.
  */
 export default {
+    time: {
+        morning: 'Good morning',
+        noon: 'Good afternoon',
+        afternoon: 'Good afternoon',
+        evening: 'Good evening',
+        night: 'It is late'
+    },
+    pageType: {
+        home: 'home page',
+        post: 'article',
+        tag: 'tag page',
+        category: 'category page',
+        archive: 'archive',
+        search: 'search page',
+        404: 'not-found page',
+        page: 'page',
+        paper: 'paper',
+        other: 'page'
+    },
     meta: {
         code: 'en',
         label: 'English',
@@ -21,16 +40,16 @@ export default {
     },
 
     ui: {
-        chatAria: 'Chat with {name}',
-        chatPlaceholder: 'Say something to {name}…',
+        chatAria: 'Chat with {pet}',
+        chatPlaceholder: 'Say something to {pet}…',
         chatClose: 'Close chat',
         inputAria: 'Message',
         send: 'Send',
         feed: 'Feed',
         chat: 'Chat',
-        hide: 'Hide {name}',
-        pet: 'Pet {name}',
-        restore: 'Bring back {name}',
+        hide: 'Hide {pet}',
+        pet: 'Pet {pet}',
+        restore: 'Bring back {pet}',
         credit: 'Art from <a href="https://github.com/PC2005-cloud/dsh-pet" target="_blank" rel="noopener nofollow">dsh-pet</a> · character under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener nofollow">CC BY-NC-SA 4.0</a>'
     },
 
@@ -68,7 +87,7 @@ export default {
             { id: 'hungry', match: 'hungry|eat|food|feed|fish', flags: 'i', lines: ['I want white rice… tap the 🍚 button to feed me.', 'My stomach is rumbling. Any rice around?'] },
             { id: 'tired', match: 'tired|sad|anxious|stress|upset', flags: 'i', lines: ['Take five minutes. Unfinished code waits; you should not.', 'Stand up and walk a bit? I will wait here.'] },
             { id: 'praise', match: 'thanks|like you|cute|love you|great', flags: 'i', lines: ['Hehe, I will take that. Affection +1!', 'Say that again and my tail curls up.'] },
-            { id: 'who', match: 'who are you|your name|deepseek', flags: 'i', lines: ['I am the whale girl living in this blog — not an official product, just a small whale in the corner of a page.'] },
+            { id: 'who', match: 'who are you|your name|deepseek', flags: 'i', lines: ['I am {pet}, the whale girl living in this blog — not an official product, just a small whale in the corner of a page.'] },
             { id: 'night', match: 'good night|sleep|sleepy', flags: 'i', lines: ['Good night. I will doze in the corner.'] },
             { id: 'rice', match: 'rice|meal|dinner', flags: 'i', lines: ['White rice is the proper meal. Tap 🍚 and feed me.', 'One bowl is enough… fine, two.'] },
             { id: 'drag', match: 'drag|grab|pick me', flags: 'i', lines: ['Not the tail!', 'I flinch when lifted. That is normal.'] },
@@ -132,10 +151,10 @@ export default {
         kindKnowledge: 'knowledge card',
         kindAlgorithm: 'algorithm',
         unavailable: 'This page has no site search hookup, so I cannot look anything up here.',
-        closest: 'Closest {kind}: "{title}"{more} — {url}',
-        listHead: 'Closest {kind}: "{title}" — {url}',
+        closest: 'Closest {kind}: {url}{more}',
+        listHead: 'Closest {kind}: {url}',
         andMore: ', and {n} more',
-        listItem: '· "{title}" {url}',
+        listItem: '· {url}',
         listMore: '…and {n} more',
         stopwords: ['a', 'an', 'the', 'is', 'are', 'of', 'about', 'any', 'some', 'please', 'find', 'search', 'for', 'me', 'post', 'posts', 'article', 'articles', 'card', 'cards', 'page', 'pages', 'do', 'you', 'have'],
         intent: 'do you have|find|search|look up|any (post|article|card|page)s? about'

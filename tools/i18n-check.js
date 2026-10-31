@@ -47,8 +47,8 @@ const MIME = {
 const ALLOW = [/大肥鱼/, /^head(\.|$)/, /^body(\.|$)/, /^tail$/];
 
 const PAGES = [
-    { file: 'index.html', title: 'demo' },
-    { file: 'home.html', title: 'home' },
+    { file: 'demo.html', title: 'demo' },
+    { file: 'index.html', title: 'home' },
     { file: 'config-editor.html', title: 'cfg' },
     { file: 'zone-editor.html', title: 'zone' },
     { file: 'rules-editor.html', title: 'rules' },
@@ -65,7 +65,7 @@ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 function staticServer() {
     const server = http.createServer((req, res) => {
         let p = decodeURIComponent(req.url.split('?')[0]);
-        if (p === '/') p = '/index.html';
+        if (p === '/') p = '/demo.html';
         const file = path.join(ROOT, p);
         if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
             res.writeHead(404); res.end('not found'); return;
@@ -93,7 +93,7 @@ async function connect() {
     if (fs.existsSync(PROFILE)) fs.rmSync(PROFILE, { recursive: true, force: true });
     const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-sandbox',
         `--remote-debugging-port=${DBG}`, `--user-data-dir=${PROFILE}`,
-        `http://127.0.0.1:${PORT}/home.html`], { stdio: 'ignore' });
+        `http://127.0.0.1:${PORT}/index.html`], { stdio: 'ignore' });
 
     let ws, id = 0;
     const pending = new Map();
@@ -154,7 +154,7 @@ async function connect() {
         // ---- 中文模式 ----
         await evaluate("localStorage.setItem('pet-i18n','zh')");
         console.log('\n== 中文模式 ==');
-        for (const page of [{ file: 'home.html' }, { file: 'index.html' }]) {
+        for (const page of [{ file: 'index.html' }, { file: 'demo.html' }]) {
             await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/${page.file}` });
             await sleep(2000);
             const title = await evaluate('document.title');

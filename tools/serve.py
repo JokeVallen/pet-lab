@@ -453,7 +453,7 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(400, {
                     "ok": False,
                     "error": (proc.stderr or proc.stdout or "").strip(),
-                    "hint": "patch supports zones / zoneReactions / rulesItems / stateRules"
+                    "hint": "patch supports zones / zoneReactions / rulesItems / stateRules / personaCopy"
                 })
                 return
             ok, build = run_build()
@@ -502,6 +502,6 @@ if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else PORT
     os.chdir(ROOT)
     threading.Thread(target=watch_files, daemon=True).start()
-    print("宠物实验室 · http://127.0.0.1:%d/home.html" % port)
+    print("宠物实验室 · http://127.0.0.1:%d/index.html" % port)
     print("写操作仅限 config/；pet.yaml 改动会自动编译（Ctrl+C 停止）")
     ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()

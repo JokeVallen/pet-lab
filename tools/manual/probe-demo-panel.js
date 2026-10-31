@@ -9,7 +9,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-sandbox', '--window-size=1280,980',
         '--force-device-scale-factor=1.5',
         `--remote-debugging-port=${PORT}`, '--user-data-dir=D:\\Users\\User\\pet-lab\\.chrome-demo',
-        BASE + '/index.html'], { stdio: 'ignore' });
+        BASE + '/demo.html'], { stdio: 'ignore' });
 
     let ws, id = 0;
     const pending = new Map();

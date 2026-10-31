@@ -88,7 +88,7 @@ bus.emit('speech.act', {
 
 ```
 pet-lab/
-├─ index.html                演示页 + 信号模拟面板
+├─ demo.html                演示页 + 信号模拟面板
 ├─ README.md                 运行方式与目标
 ├─ js/deepseek-pet.js        宠物本体（1450 行，单体，尚未拆分）
 ├─ css/deepseek-pet.css      样式

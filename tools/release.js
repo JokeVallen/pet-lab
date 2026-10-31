@@ -69,7 +69,13 @@ const SHIP = [
     'js/pet/core.js',
     'js/pet/adapter.js',
     'js/pet/config.js',
+    'js/pet-config.json',
+    'js/pet/site.js',
     'js/pet/package.json',
+    'js/pet/content/index.js',
+    'js/pet/content/expr.js',
+    'js/pet/content/zh.js',
+    'js/pet/content/en.js',
     'js/pet/modules/actions.js',
     'js/pet/modules/machine.js',
     'js/pet/modules/player.js',
@@ -80,15 +86,40 @@ const SHIP = [
     'js/pet/modules/zones.js',
     'tools/build-config.js',
     'vendor/js-yaml.min.js',
-    'vendor/js-yaml.LICENSE'
+    'vendor/js-yaml.LICENSE',
+
+    /* ---- 离线可视化工具 ----
+     * 三个编辑器只依赖浏览器：读 YAML、改、导出，或者经本地服务写盘（写前会弹授权框）。
+     * 放在哪里、怎么起服务由使用者自己决定，发行包不做适配。
+     * 页面上标了 data-dev-only 的入口（测试面板、项目状态、已知问题、开发沿革）
+     * 在发行态会被整块移除，不会出现死链。 */
+    'index.html',
+    'config-editor.html',
+    'copy-editor.html',
+    'vars.html',
+    'assets/vars.js',
+    'rules-editor.html',
+    'zone-editor.html',
+    'docs.html',
+    'assets/i18n.js',
+    'demo.html',
+    'mock-site.js'
 ];
 
 /* 这些永远不该出现在发行包里 */
 const FORBIDDEN = [
     'tools/manual/', 'tools/tests/', 'tools/serve.py', 'tools/run-tests.js', 'tools/smoke.js',
-    'HANDOFF', 'STATUS', 'KNOWN-ISSUES', 'screenshots/', '__pycache__', '.pyc',
-    'config-editor.html', 'rules-editor.html', 'zone-editor.html', 'docs.html',
-    'home.html', 'tests.html', 'pets.html', 'start.bat', '.git/'
+    'screenshots/', '__pycache__', '.pyc',
+
+    /* 开发者专属，任何形式都不进发行版 */
+    'tests.html', 'pets.html',
+    'docs/API.md', 'docs/API.en.md', 'docs/INTERACTION.md', 'docs/INTERACTION.en.md',
+    'STATUS.md', 'STATUS.en.md', 'HANDOFF.md', 'HANDOFF.en.md',
+    'KNOWN-ISSUES.md', 'KNOWN-ISSUES.en.md',
+    'docs/SITE_API_REQUIREMENTS', 'docs/SITE_API_CHANGELOG',
+
+    /* 开发辅助 */
+    'start.bat', '.git/', 'release/notes', '.chrome', 'build/'
 ];
 
 /* ==================== 小工具 ==================== */
@@ -106,14 +137,86 @@ function walk(dir, base, out) {
 
 /* 文本一律按 LF 落盘：Windows 上 git 可能把工作区换成 CRLF，
  * 不归一化的话，同一份源码在不同机器上打出来的包 sha256 会不一样。 */
-const TEXT = /\.(md|js|css|yaml|yml|json|txt)$|(^|\/)LICENSE$/;
+const TEXT = /\.(md|js|css|yaml|yml|json|txt|html)$|(^|\/)LICENSE$/;
+
+/* 发行包里一个字节都不该带开发侧的东西。
+ * 这些都是**打包期**的删除，源码里保持完整：开发态永远能看到全部入口，
+ * 不存在"把开发环境切成发行态"这种开关。
+ *
+ * 支持三种标注：
+ *   ① 元素属性   <任意标签 ... data-dev-only ...> … </同名标签>   （含嵌套同名标签）
+ *   ② 脚本段落   /* <<DEV-ONLY>> *\/ … /* <\/\/DEV-ONLY>> *\/      （JS 里的开发逻辑）
+ *   ③ 数据条目   /* <<DEV-DOCS>> *\/ … /* <\/\/DEV-DOCS>> *\/      （开发侧文档清单）
+ */
+const DEV_DOCS_BLOCK = /[ \t]*\/\* <{2,}DEV-DOCS>{2,} \*\/[\s\S]*?\/\* <{2,}\/DEV-DOCS>{2,} \*\/\n?/g;
+const DEV_ONLY_JS = /[ \t]*\/\* <{2,}DEV-ONLY>{2,} \*\/[\s\S]*?\/\* <{2,}\/DEV-ONLY>{2,} \*\/[ \t]*\n?/g;
+const VOID_TAGS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+    'link', 'meta', 'param', 'source', 'track', 'wbr']);
+
+/* 从开标签之后找同名闭合标签，跳过嵌套的同名元素 */
+function findClose(text, from, tag) {
+    const re = new RegExp('<(/?)' + tag + '\\b[^>]*>', 'gi');
+    re.lastIndex = from;
+    let depth = 1;
+    let m;
+    while ((m = re.exec(text))) {
+        if (m[1]) depth -= 1;
+        else depth += 1;
+        if (depth === 0) return re.lastIndex;
+    }
+    return -1;
+}
+
+/* 删掉所有带 data-dev-only 的元素；整行只有当该行除了这个元素全是空白时才连行一起删 */
+function stripDevOnly(text) {
+    const OPEN = /<([a-zA-Z][\w:-]*)\b[^>]*\sdata-dev-only\b[^>]*>/g;
+    let out = '';
+    let i = 0;
+    let m;
+    while ((m = OPEN.exec(text))) {
+        const tag = m[1].toLowerCase();
+        const openStart = m.index;
+        const openEnd = OPEN.lastIndex;
+        let end;
+        if (VOID_TAGS.has(tag)) {
+            end = openEnd;
+        } else {
+            end = findClose(text, openEnd, tag);
+            if (end < 0) end = openEnd;          // 结构不完整时至少把开标签删掉
+        }
+        /* 判断能否连行删 */
+        const lineStart = text.lastIndexOf('\n', openStart) + 1;
+        const nl = text.indexOf('\n', end);
+        const lineEnd = nl < 0 ? text.length : nl + 1;
+        const before = text.slice(lineStart, openStart);
+        const after = text.slice(end, nl < 0 ? text.length : nl);
+        const wholeLine = /^[ \t]*$/.test(before) && /^[ \t]*$/.test(after);
+
+        out += text.slice(i, wholeLine ? lineStart : openStart);
+        i = wholeLine ? lineEnd : end;
+        OPEN.lastIndex = i;
+    }
+    return out + text.slice(i);
+}
+
+function stripDevContent(text) {
+    text = stripDevOnly(text);
+    text = text.replace(DEV_ONLY_JS, '');
+    text = text.replace(DEV_DOCS_BLOCK, '');
+    return text;
+}
 
 function stageFile(rel) {
     const src = path.join(ROOT, rel);
     const dst = path.join(STAGE, rel);
     fs.mkdirSync(path.dirname(dst), { recursive: true });
     const raw = fs.readFileSync(src);
-    const data = TEXT.test(rel) ? Buffer.from(raw.toString('utf8').replace(/\r\n/g, '\n'), 'utf8') : raw;
+    let text = TEXT.test(rel) ? raw.toString('utf8').replace(/\r\n/g, '\n') : null;
+
+    if (text !== null && (rel.endsWith('.html') || rel.endsWith('.js'))) {
+        text = stripDevContent(text);
+    }
+    const data = text === null ? raw : Buffer.from(text, 'utf8');
     fs.writeFileSync(dst, data);
 }
 
@@ -275,6 +378,17 @@ function verify(files) {
         if (r.code !== 0) problems.push('语法错误: ' + rel + ' — ' + r.out.split('\n')[0]);
     }
 
+    /* 开发侧的东西必须在打包时就没了：这里只校验，不改写。
+     * 校验不过说明剥离规则漏了，要修的是规则，不是包。 */
+    const LEFTOVER = ['data-dev-only', '<<DEV-DOCS>>', 'STATUS.md', 'HANDOFF.md', 'KNOWN-ISSUES.md',
+        'tests.html', 'pets.html'];
+    for (const rel of files.filter((f) => f.endsWith('.html'))) {
+        const text = fs.readFileSync(path.join(STAGE, rel), 'utf8');
+        for (const bad of LEFTOVER) {
+            if (text.includes(bad)) problems.push('发行包里残留开发侧内容: ' + rel + ' → ' + bad);
+        }
+    }
+
     /* README 的版本号必须是这次要发的版本 */
     const readme = fs.readFileSync(path.join(STAGE, 'README.md'), 'utf8');
     if (!readme.includes('v' + version)) problems.push('发行版 README 里没有版本号 v' + version);
@@ -287,7 +401,6 @@ function verify(files) {
         const a = sha256(fs.readFileSync(path.join(ROOT, 'js', 'pet', 'config.js')));
         const b = sha256(fs.readFileSync(path.join(STAGE, 'js', 'pet', 'config.js')));
         if (a !== b) problems.push('用 pet.yaml 重新编译出的 config.js 与仓库版本不一致');
-        fs.rmSync(path.join(STAGE, 'js', 'pet-config.json'), { force: true });   // 编译副产物，不发行
     }
 
     if (problems.length) {

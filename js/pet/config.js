@@ -16,13 +16,14 @@ export default {
     ],
     "idleSleepMs": 150000,
     "drag": {
-        "enabled": false,
+        "enabled": true,
         "thresholdPx": 6
     },
     "click": {
         "particleCount": 3
     },
     "ui": {
+        "wordsPerMinute": 300,
         "actionHideDelayMs": 320,
         "actionFadeMs": 140
     },
@@ -431,13 +432,13 @@ export default {
     },
     "persona": {
         "name": "大肥鱼",
-        "alt": "鲸鱼娘大肥鱼",
+        "alt": "鲸鱼娘{pet}",
         "icons": {
             "feed": "🍚",
             "restore": "🐳"
         },
-        "about": "我是大肥鱼，一只住在博客里的鲸鱼娘。点我、拖我、喂我白米饭，或者随便和我聊聊～",
-        "sleep": "……（大肥鱼靠着鲸鱼尾巴睡着了）",
+        "about": "我是{pet}，一只住在博客里的鲸鱼娘。点我、拖我、喂我白米饭，或者随便和我聊聊～",
+        "sleep": "……（{pet}靠着鲸鱼尾巴睡着了）",
         "feed": [
             "谢谢！白米饭最香了。",
             "呜哇，是热腾腾的米饭！好感度上升。",
@@ -461,7 +462,7 @@ export default {
                 "晚上适合复盘，把今天的卡点记下来吧。"
             ]
         },
-        "firstMeet": "第一次见？我是大肥鱼，住在这个角落里。",
+        "firstMeet": "第一次见？我是{pet}，住在这个角落里。",
         "again": "又见面了。",
         "streak3": "又见面了，第 {n} 天。",
         "streak7": "你来第 {n} 天啦，我已经认得你了。"

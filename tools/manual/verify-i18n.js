@@ -2,14 +2,14 @@ const { spawn } = require('child_process');
 const CHROME = 'D:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const PORT = Number(process.argv[3] || 9418);
 const BASE = 'http://127.0.0.1:' + (process.argv[2] || '8115');
-const PAGES = ['index.html', 'home.html', 'config-editor.html', 'zone-editor.html', 'rules-editor.html', 'docs.html?f=KNOWLEDGE.md'];
+const PAGES = ['demo.html', 'index.html', 'config-editor.html', 'zone-editor.html', 'rules-editor.html', 'docs.html?f=KNOWLEDGE.md'];
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 (async () => {
     const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-sandbox',
         `--remote-debugging-port=${PORT}`, '--user-data-dir=D:\\Users\\User\\pet-lab\\.chrome-v1',
-        `${BASE}/home.html`], { stdio: 'ignore' });
+        `${BASE}/index.html`], { stdio: 'ignore' });
 
     let ws, id = 0;
     const pending = new Map();

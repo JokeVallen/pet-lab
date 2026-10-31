@@ -16,6 +16,7 @@
 import zh from './zh.js';
 import en from './en.js';
 import { PetSite } from '../site.js';
+import { makeFill } from './expr.js';
 
 const PACKS = { zh: zh, en: en };
 const FALLBACK = 'zh';
@@ -63,12 +64,32 @@ function walk(pack, path) {
     return cur;
 }
 
-function fill(text, vars) {
-    if (!vars) return text;
-    return String(text).replace(/\{(\w+)\}/g, function (m, k) {
-        return Object.prototype.hasOwnProperty.call(vars, k) ? String(vars[k]) : m;
-    });
+/* 全局占位符：由宿主注册（宠物名这类"改一处、全站生效"的值）。
+ * 任何文案——内容包里的、配置 persona 里的——都能直接写 {name}，
+ * 不用每个调用点各自传一遍，也不会因为某处漏传而定格成旧名字。 */
+let GLOBAL_VARS = {};
+let VAR_PROVIDER = null;
+
+function setVars(vars) {
+    GLOBAL_VARS = (vars && typeof vars === 'object') ? vars : {};
 }
+
+/* 提供者：每次替换时现取，语言、名字改了立刻生效，不用重新注册 */
+function setVarProvider(fn) {
+    VAR_PROVIDER = (typeof fn === 'function') ? fn : null;
+}
+
+function currentVars() {
+    if (!VAR_PROVIDER) return GLOBAL_VARS;
+    try {
+        return Object.assign({}, VAR_PROVIDER() || {}, GLOBAL_VARS);
+    } catch (e) {
+        return GLOBAL_VARS;
+    }
+}
+
+/* 表达式实现在 expr.js：运行时与编辑器预览共用同一份 */
+const fill = makeFill(currentVars);
 
 function raw(path) {
     const hit = walk(PACKS[current], path);
@@ -120,6 +141,10 @@ function setLang(code) {
 
 export const PetContent = {
     get lang() { return current; },
+    get vars() { return Object.assign({}, currentVars()); },
+    setVars: setVars,
+    setVarProvider: setVarProvider,
+    fill: fill,
     get locales() { return Object.keys(PACKS).map(function (k) { return { code: k, label: PACKS[k].meta.label }; }); },
     t: t,
     pick: pick,

@@ -50,6 +50,37 @@ if (Array.isArray(patch.stateRules)) {
     applied.push('policy.stateRules');
 }
 
+/* 文案：补齐或更新 persona 下的若干键。
+ * 只动补丁里出现的键，其余（name / icons / 别的语言的覆盖）原样保留；
+ * 值写 null 表示删掉这条覆盖，回落到内容包的默认文案。 */
+if (patch.personaCopy && typeof patch.personaCopy === 'object') {
+    cfg.persona = cfg.persona || {};
+    let touched = 0;
+    for (const [key, value] of Object.entries(patch.personaCopy)) {
+        const path = key.split('.');            // 支持 en.about 这种两级键
+        let node = cfg.persona;
+        for (let i = 0; i < path.length - 1; i += 1) {
+            node[path[i]] = node[path[i]] || {};
+            node = node[path[i]];
+        }
+        const leaf = path[path.length - 1];
+        if (value === null || value === undefined) {
+            delete node[leaf];
+        } else {
+            node[leaf] = value;
+        }
+        touched += 1;
+    }
+    /* 删空的子对象：全删光之后别留 persona.en: {} 这种空壳 */
+    for (const k of Object.keys(cfg.persona)) {
+        const v = cfg.persona[k];
+        if (v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) {
+            delete cfg.persona[k];
+        }
+    }
+    applied.push('persona(' + touched + ')');
+}
+
 if (!applied.length) { console.error('patch has nothing to apply'); process.exit(1); }
 
 fs.writeFileSync(SRC, yaml.dump(cfg, { lineWidth: 120, noRefs: true }), 'utf8');

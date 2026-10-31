@@ -31,7 +31,7 @@ const BASE = 'http://127.0.0.1:' + (process.argv[3] || 8156);
     await new Promise((r) => setTimeout(r, 2000));
     console.log('docs 导航:', await ev("[...document.querySelectorAll('header a')].map(a => a.textContent.trim()).join(' / ')"));
 
-    await send('Page.navigate', { url: BASE + '/home.html' });
+    await send('Page.navigate', { url: BASE + '/index.html' });
     await new Promise((r) => setTimeout(r, 1500));
     const shot = await send('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync('D:/Users/User/pet-lab/docs/screenshots/home.png', Buffer.from(shot.result.data, 'base64'));

@@ -63,9 +63,36 @@ var CONFIG = {
         return (CONFIG && CONFIG.persona) || {};
     }
 
+    /* 按当前语言取覆盖值：persona.en.about 优先于 persona.about。
+     * 留空视作没有，方便"只翻几条"的渐进式翻译。 */
+    function localeOf(key) {
+        var p = personaSrc();
+        var lang = (C && C.lang) || 'zh';
+        var block = p[lang];
+        if (!block || typeof block !== 'object') return undefined;
+        var v = block[key];
+        if (v === undefined || v === null || v === '') return undefined;
+        return v;
+    }
+
+    /* 对象型文案（greet 这类分组）合并一层：只覆盖写了的那几组 */
+    function mergeLine(base, over) {
+        if (!over) return base;
+        if (!base || typeof base !== 'object' || Array.isArray(base)) return over;
+        if (typeof over !== 'object' || Array.isArray(over)) return over;
+        var out = {};
+        Object.keys(base).forEach(function (k) { out[k] = base[k]; });
+        Object.keys(over).forEach(function (k) { out[k] = over[k]; });
+        return out;
+    }
+
     function persona(key, fallback) {
-        var v = personaSrc()[key];
-        return (v === undefined || v === null || v === '') ? fallback : v;
+        var over = localeOf(key);
+        var base = personaSrc()[key];
+        var v = over !== undefined ? mergeLine(base, over) : base;
+        v = (v === undefined || v === null || v === '') ? fallback : v;
+        /* 单条字符串也走一遍占位符：配置里写 {pet} 直接生效 */
+        return Array.isArray(v) ? v.map(function (one) { return C.fill(one); }) : C.fill(v);
     }
 
     /* 台词可以是单条字符串，也可以是数组（随机取一条） */
@@ -75,9 +102,10 @@ var CONFIG = {
         return v;
     }
 
-    /* {n} 占位符：用于"你来第 N 天"这类带数字的句子 */
+    /* {n} 占位符：用于"你来第 N 天"这类带数字的句子。
+     * 和 {pet} 走同一套替换，避免两套规则行为不一致。 */
     function fillNum(str, n) {
-        return String(str == null ? '' : str).replace(/\{n\}/g, String(n));
+        return C.fill(str, { n: n });
     }
 
     function icon(key, fallback) {
@@ -118,6 +146,96 @@ var CONFIG = {
         if (!PetConfig) return;
         deepMerge(CONFIG, PetConfig);
         if (PetConfig.animations) ANIMATIONS = PetConfig.animations;
+    })();
+
+    /* 全局占位符：文案里写 {pet} 就行，不用每个调用点各自传。
+     * 名字这类"改一处、全站生效"的值必须走这里，否则总有地方定格成旧名字。 */
+    /* ---------- 文案占位符 ----------
+     * 一处定义，全局可用：气泡、对话框、检索结果、规则台词、分区反应都走同一套。
+     * 取值现算，所以语言切换、浏览位置变化之后立刻生效。
+     */
+    /* 页面类型 → 可读名。{type} 给原始值，{pageName} 给这层翻译。 */
+    var PAGE_TYPE_KEY = {
+        home: 'pageType.home',
+        post: 'pageType.post',
+        tag: 'pageType.tag',
+        category: 'pageType.category',
+        archive: 'pageType.archive',
+        search: 'pageType.search',
+        '404': 'pageType.404',
+        page: 'pageType.page',
+        paper: 'pageType.paper'
+    };
+
+    var WEEKDAYS = {
+        zh: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
+        en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    };
+
+    function two(n) {
+        return (n < 10 ? '0' : '') + n;
+    }
+
+    function placeholderVars() {
+        var p = (CONFIG && CONFIG.persona) || {};
+        var lang = (C && C.lang) || 'zh';
+        var loc = (p[lang] && typeof p[lang] === 'object') ? p[lang] : {};
+        var pet = loc.name || p.name || CONFIG.name || '';
+        var now = new Date();
+
+        var v = {
+            /* 角色 */
+            pet: pet,
+            alt: loc.alt || p.alt || pet,
+
+            /* 连续性 / 状态 */
+            n: state.streak || 1,
+            streak: state.streak || 1,
+            affinity: Math.round(state.affinity || 0),
+            fullness: Math.round(state.fullness || 0),
+            pets: state.petCount || 0,
+
+            /* 时间 */
+            hour: now.getHours(),
+            time: two(now.getHours()) + ':' + two(now.getMinutes()),
+            date: now.getFullYear() + '-' + two(now.getMonth() + 1) + '-' + two(now.getDate()),
+            weekday: (WEEKDAYS[lang] || WEEKDAYS.zh)[now.getDay()]
+        };
+
+        /* 页面语境：没有站点时全部留空，文案里那些句子自然不出现 */
+        try {
+            var c = siteContext();
+            v.page = c.page || '';
+            v.type = c.type || '';
+            v.title = c.title || '';
+            v.tag = (c.tags && c.tags[0]) || '';
+            v.tags = (c.tags || []).join('、');
+            v.category = (c.categories && c.categories[0]) || '';
+            v.words = c.words || 0;
+            var wpm = Number(CONFIG.ui && CONFIG.ui.wordsPerMinute) || 300;
+            v.minutes = Math.max(1, Math.round((c.words || 0) / wpm));
+            v.pageName = C.t(PAGE_TYPE_KEY[c.type] || 'pageType.other');
+            v.percent = Math.round((c.scroll || 0) * 100);
+            v.comments = c.comments == null ? '' : c.comments;
+        } catch (e) {
+            var blank = ['page', 'type', 'title', 'tag', 'tags', 'category', 'comments'];
+            blank.forEach(function (k) { v[k] = ''; });
+            v.words = 0;
+            v.minutes = 1;
+            v.percent = 0;
+            v.pageName = C.t('pageType.other');
+        }
+
+        /* 时段问候：文案里写 {greeting} 就行，比写死在句子里灵活 */
+        var h = v.hour;
+        v.greeting = C.t(h < 5 ? 'time.night' : h < 11 ? 'time.morning' : h < 14 ? 'time.noon'
+            : h < 18 ? 'time.afternoon' : h < 23 ? 'time.evening' : 'time.night');
+
+        return v;
+    }
+
+    (function registerVars() {
+        C.setVarProvider(placeholderVars);
     })();
 
     /* 同页多只宠物：模块地址带 ?pet=<名字>，用它去 window.PetProfiles 里找覆盖项。
@@ -522,13 +640,30 @@ var CONFIG = {
         // 渲染交给 renderers 模块；宠物只提供容器与持久化回调
         var R = PetRenderers || {};
         var logEl = root.querySelector('.dp-chat-log');
-        var renderBub = R.bubble ? R.bubble(root) : function (txt, ms) { showBubble(txt, ms); };
+        /* 链接文字：优先用检索结果里拿到的标题，取不到就让渲染器退回明文路径。
+           不额外请求——标题只来自本次检索命中的行。 */
+        var linkOpts = {
+            titleOf: function (path) {
+                try {
+                    return (PetSearch && PetSearch.titleOf && PetSearch.titleOf(path)) || '';
+                } catch (e) {
+                    return '';
+                }
+            }
+        };
+        var renderBub = R.bubble ? R.bubble(root, linkOpts) : function (txt, ms) { showBubble(txt, ms); };
         var renderDlg = (R.dialog && logEl)
-            ? R.dialog(logEl, { max: CONFIG.chat.maxMessages, onRendered: function (txt) { pushChatLog('pet', txt); } })
+            ? R.dialog(logEl, {
+                max: CONFIG.chat.maxMessages,
+                titleOf: linkOpts.titleOf,
+                onRendered: function (txt) { pushChatLog('pet', txt); }
+            })
             : function (txt) { appendMessage('pet', txt); };
         KERNEL.register(PetSpeech.createSpeechModule({
             renderBubble: renderBub,
             renderDialog: renderDlg,
+            /* 占位符在出口统一替换：规则、分区、人设、检索结果一视同仁 */
+            transform: function (txt) { return C.fill(txt); },
             isDialogOpen: function () { return chatOpen; },
             dedupeMs: CONFIG.speech.dedupeMs,
             maxQueue: CONFIG.speech.maxQueue,
@@ -666,17 +801,29 @@ var CONFIG = {
     }
 
     /* 把回复里的站内路径变成可点的链接；其余文字原样输出 */
+    function linkTitle(path) {
+        try {
+            return (PetSearch && PetSearch.titleOf && PetSearch.titleOf(path)) || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
     function fillText(el, text) {
         var str = String(text || '');
         var re = /(\/[A-Za-z0-9_\-.~#/?=&%+]*[A-Za-z0-9_\-])/g;
         var last = 0;
         var m;
         while ((m = re.exec(str))) {
+            var path = m[1];
+            var label = linkTitle(path) || path;     // 没标题就明文，至少不丢信息
             if (m.index > last) el.appendChild(document.createTextNode(str.slice(last, m.index)));
             var a = document.createElement('a');
-            a.href = m[1];
+            a.href = path;
             a.className = 'dp-link';
-            a.textContent = m[1];
+            a.textContent = label;
+            a.title = label === path ? path : label;
+            a.setAttribute('data-path', path);
             a.addEventListener('click', function (ev) {
                 // 站内跳转也走 SiteAPI：不自己拼地址，也不依赖 pjax 的实现
                 if (!PetSite.available()) return;

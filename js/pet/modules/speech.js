@@ -28,10 +28,20 @@
 
         function dispatch(act) {
             var channel = pickChannel(act);
+            /* 所有出口都过一遍 transform：规则台词、分区反应、人设、检索结果…
+             * 不管谁写的字，{pet} 这类占位符都在这儿统一替换，不必每个生产者自己填。 */
+            var text = act.text;
+            if (typeof opts.transform === 'function') {
+                try {
+                    text = opts.transform(text);
+                } catch (e) {
+                    text = act.text;
+                }
+            }
             if (channel === 'dialog' && renderDialog) {
-                renderDialog(act.text);
+                renderDialog(text);
             } else if (renderBubble) {
-                renderBubble(act.text, act.ttl || bubbleTtl);
+                renderBubble(text, act.ttl || bubbleTtl);
             }
             return channel;
         }

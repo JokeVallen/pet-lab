@@ -84,7 +84,7 @@ Unmapped zones fall back to their parent (`head.crown → head`), then to `body`
 
 ## 6. Visual tools
 
-`home.html` is the entry point; all three editors open by double-click:
+`index.html` is the entry point; all three editors open by double-click:
 
 | Page | Purpose |
 | --- | --- |

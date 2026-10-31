@@ -44,7 +44,7 @@ const MIME = {
 function serve() {
     const server = http.createServer((req, res) => {
         let p = decodeURIComponent(req.url.split('?')[0]);
-        if (p === '/') p = '/index.html';
+        if (p === '/') p = '/demo.html';
         const file = path.join(ROOT, p);
         if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
             res.writeHead(404); res.end('not found'); return;

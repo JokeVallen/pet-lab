@@ -22,7 +22,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     };
 
     // 回到演示页并等待就绪
-    await send('Page.navigate', { url: BASE + '/index.html' });
+    await send('Page.navigate', { url: BASE + '/demo.html' });
     await sleep(4200);
 
     // 找到单帧图的缓存地址并确认可解码

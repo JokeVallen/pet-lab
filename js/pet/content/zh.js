@@ -3,9 +3,32 @@
  *
  * 这里只放"给访客看的字"：台词、回答、提示。代码里不再出现具体句子。
  * 想换角色/换语言，复制一份 xx.js 改内容即可，JS 不用动。
- * 模板变量用 {name} 形式，由 PetContent.t(key, vars) 替换。
+ * 模板变量用 {pet} / {name} 这类花括号写法，由 PetContent.fill 替换。
+ * 宠物名这类全局值由宿主预先注册（PetContent.setVarProvider），文案里直接写 {pet} 即可，
+ * 调用点不用各自传；局部变量同名时以局部为准。
  */
 export default {
+    /* 时段问候：{greeting} 用它，按当前钟点自动选 */
+    time: {
+        morning: '早上好',
+        noon: '中午好',
+        afternoon: '下午好',
+        evening: '晚上好',
+        night: '夜深了'
+    },
+    /* 页面类型的可读名：{pageName} 用它，{type} 仍是原始值（home/post/tag…） */
+    pageType: {
+        home: '首页',
+        post: '文章',
+        tag: '标签页',
+        category: '分类页',
+        archive: '归档',
+        search: '搜索页',
+        404: '找不到页面',
+        page: '页面',
+        paper: '论文',
+        other: '页面'
+    },
     meta: {
         code: 'zh',
         label: '中文',
@@ -22,16 +45,16 @@ export default {
     },
 
     ui: {
-        chatAria: '和{name}聊天',
-        chatPlaceholder: '和{name}说点什么…',
+        chatAria: '和{pet}聊天',
+        chatPlaceholder: '和{pet}说点什么…',
         chatClose: '关闭对话',
         inputAria: '输入消息',
         send: '发送',
         feed: '投喂',
         chat: '聊天',
-        hide: '隐藏{name}',
-        pet: '摸摸{name}',
-        restore: '召回{name}',
+        hide: '隐藏{pet}',
+        pet: '摸摸{pet}',
+        restore: '召回{pet}',
         credit: '动画素材 <a href="https://github.com/PC2005-cloud/dsh-pet" target="_blank" rel="noopener nofollow">dsh-pet</a> · 角色 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank" rel="noopener nofollow">CC BY-NC-SA 4.0</a>'
     },
 
@@ -70,7 +93,7 @@ export default {
             { id: 'hungry', match: '饿|吃|鱼|投喂|喂', lines: ['想吃白米饭……点一下 🍚 就能喂我。', '肚子在叫了，有米饭吗？'] },
             { id: 'tired', match: '累|难过|焦虑|压力|烦', lines: ['先休息五分钟吧。写不完的代码不会跑掉，但你会的。', '要不要先站起来走两步？我在这儿等你。'] },
             { id: 'praise', match: '谢谢|喜欢|可爱|爱你|棒', lines: ['嘿嘿，被夸到了。好感度 +1！', '被你这么说，尾巴都翘起来了。'] },
-            { id: 'who', match: '你是谁|你叫什么|什么鲸鱼|deepseek', flags: 'i', lines: ['我是博客里的鲸鱼娘大肥鱼，不是官方产品哦，只是一只住在网页角落里的小鲸鱼。'] },
+            { id: 'who', match: '你是谁|你叫什么|什么鲸鱼|deepseek', flags: 'i', lines: ['我是博客里的鲸鱼娘{pet}，不是官方产品哦，只是一只住在网页角落里的小鲸鱼。'] },
             { id: 'night', match: '晚安|睡觉|困', lines: ['晚安，早点休息。我会在角落里打盹。'] },
             { id: 'rice', match: '米饭|饭|饿|吃', lines: ['白米饭才是正经饭，点 🍚 喂我。', '一碗就够了……好吧，两碗。'] },
             { id: 'drag', match: '拖|抓|拎', lines: ['别拎我尾巴！', '被抓起来的时候我会缩一下，正常的。'] },
@@ -139,10 +162,10 @@ export default {
         kindKnowledge: '知识卡',
         kindAlgorithm: '算法',
         unavailable: '这一页没接上站点的检索接口，我先没法翻库。',
-        closest: '最接近的是{kind}「{title}」{more}：{url}',
-        listHead: '最接近的是{kind}「{title}」：{url}',
+        closest: '最接近的是{kind}：{url}{more}',
+        listHead: '最接近的是{kind}：{url}',
         andMore: '，另外还有 {n} 条',
-        listItem: '· 「{title}」{url}',
+        listItem: '· {url}',
         listMore: '……还有 {n} 条',
         stopwords: ['有没有', '有没', '没有', '关于', '相关', '相关的', '文章', '卡片', '知识', '一下', '帮我', '找找', '看看', '什么', '哪些', '这个', '那个', '的', '了', '吗', '呢', '和', '与'],
         intent: '有没有|找一下|帮我找|搜一[下搜]|查一下|关于|相关的|哪篇|哪张|哪些文章|站内'

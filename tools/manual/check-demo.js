@@ -8,7 +8,7 @@ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 (async () => {
     const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-sandbox',
         `--remote-debugging-port=${PORT}`, '--user-data-dir=D:\\Users\\User\\pet-lab\\.chrome-t2',
-        `${BASE}/home.html`], { stdio: 'ignore' });
+        `${BASE}/index.html`], { stdio: 'ignore' });
 
     let ws, id = 0;
     const pending = new Map();
@@ -38,7 +38,7 @@ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
         await send('Runtime.evaluate', { expression: "localStorage.setItem('pet-i18n','en')", returnByValue: true });
         await send('Page.enable');
-        await send('Page.navigate', { url: BASE + '/index.html' });
+        await send('Page.navigate', { url: BASE + '/demo.html' });
         await sleep(3000);
 
         const check = await send('Runtime.evaluate', {

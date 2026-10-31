@@ -1,7 +1,7 @@
 /*!
  * mock-site.js —— 演示页上的 SiteAPI 假实现（对齐 1.1.0 契约）
  *
- * 只在 index.html?mock=1 时加载，用来在没有博客的情况下验证
+ * 只在 demo.html?mock=1 时加载，用来在没有博客的情况下验证
  * "宠物只通过 window.SiteAPI 说话"这条链路：
  * 上下文元数据、轻量 ready、按需 readyContent、检索、阅读位置、动作、本地状态。
  *
