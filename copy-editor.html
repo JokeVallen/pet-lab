@@ -108,7 +108,7 @@ let SERVER_OK = null;
 async function hasServer() {
     if (SERVER_OK !== null) return SERVER_OK;
     try {
-        const r = await fetch('/api/version', { cache: 'no-store' });
+        const r = await fetch('/api/version', { cache: 'no-store', method: 'HEAD' });
         SERVER_OK = r.ok;
     } catch (e) {
         SERVER_OK = false;
@@ -446,7 +446,7 @@ async function saveCopy() {
         const res = await fetch('/api/patch', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ patch: { personaCopy: buildPatch() } })
+            body: JSON.stringify({ patch: Object.assign({ personaCopy: buildPatch() }, await petTarget()) })
         });
         const data = await res.json();
         if (data.ok) {
@@ -486,8 +486,21 @@ document.getElementById('file').addEventListener('change', (e) => {
 PetI18n.onChange(() => render());
 
 boot();
+/* 多宠物合集：配置是多只时，补丁要指明改哪一只 */
+async function petTarget() {
+    try {
+        const r = await fetch('config/pet.yaml?ts=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) return {};
+        const text = await r.text();
+        const d = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+        if (!d || !Array.isArray(d.pets)) return {};
+        return { pet: d.active || (d.pets[0] && d.pets[0].id) };
+    } catch (e) { return {}; }
+}
+
 </script>
 <script type="module">
+/* 只取表达式引擎，不碰宠物入口：导入 js/pet/index.js 会顺带把宠物挂载到页面上 */
 import { makeFill } from './js/pet/content/expr.js';
 window.PetFill = makeFill(() => window.__copyVars());
 /* 表达式引擎就绪后重渲一次预览 */

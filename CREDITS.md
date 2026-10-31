@@ -18,7 +18,7 @@ Code is MIT; artwork is CC BY-NC-SA 4.0 (see [LICENSE-ASSETS.md](LICENSE-ASSETS.
 ## 角色形象 / Character design
 
 - 女仆鲸鱼娘（DeepSeek 版）设计 / Maid whale-girl (DeepSeek edition): [ZipZipPipe](https://space.bilibili.com/4168597)
-- 原创形象「溟月」/ 大肥鱼 / Original character "溟月": [上善无形](https://space.bilibili.com/4456176) ·
+- 原创形象「溟月」/ Original character "溟月": [上善无形](https://space.bilibili.com/4456176) ·
   [pixiv](https://www.pixiv.net/users/62155430)
 - 授权 / License: [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans)
 - 原作者声明 / Original statement: [bilibili 动态](https://www.bilibili.com/opus/1247156596114456581)

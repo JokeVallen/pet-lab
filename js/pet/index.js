@@ -1,5 +1,5 @@
 /*!
- * 博客宠物 · 大肥鱼（鲸鱼娘）
+ * 站点桌宠（示例角色：鲸鱼娘）
  *
  * 播放器与调度逻辑移植自 PC2005-cloud/dsh-pet：
  *   - 选择逻辑  ← src/shared/pickers.ts   (pick / pickWeightedCategory / rollKind / pickCategoryAction)
@@ -44,7 +44,7 @@ import { PetContent } from './content/index.js';
 const C = PetContent;
 
 var CONFIG = {
-        name: '大肥鱼',
+        name: '示例角色',
         /* 投影：x 正数向右，角色看起来偏左就把它调大 */
         shadow: { offsetX: 0, offsetY: 10, blur: 14, color: 'rgba(33, 72, 145, 0.16)' },
         storageKey: 'deepseek-pet-v4',
