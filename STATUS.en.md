@@ -6,7 +6,7 @@
 
 ## 1. What this is
 
-A refactor of the blog pet “大肥鱼” from a monolith into a **portable, pluggable** system.
+A refactor of a site pet from a monolith into a **portable, pluggable** system.
 
 ```
 site (data + events) ──signals──▶ rules ──intents──▶ pet modules

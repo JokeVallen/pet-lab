@@ -85,7 +85,7 @@ let SERVER_OK = null;
 async function hasServer() {
     if (SERVER_OK !== null) return SERVER_OK;
     try {
-        const r = await fetch('/api/version', { cache: 'no-store' });
+        const r = await fetch('/api/version', { cache: 'no-store', method: 'HEAD' });
         SERVER_OK = r.ok;
     } catch (e) {
         SERVER_OK = false;
@@ -1075,7 +1075,7 @@ async function saveZones() {
     const res = await fetch('/api/patch', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ patch: { zones: cleanZones, zoneReactions: reactions } })
+            body: JSON.stringify({ patch: Object.assign({ zones: cleanZones, zoneReactions: reactions }, await petTarget()) })
         });
         const data = await res.json();
         if (data.ok) {
@@ -1169,6 +1169,18 @@ pushHistory();
         document.getElementById('status').textContent = '读不到 config/pet.yaml，用的是内置默认分区';
     }
 })();
+/* 多宠物合集：配置是多只时，补丁要指明改哪一只 */
+async function petTarget() {
+    try {
+        const r = await fetch('config/pet.yaml?ts=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) return {};
+        const text = await r.text();
+        const d = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+        if (!d || !Array.isArray(d.pets)) return {};
+        return { pet: d.active || (d.pets[0] && d.pets[0].id) };
+    } catch (e) { return {}; }
+}
+
 </script>
 <script src="assets/i18n.js"></script>
 

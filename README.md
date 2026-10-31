@@ -1,8 +1,8 @@
 # 宠物实验室（pet-lab）
 
-鲸鱼娘宠物「大肥鱼」的独立工具集。**不依赖 Hexo / Butterfly**，只靠一个静态服务器就能跑；接进任何站点只改一个适配层。
+可复用的桌宠工具集。**不依赖 Hexo / Butterfly**，只靠一个静态服务器就能跑；接进任何站点只改一个适配层。
 
-> 只想把它装到自己的博客？直接下发行版：[Releases · v1.0.3](https://github.com/JokeVallen/pet-lab/releases/latest)
+> 只想把它装到自己的博客？直接下发行版：[Releases · v1.0.4](https://github.com/JokeVallen/pet-lab/releases/latest)
 > （含运行时、素材、配置、三个离线编辑器与使用说明）。这个 `main` 分支是开发环境，额外含测试、探针与开发文档。
 >
 > 发行包里没有开发侧内容：测试面板、项目状态、开发沿革、已知问题这些在打包时就被删掉了，不是隐藏。
@@ -36,7 +36,7 @@
 
 ```yaml
 persona:
-  name: 大肥鱼
+  name: 小鲸
   about: 我是{pet}，一只住在博客里的鲸鱼娘。
   en:
     name: Dafeiyu            # 可选：英文界面下的称呼
@@ -49,9 +49,9 @@ persona:
 
 花括号里不只能放变量名，还能放一个极小的表达式：
 
-| 写法 | 含义 | 例（pet=大肥鱼、title 有值、tag 为空） |
+| 写法 | 含义 | 例（pet=小鲸、title 有值、tag 为空） |
 | --- | --- | --- |
-| `{x}` | 取值 | `{pet}` → 大肥鱼 |
+| `{x}` | 取值 | `{pet}` → 小鲸 |
 | `{x?a:b}` | 有值用 a，没有用 b | `{tag?有标签:没标签}` → 没标签 |
 | `{x??a}` | 空值才用 a | `{title??未知}` → 未知 |
 | `{!x?a:b}` | 条件取反 | `{!tag?没标签:有标签}` → 没标签 |
@@ -257,6 +257,43 @@ node tools/build-config.js --check    # 只校验，不写文件
 
 改过默认值之后记得 `--snapshot` 一次，否则「恢复默认」还是旧的。
 
+## 配置项参考
+
+每一项可改的键、默认值和它在哪个页面里改，见 **[docs/CONFIG.md](docs/CONFIG.md)**。
+清单只有一份（`assets/vars.js` 的 `config` 表），`node tools/check-config-doc.js` 会把它和
+`config/pet.yaml`、文档三者对账，对不上就非零退出——发版时会自动跑。
+
+### 多只宠物共用一份配置
+
+`config/pet.yaml` 支持两种写法，运行时都编译成同一份：
+
+```yaml
+# 单只（老写法照旧）
+name: 小鲸
+animDir: /images/pet/anim/
+```
+
+```yaml
+# 合集：多只共用一份文件，只编译 active 那只
+version: 1
+active: whale
+pets:
+  - id: whale
+    name: 小鲸
+    config:
+      name: 小鲸
+      animDir: /images/pet/anim/
+  - id: cat
+    name: 小橘
+    config:
+      name: 小橘
+      animDir: /images/pet/cat/
+```
+
+合集形态下，配置编辑器顶部会出现「编辑哪一只」的下拉框；分区、规则、文案三个编辑器保存时
+也会把补丁写进当前 active 的那一只，其它原样不动。`node tools/build-config.js` 只会把
+`active` 那一只编译进 `js/pet/config.js`。
+
 ## 配置
 
 `config/pet.yaml` → `js/pet-config.json` + `js/pet/config.js`。
@@ -324,7 +361,7 @@ window.PetProfiles = {
     offset: { x: 168, y: 8 },   // 错开位置，别叠在一起
     size: { width: 150, height: 133 },
     accent: { primary: '#f08a3c', primary2: '#e2603a', cyan: '#ffd08a' },
-    persona: { name: '小橘', about: '……', feed: ['……'] },
+    persona: { name: '实例 B', about: '……', feed: ['……'] },
     states: { idle: { clip: 'sad', pool: ['sad'] }, sleepy: { clip: 'doze', pool: ['doze'] }, busy: { clip: 'think', pool: ['think'] } }
   }
 };
@@ -333,7 +370,7 @@ window.PetProfiles = {
 <script type="module" src="/js/pet/index.js?pet=cat"></script>
 ```
 
-`pets.html` 是一个可运行的例子（大肥鱼 + 小橘）。要点：
+`pets.html` 是一个可运行的例子（两个实例）。要点：
 
 - `hostId`、`storageKey`、`offset` 三个必须各不相同，否则会抢同一个挂载点或叠在同一位置
 - `window.PetDebug[hostId]` 分别是两个实例的调试入口

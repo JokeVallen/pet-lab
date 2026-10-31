@@ -1,6 +1,6 @@
 # Pet Lab
 
-Standalone workspace for the whale-girl pet “大肥鱼”. **It does not depend on Hexo or Butterfly** — a static server is all it needs.
+Standalone workspace for a reusable site pet. **It does not depend on Hexo or Butterfly** — a static server is all it needs.
 It does not depend on Hexo or Butterfly; porting it to a site means editing a single adapter layer.
 
 ## Pages
@@ -284,7 +284,7 @@ window.PetProfiles = {
     offset: { x: 168, y: 8 },   // don't overlap
     size: { width: 150, height: 133 },
     accent: { primary: '#f08a3c', primary2: '#e2603a', cyan: '#ffd08a' },
-    persona: { name: '小橘', about: '…', feed: ['…'] },
+    persona: { name: '实例 B', about: '…', feed: ['…'] },
     states: { idle: { clip: 'sad', pool: ['sad'] }, sleepy: { clip: 'doze', pool: ['doze'] }, busy: { clip: 'think', pool: ['think'] } }
   }
 };

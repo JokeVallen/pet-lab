@@ -25,8 +25,8 @@
     ];
 
     var LIST = [
-        { key: 'pet', group: 'role', zh: '名字', en: 'Name', ex: '大肥鱼', exEn: 'Dafeiyu', src: 'persona.name' },
-        { key: 'alt', group: 'role', zh: '副名', en: 'Subname', ex: '鲸鱼娘大肥鱼', exEn: 'the whale girl', src: 'persona.alt' },
+        { key: 'pet', group: 'role', zh: '名字', en: 'Name', ex: '小鲸', exEn: 'Whale', src: 'persona.name' },
+        { key: 'alt', group: 'role', zh: '副名', en: 'Subname', ex: '鲸鱼娘小鲸', exEn: 'the whale girl', src: 'persona.alt' },
 
         { key: 'n', group: 'visit', zh: '连续来访天数', en: 'Streak days', ex: '3', exEn: '3', src: '本机记录', srcEn: 'local record' },
         { key: 'streak', group: 'visit', zh: '同 {n}', en: 'Alias of {n}', ex: '3', exEn: '3', src: '本机记录', srcEn: 'local record' },
@@ -55,13 +55,13 @@
         { key: 'name', group: 'ctx', zh: '语境名（如标签名）', en: 'Contextual name (e.g. a tag)', ex: 'Unity', exEn: 'Unity', src: '调用点传入', srcEn: 'passed by the caller', empty: { zh: '没传就保留原样', en: 'stays literal when not passed' } }
     ];
 
-    /* 表达式写法：假设 pet=大肥鱼、title=一篇文章的标题、tag 为空 */
+    /* 表达式写法：假设 pet=小鲸、title=一篇文章的标题、tag 为空 */
     var SYNTAX = [
         {
             code: '{pet}',
             zh: '直接取值。变量不存在时原样保留，方便发现写错的名字。',
             en: 'Plain value. Unknown names are left as-is so typos are visible.',
-            result: '大肥鱼'
+            result: '小鲸'
         },
         {
             code: "{title?'读《{title}》':'随便逛逛'}",
@@ -95,7 +95,76 @@
         }
     ];
 
-    window.PetVars = { groups: GROUPS, list: LIST, syntax: SYNTAX };
+
+    /* 配置字段清单：配置编辑器与 docs/CONFIG.md 共用这一份，
+     * 漏写或写错 key 由 tools/check-config-doc.js 对账。 */
+    var CFG = [
+        { g: 'identity', k: 'persona.name', where: 'config', zh: '对话标题与自称；文案里用 {pet} 引用', ex: '名字', def: '（必填）' },
+        { g: 'identity', k: 'name', where: 'config', zh: '内部标识，只用于日志与兜底，改它不改称呼', def: '（必填）' },
+        { g: 'identity', k: 'storageKey', where: 'config', zh: '本机存档键；换掉会让访客记录、位置、聊天全部重置', def: 'pet-v1' },
+        { g: 'identity', k: 'hostId', where: 'config', zh: '挂载点 id；同页放多月实例时每只都要不同', def: 'pet' },
+        { g: 'look', k: 'animDir', where: 'config', zh: '透明动画目录，clip 名拼在它后面', def: '/images/pet/anim/' },
+        { g: 'look', k: 'image', where: 'config', zh: '首帧占位图；不支持 WebM 时也用它', def: '/images/pet/anim/poster.webp' },
+        { g: 'look', k: 'shadow.offsetX', where: 'config', zh: '投影水平偏移，正数向右', def: '0' },
+        { g: 'look', k: 'shadow.offsetY', where: 'config', zh: '投影垂直偏移，越大越"飘"', def: '6' },
+        { g: 'look', k: 'shadow.blur', where: 'config', zh: '投影模糊半径', def: '10' },
+        { g: 'look', k: 'shadow.color', where: 'config', zh: '投影颜色（含透明度）', def: 'rgba(33,72,145,0.16)' },
+        { g: 'look', k: 'clipExt', where: 'config', zh: '动画扩展名；播放器目前只吃 WebM', def: 'webm' },
+        { g: 'look', k: 'size.width', where: 'config', zh: '立绘框宽，写进 CSS 变量', def: '190' },
+        { g: 'look', k: 'size.height', where: 'config', zh: '立绘框高', def: '169' },
+        { g: 'look', k: 'accent.primary', where: 'config', zh: '主题色主色', def: '#2f6fed' },
+        { g: 'look', k: 'accent.primary2', where: 'config', zh: '主题色渐变末端', def: '#3f9bf5' },
+        { g: 'look', k: 'accent.cyan', where: 'config', zh: '点缀色（高亮、光晕）', def: '#7ad9ff' },
+        { g: 'beat', k: 'idleRollMs', where: 'config', zh: '待机小动作的间隔区间 [最短, 最长]，毫秒', def: '[9000, 21000]' },
+        { g: 'beat', k: 'idleSleepMs', where: 'config', zh: '无操作多久后睡着，毫秒', def: '150000' },
+        { g: 'act', k: 'drag.enabled', where: 'config', zh: '能不能拖起来', def: 'true' },
+        { g: 'act', k: 'drag.thresholdPx', where: 'config', zh: '移动超过多少像素才算拖拽（否则算点击）', def: '6' },
+        { g: 'act', k: 'click.particleCount', where: 'config', zh: '点击时飘出的粒子数量', def: '6' },
+        { g: 'voice', k: 'speech.bubbleTtl', where: 'config', zh: '气泡停留时长，毫秒', def: '3200' },
+        { g: 'voice', k: 'speech.contextTtl', where: 'config', zh: '情境台词气泡停留时长', def: '6000' },
+        { g: 'voice', k: 'speech.dedupeMs', where: 'config', zh: '同一句在这段时间内不重复说', def: '45000' },
+        { g: 'voice', k: 'speech.maxQueue', where: 'config', zh: '待说队列上限，积压超过就丢弃', def: '3' },
+        { g: 'voice', k: 'chat.maxMessages', where: 'config', zh: '对话框保留多少条历史', def: '20' },
+        { g: 'ui', k: 'ui.actionHideDelayMs', where: 'config', zh: '鼠标离开后多久收起动作按钮', def: '320' },
+        { g: 'ui', k: 'ui.actionFadeMs', where: 'config', zh: '动作按钮淡入淡出时长', def: '140' },
+        { g: 'ui', k: 'ui.wordsPerMinute', where: 'config', zh: '算「要读几分钟」用的每分钟字数', def: '300' },
+        { g: 'rule', k: 'rules.defaultCooldown', where: 'config', zh: '情境规则默认冷却，秒', def: '60' },
+        { g: 'rule', k: 'rules.items', where: 'rules', zh: '情境规则条目（条件 → 台词 / 动作）', def: '[]' },
+        { g: 'search', k: 'search.maxResults', where: 'config', zh: '站内检索最多返回几条', def: '3' },
+        { g: 'anim', k: 'animations.idle', where: 'config', zh: '常驻待机动画池', def: '[]' },
+        { g: 'anim', k: 'animations.clicks', where: 'config', zh: '被点时随机挑的动画池', def: '[]' },
+        { g: 'anim', k: 'animations.drag', where: 'config', zh: '抓起时播的动画', def: '' },
+        { g: 'anim', k: 'animations.events.sleep', where: 'config', zh: '进入休眠时播一次', def: '' },
+        { g: 'anim', k: 'animations.events.eat', where: 'config', zh: '投喂时播一次', def: '' },
+        { g: 'state', k: 'states.*', where: 'config', zh: '每种状态：clip、pool、weight、loop', def: 'idle / sleepy / busy' },
+        { g: 'state', k: 'states.*.loop', where: 'config', zh: '只循环片段里的一段 [intro, end]，秒', def: '（整段循环）' },
+        { g: 'zone', k: 'zones', where: 'zone', zh: '可点击区域：矩形、标签、层级', def: '[]' },
+        { g: 'zone', k: 'zoneReactions', where: 'zone', zh: '每个区域被点时的动作与台词', def: '{}' },
+        { g: 'copy', k: 'persona.*', where: 'copy', zh: '全部台词：自我介绍、睡觉、投喂、问候、图标', def: '' },
+        { g: 'copy', k: 'persona.en', where: 'copy', zh: '英文台词层，缺的键回落到中文', def: '（无）' },
+        { g: 'site', k: 'policy.rollWeights', where: 'manual', zh: '动作随机权重（按事件名）', def: '{}' },
+        { g: 'site', k: 'policy.stateRules', where: 'rules', zh: '上下文 → 状态的映射', def: '[]' },
+        { g: 'site', k: 'policy.calendar', where: 'manual', zh: '节假日等日历规则', def: '{}' }
+    ];
+
+    var CFG_GROUPS = [
+        { id: 'identity', zh: '身份', en: 'Identity' },
+        { id: 'look', zh: '外观', en: 'Looks' },
+        { id: 'beat', zh: '节奏', en: 'Rhythm' },
+        { id: 'act', zh: '交互', en: 'Interaction' },
+        { id: 'voice', zh: '语言', en: 'Voice' },
+        { id: 'ui', zh: '界面', en: 'UI' },
+        { id: 'rule', zh: '规则', en: 'Rules' },
+        { id: 'search', zh: '检索', en: 'Search' },
+        { id: 'anim', zh: '动作库', en: 'Animations' },
+        { id: 'state', zh: '状态', en: 'States' },
+        { id: 'zone', zh: '分区', en: 'Zones' },
+        { id: 'copy', zh: '文案', en: 'Copy' },
+        { id: 'site', zh: '站点', en: 'Site' }
+    ];
+
+    var PetVars = { groups: GROUPS, list: LIST, syntax: SYNTAX, config: CFG, configGroups: CFG_GROUPS };
+    window.PetVars = PetVars;
 
     /** 按当前语言取字段 */
     PetVars.text = function (item, field, lang) {

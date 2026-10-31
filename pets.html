@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>两只宠物同页 · 大肥鱼 + 小橘</title>
+<title>同页多实例</title>
 <link rel="stylesheet" href="/css/deepseek-pet.css">
 <style>
     body {
@@ -35,14 +35,14 @@
 <div class="wrap">
     <h1>两只宠物同页</h1>
     <p class="lead">
-        右下角有两只：<b>大肥鱼</b>（默认配置）和 <b>小橘</b>（profile）。它们各自有独立的挂载点、
+        右下角有两只：<b>实例 A</b>（默认配置）和 <b>实例 B</b>（profile）。它们各自有独立的挂载点、
         <code>storageKey</code>、位置、尺寸、配色和人设——共用同一份代码。
     </p>
 
     <div class="row">
-        <button data-act="feed-whale">喂大肥鱼</button>
+        <button data-act="feed-whale">喂实例 A</button>
         <button data-act="feed-cat">喂小橘</button>
-        <button data-act="chat-whale">和大肥鱼聊天</button>
+        <button data-act="chat-whale">和实例 A 聊天</button>
         <button data-act="chat-cat">和小橘聊天</button>
         <button data-act="reset">清空两只的存档</button>
     </div>
@@ -60,7 +60,7 @@ window.PetProfiles = {
     offset: { x: 172 },
     size: { width: 150, height: 133 },
     accent: { primary: '#f08a3c', primary2: '#e2603a', cyan: '#ffd08a' },
-    persona: { name: '小橘', about: '……', feed: ['……'] },
+    persona: { name: '实例 B', about: '……', feed: ['……'] },
     states: { idle: { clip: 'sad', pool: ['sad'] }, … }
   }
 };

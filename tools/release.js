@@ -389,10 +389,26 @@ function verify(files) {
         }
     }
 
+    /* 配置清单 / 配置文件 / 配置文档三者必须一致 */
+    {
+        const r = run('node', [path.join(ROOT, 'tools', 'check-config-doc.js')]);
+        if (r.code !== 0) problems.push('配置文档对账失败:\n' + r.out.trim().split('\n').slice(-6).join('\n'));
+    }
+
+    /* 发行包里的页面不能在 file:// 下引用根路径资源（双击打开会 404） */
+    for (const rel of files.filter((f) => f.endsWith('.html'))) {
+        const text = fs.readFileSync(path.join(STAGE, rel), 'utf8');
+        const abs = text.match(/(?:src|href)="\/(?!\/)[^"]+"/g);
+        if (abs) problems.push('发行包里用了根路径引用: ' + rel + ' → ' + abs[0]);
+    }
+
     /* README 的版本号必须是这次要发的版本 */
     const readme = fs.readFileSync(path.join(STAGE, 'README.md'), 'utf8');
     if (!readme.includes('v' + version)) problems.push('发行版 README 里没有版本号 v' + version);
     if (readme.includes('{{VERSION}}')) problems.push('发行版 README 的版本占位符没被替换');
+
+    /* 发行包必须自带「怎么打开」的说明 */
+    if (!fs.existsSync(path.join(STAGE, '如何打开.txt'))) problems.push('发行包缺少「如何打开.txt」');
 
     /* 配置编译链在发行包里也要能跑 */
     const cfg = run('node', [path.join(STAGE, 'tools', 'build-config.js')], { cwd: STAGE });
@@ -482,6 +498,11 @@ function publish(info) {
 console.log('版本：' + TAG + '   模式：' + (PUSH ? '推送并发布' : '只本地构建'));
 
 const files = stage();
+
+/* 零依赖提示：双击可用 / 起服务才可写 */
+fs.copyFileSync(path.join(ROOT, 'release', '如何打开.txt'), path.join(STAGE, '如何打开.txt'));
+files.push('如何打开.txt');
+console.log('  说明：如何打开.txt → 发行根目录');
 console.log('  组装：' + files.length + ' 个文件 → ' + path.relative(ROOT, STAGE));
 
 verify(files);

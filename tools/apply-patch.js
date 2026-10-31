@@ -30,7 +30,23 @@ const patchPath = process.argv[2];
 if (!patchPath) { console.error('usage: node tools/apply-patch.js <patch.json>'); process.exit(1); }
 
 const patch = JSON.parse(fs.readFileSync(patchPath, 'utf8'));
-const cfg = yaml.load(fs.readFileSync(SRC, 'utf8'));
+const doc = yaml.load(fs.readFileSync(SRC, 'utf8'));
+
+/* 合集文件：改动只落到被指定的那一只（patch.pet），没指定就落到 active 那只 */
+let cfg = doc;
+let pets = null;
+let activePet = null;
+if (doc && typeof doc === 'object' && Array.isArray(doc.pets)) {
+    pets = doc.pets;
+    activePet = patch.pet || doc.active || (pets[0] && pets[0].id);
+    const hit = pets.find((x) => x && x.id === activePet);
+    if (!hit) {
+        console.error('patch.pet 指向不存在的宠物：' + activePet);
+        process.exit(1);
+    }
+    hit.config = hit.config && typeof hit.config === 'object' ? hit.config : {};
+    cfg = hit.config;
+}
 
 const applied = [];
 if (Array.isArray(patch.zones)) { cfg.zones = patch.zones; applied.push('zones'); }
@@ -83,5 +99,5 @@ if (patch.personaCopy && typeof patch.personaCopy === 'object') {
 
 if (!applied.length) { console.error('patch has nothing to apply'); process.exit(1); }
 
-fs.writeFileSync(SRC, yaml.dump(cfg, { lineWidth: 120, noRefs: true }), 'utf8');
-console.log('patched: ' + applied.join(', '));
+fs.writeFileSync(SRC, yaml.dump(doc, { lineWidth: 120, noRefs: true }), 'utf8');
+console.log('patched' + (activePet ? ' [' + activePet + ']' : '') + ': ' + applied.join(', '));

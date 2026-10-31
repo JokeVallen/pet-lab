@@ -23,7 +23,7 @@ PET = ROOT / "js" / "pet"
 
 ALLOW = {
     "core.js": ["throw new Error("],
-    "index.js": ["console.warn(", "name: '大肥鱼'"],
+    "index.js": ["console.warn(", "name: value='名称 A'"],
     "adapter.js": ["console.warn("],
     "modules/player.js": ["console.warn("],
     "modules/rules.js": ["label:", "legacyLabel:"],

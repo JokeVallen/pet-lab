@@ -50,7 +50,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
             const m = JSON.parse(e.data);
             if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); return; }
             if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error') {
-                problems.push('log    ' + (m.params.entry.url || '?') + '  ' + m.params.entry.text.slice(0, 130));
+                if (!/\/api\//.test(m.params.entry.url || '')) {
+                    problems.push('log    ' + (m.params.entry.url || '?') + '  ' + m.params.entry.text.slice(0, 130));
+                }
             }
             if (m.method === 'Runtime.exceptionThrown') {
                 const d = m.params.exceptionDetails;
@@ -59,7 +61,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
             }
             if (m.method === 'Network.responseReceived') {
                 const r = m.params.response;
-                if (r.status >= 400) problems.push('http' + r.status + ' ' + r.url);
+                /* /api/* 的 404 是预期：发行包通常放在纯静态托管下，没有本地服务。
+                 * 页面自己探测并降级，这里不计为问题。 */
+                const isApiProbe = /\/api\//.test(r.url);
+                if (r.status >= 400 && !isApiProbe) problems.push('http' + r.status + ' ' + r.url);
             }
         });
 

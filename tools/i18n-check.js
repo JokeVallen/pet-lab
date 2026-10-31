@@ -44,7 +44,7 @@ const MIME = {
 };
 
 /* 有 key 但仍是中文 —— 允许的例外（用户内容 / 角色名） */
-const ALLOW = [/大肥鱼/, /^head(\.|$)/, /^body(\.|$)/, /^tail$/];
+const ALLOW = [/^head(\.|$)/, /^body(\.|$)/, /^tail$/];
 
 const PAGES = [
     { file: 'demo.html', title: 'demo' },

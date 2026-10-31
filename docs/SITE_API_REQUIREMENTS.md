@@ -9,7 +9,7 @@
 | **需求条数** | 13（R1–R13） |
 | **英文版** | [SITE_API_REQUIREMENTS.en.md](SITE_API_REQUIREMENTS.en.md) |
 
-> **消费者**：pet-lab 的桌宠（大肥鱼）。它**只**通过 `window.SiteAPI` 与站点对话，
+> **消费者**：pet-lab 的桌宠。它**只**通过 `window.SiteAPI` 与站点对话，
 > 不查 DOM、不读 `content-db` 内部表、不碰 `localStorage`。
 > **依据**：`SITE_API_INTEGRATION_GUIDE.md`、`SITE_API.md`。
 > **状态**：本次 13 条已在 SiteAPI 1.1.0 交付并由宠物侧接入验证；下面的状态表说明每条的落地情况。

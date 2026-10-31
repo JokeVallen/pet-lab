@@ -73,25 +73,55 @@ if (has('--snapshot')) {
 
 const text = fs.readFileSync(SRC, 'utf8');
 
-let cfg;
+/*
+ * 两种文件形态都接受：
+ *   单只   顶层直接是配置键（name / animDir / persona …）—— 老文件照旧
+ *   合集   顶层是 { version, active, pets: [ { id, name, config: {...} } ] }
+ * 运行时只认「一只」的形态，合集在编译时挑出 active 那一只。
+ */
+function isCollection(raw) {
+    return raw && typeof raw === 'object' && Array.isArray(raw.pets);
+}
+
+function pickFromCollection(raw) {
+    if (!raw.pets.length) {
+        console.error('pets 是空的，至少要有一只');
+        process.exit(1);
+    }
+    const active = raw.active || (raw.pets[0] && raw.pets[0].id);
+    const hit = raw.pets.find((p) => p && p.id === active);
+    if (!hit) {
+        console.error('active 指向不存在的宠物：' + active + '（可选：' + raw.pets.map((p) => p.id).join(', ') + '）');
+        process.exit(1);
+    }
+    const cfg = hit.config && typeof hit.config === 'object' ? hit.config : {};
+    if (!cfg.name) cfg.name = hit.id;
+    return cfg;
+}
+
+let raw;
 try {
-    cfg = yaml.load(text);
+    raw = yaml.load(text);
 } catch (e) {
     console.error('YAML parse failed: ' + e.message);
     process.exit(1);
 }
 
-if (!cfg || typeof cfg !== 'object') {
+if (!raw || typeof raw !== 'object') {
     console.error('config is empty or not an object');
     process.exit(1);
 }
+
+const COLLECTION = isCollection(raw);
+const cfg = COLLECTION ? pickFromCollection(raw) : raw;
 
 /* 默认值与当前值的段落差异：只提示，不改文件 */
 if (fs.existsSync(DEF)) {
     let def = null;
     try { def = yaml.load(fs.readFileSync(DEF, 'utf8')); } catch (e) { /* ignore */ }
     if (def && typeof def === 'object') {
-        const a = Object.keys(def), b = Object.keys(cfg);
+        const d = isCollection(def) ? (pickFromCollection(def) || {}) : def;
+        const a = Object.keys(d), b = Object.keys(cfg);
         const missing = a.filter((k) => b.indexOf(k) < 0);
         const extra = b.filter((k) => a.indexOf(k) < 0);
         if (missing.length) console.log('提示：默认配置里有、当前没有的段：' + missing.join(', '));
@@ -111,4 +141,5 @@ const js = '/* generated from config/pet.yaml by tools/build-config.js -- do not
 fs.writeFileSync(OUT_JS, js, 'utf8');
 
 console.log('yaml ok, keys: ' + Object.keys(cfg).join(', '));
+if (COLLECTION) console.log('合集：' + raw.pets.length + ' 只，编译 active = ' + raw.active);
 console.log('written: ' + path.relative(ROOT, OUT_JSON) + ' & ' + path.relative(ROOT, OUT_JS));

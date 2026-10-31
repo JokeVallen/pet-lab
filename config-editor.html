@@ -115,6 +115,14 @@
         font: 12px/1.55 Consolas, monospace; overflow: auto; max-height: 62vh;
     }
     .panel .tip { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+    .petbar {
+        display: flex; align-items: center; gap: 10px; margin: 0 0 14px;
+        padding: 10px 14px; border-radius: 10px; background: #f3f7ff; border: 1px solid #dbe7fb;
+        font-size: 13px;
+    }
+    .petbar label { font-weight: 600; color: #3f4c5f; }
+    .petbar select { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+    .petbar .petbarnote { color: var(--muted); font-size: 12.5px; flex: 1; }
     .banner {
         display: none; margin: 0 0 14px; padding: 12px 14px; border-radius: 10px;
         background: #fff8e8; border: 1px solid #f2ddb0; font-size: 12.5px;
@@ -135,7 +143,7 @@ let SERVER_OK = null;
 async function hasServer() {
     if (SERVER_OK !== null) return SERVER_OK;
     try {
-        const r = await fetch('/api/version', { cache: 'no-store' });
+        const r = await fetch('/api/version', { cache: 'no-store', method: 'HEAD' });
         SERVER_OK = r.ok;
     } catch (e) {
         SERVER_OK = false;
@@ -147,7 +155,7 @@ function noteNoServer() {
     if (document.getElementById('noServerNote')) return;
     const d = document.createElement('div');
     d.id = 'noServerNote';
-    d.textContent = '未连接本地服务：素材列表、写盘与编译不可用，可继续导出 YAML。';
+    d.textContent = '未连接本地服务（双击打开的页面不能写盘）：可以浏览和编辑，改完点「下载 pet.yaml」或「复制 YAML」存回去。';
     d.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:200;' +
         'background:#1f2a37;color:#fff;font:12.5px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;' +
         'padding:7px 14px;border-radius:18px;box-shadow:0 6px 20px rgba(20,40,80,.25)';
@@ -168,13 +176,19 @@ function noteNoServer() {
     <button onclick="copyYaml()" data-i18n="cfg.copy">复制 YAML</button>
     <button onclick="downloadYaml()" data-i18n="cfg.download">下载 pet.yaml</button>
     <button onclick="openHistory()" data-i18n="cfg.history">历史版本</button>
+    <button onclick="saveAsDefault()" data-i18n="cfg.asDefault">存为默认值</button>
     <button class="primary" onclick="saveAndBuild()" data-i18n="cfg.save">保存并编译</button>
 </header>
 
 <main>
     <section>
+        <div class="petbar" id="petbar" style="display:none">
+            <label for="petSel" data-i18n="cfg.petPick">编辑哪一只</label>
+            <select id="petSel"></select>
+            <span class="petbarnote" id="petNote"></span>
+        </div>
         <div class="banner" id="banner">
-            浏览器不让网页自动读取本地文件。点顶部「打开 YAML」选择 <code>config/pet.yaml</code>，
+            读不到 <code>config/pet.yaml</code>（双击打开或没有本地服务）。点顶部「打开 YAML」选择它，
             或把内容粘到下面。
             <textarea id="pasteYaml" placeholder="粘贴 pet.yaml 全文…"></textarea>
             <button onclick="parsePaste()" data-i18n="cfg.parsePaste">解析粘贴内容</button>
@@ -204,6 +218,69 @@ function noteNoServer() {
 
 let cfg = null;
 let base = null;   // 默认值，用于「恢复默认」
+
+/* 多宠物合集：{ version, active, pets: [ { id, name, config } ] }
+ * 单只文件时 doc 为 null，其余逻辑完全不变。 */
+let doc = null;
+let petId = null;
+
+/* ---------- 多宠物合集 ----------
+ * adoptDoc() 是唯一入口：单只文件直接放进编辑器，合集则挑出选中那只。
+ * 切换宠物时把当前那只写回 doc.config，所以来回切不会丢改动。 */
+function isCollection(d) {
+    return d && typeof d === 'object' && Array.isArray(d.pets);
+}
+
+function adoptDoc(loaded) {
+    if (isCollection(loaded)) {
+        if (!loaded.pets.length) throw new Error('pets 是空的');
+        doc = loaded;
+        const want = loaded.active || (loaded.pets[0] && loaded.pets[0].id);
+        const hit = loaded.pets.find((x) => x && x.id === want) || loaded.pets[0];
+        doc.active = hit.id;
+        petId = hit.id;
+        cfg = hit.config && typeof hit.config === 'object' ? hit.config : {};
+        hit.config = cfg;
+    } else {
+        doc = null;
+        petId = null;
+        cfg = loaded;
+    }
+    base = JSON.parse(JSON.stringify(cfg));
+    renderPetBar();
+}
+
+function flushCurrent() {
+    if (!doc) return;
+    const hit = doc.pets.find((x) => x.id === petId);
+    if (hit) hit.config = cfg;
+}
+
+function renderPetBar() {
+    const bar = document.getElementById('petbar');
+    const sel = document.getElementById('petSel');
+    const note = document.getElementById('petNote');
+    if (!bar || !sel) return;
+    if (!doc) { bar.style.display = 'none'; return; }
+
+    bar.style.display = '';
+    sel.innerHTML = '';
+    doc.pets.forEach((x) => sel.appendChild(new Option((x.name || x.id) + '  (' + x.id + ')', x.id)));
+    sel.value = petId;
+    sel.onchange = () => {
+        flushCurrent();
+        doc.active = sel.value;
+        petId = sel.value;
+        const hit = doc.pets.find((x) => x.id === petId);
+        cfg = hit.config && typeof hit.config === 'object' ? hit.config : {};
+        hit.config = cfg;
+        base = JSON.parse(JSON.stringify(cfg));
+        render();
+        resetHistory();
+        document.getElementById('status').textContent = T('正在编辑') + ' ' + (hit.name || hit.id);
+    };
+    if (note) note.textContent = T('这份文件里有') + ' ' + doc.pets.length + ' ' + T('只宠物；保存时只写回选中的这一只');
+}
 
 /* ---------- 撤销 / 重做 ---------- */
 const history = { stack: [], index: -1, limit: 120 };
@@ -309,7 +386,13 @@ const SCHEMA = [
             { path: ['shadow', 'offsetX'], label: '水平偏移', hint: '正数向右；偏左就调大', type: 'range', min: -20, max: 20, step: 1, unit: 'px' },
             { path: ['shadow', 'offsetY'], label: '垂直偏移', hint: '越大越"飘在上面"', type: 'range', min: 0, max: 40, step: 1, unit: 'px' },
             { path: ['shadow', 'blur'], label: '模糊半径', hint: '越大越柔和', type: 'range', min: 0, max: 40, step: 1, unit: 'px' },
-            { path: ['shadow', 'color'], label: '颜色', hint: '带透明度的颜色值', type: 'color' }
+            { path: ['shadow', 'color'], label: '颜色', hint: '带透明度的颜色值', type: 'color' },
+            { path: ['clipExt'], label: '动画格式', hint: '素材扩展名。播放器目前只吃带 alpha 的 WebM，别的新格式要先换播放器', type: 'select', options: ['webm'] },
+            { path: ['size', 'width'], label: '立绘框宽', hint: '写进 CSS 变量；同页放两只时每只都要不同', type: 'number', min: 80, max: 600, step: 2, unit: 'px' },
+            { path: ['size', 'height'], label: '立绘框高', hint: '按素材比例，和宽一起决定占位大小', type: 'number', min: 80, max: 600, step: 2, unit: 'px' },
+            { path: ['accent', 'primary'], flat: true, label: '主题色（主）', hint: '按钮、进度条等强调色', type: 'color' },
+            { path: ['accent', 'primary2'], flat: true, label: '主题色（辅）', hint: '渐变的另一端', type: 'color' },
+            { path: ['accent', 'cyan'], flat: true, label: '主题色（点缀）', hint: '高亮、光晕', type: 'color' }
         ]
     },
     {
@@ -356,10 +439,19 @@ const SCHEMA = [
         ]
     },
     {
+        title: '界面',
+        desc: '左侧那排按钮（投喂 / 聊天 / 隐藏）什么时候收起、淡入淡出多快。数值按手感调。',
+        fields: [
+            { path: ['ui', 'actionHideDelayMs'], label: '按钮收起宽限', hint: '鼠标离开后等这么久再收，防止横穿时点空', type: 'range', min: 0, max: 2000, step: 20, unit: 'ms' },
+            { path: ['ui', 'actionFadeMs'], label: '淡入淡出时长', hint: '按钮出现与消失的过渡时间', type: 'range', min: 0, max: 800, step: 10, unit: 'ms' },
+            { path: ['ui', 'wordsPerMinute'], label: '阅读速度', hint: '算出「这篇要读几分钟」用的每分钟字数；不填按 300 算', type: 'number', min: 100, max: 1200, step: 10, unit: '字/分' }
+        ]
+    },
+    {
         title: '站点对接',
         desc: '宠物只通过 window.SiteAPI 与站点对话，这里没有任何可调项：页面类型、标签、字数、主题都由站点在 currentContext() 里给。',
         fields: []
-    },
+    }
 
 ];
 
@@ -419,12 +511,12 @@ function el(tag, cls, text) {
 }
 
 function fieldRow(spec) {
+    const value = getPath(cfg, spec.path);
     const wrap = el('div', 'field');
     const name = el('div', 'name', T(spec.label));
     if (spec.hint) name.appendChild(el('small', null, T(spec.hint)));
     wrap.appendChild(name);
 
-    const value = getPath(cfg, spec.path);
     const ctrl = el('div');
 
     const commit = (v) => {
@@ -472,10 +564,21 @@ function fieldRow(spec) {
             out.textContent = Math.round(a * 100) + '%';
             commit(rgbaStr(swatch.value, a));
         };
-        swatch.addEventListener('input', push);
-        alpha.addEventListener('input', push);
-        box.append(swatch, alpha, out);
+        swatch.addEventListener('input', spec.flat ? () => commit(swatch.value) : push);
+        if (!spec.flat) {
+            alpha.addEventListener('input', push);
+            box.append(swatch, alpha, out);
+        } else {
+            box.append(swatch, el('span', 'val', swatch.value));
+        }
         ctrl.appendChild(box);
+    } else if (spec.type === 'select') {
+        const sel = document.createElement('select');
+        (spec.options || []).forEach((o) => sel.appendChild(new Option(o, o)));
+        if (value != null && (spec.options || []).indexOf(value) < 0) sel.appendChild(new Option(value, value));
+        sel.value = value == null ? '' : value;
+        sel.addEventListener('change', () => commit(sel.value));
+        ctrl.appendChild(sel);
     } else if (spec.type === 'path') {
         // 从磁盘清单里挑，选不到才允许手填
         const kind = spec.asset;          // dirs | images | json
@@ -966,9 +1069,10 @@ function render() {
 function updateYaml() {
     const out = document.getElementById('yaml');
     try {
+        const target = doc || cfg;
         out.textContent = window.jsyaml
-            ? window.jsyaml.dump(cfg, { lineWidth: 100, noRefs: true })
-            : JSON.stringify(cfg, null, 2);
+            ? window.jsyaml.dump(target, { lineWidth: 100, noRefs: true })
+            : JSON.stringify(target, null, 2);
     } catch (e) {
         out.textContent = '导出失败：' + e.message;
     }
@@ -992,8 +1096,7 @@ function loadFromFile(file) {
     reader.onload = () => {
         try {
             const text = String(reader.result);
-            cfg = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
-            base = JSON.parse(JSON.stringify(cfg));
+            adoptDoc(window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text));
             document.getElementById('banner').style.display = 'none';
             render();
             var __st2 = document.getElementById('status');
@@ -1054,8 +1157,7 @@ async function reload() {
         const res = await fetch('config/pet.yaml?ts=' + Date.now());
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const text = new TextDecoder('utf-8').decode(await res.arrayBuffer());
-        cfg = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
-        base = JSON.parse(JSON.stringify(cfg));
+        adoptDoc(window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text));
         baseHash = await fileSha1(text);
         document.getElementById('banner').style.display = 'none';
         render();
@@ -1074,8 +1176,7 @@ function parsePaste() {
     const text = document.getElementById('pasteYaml').value;
     if (!text.trim()) return;
     try {
-        cfg = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
-        base = JSON.parse(JSON.stringify(cfg));
+        adoptDoc(window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text));
         document.getElementById('banner').style.display = 'none';
         render();
         resetHistory();
@@ -1102,7 +1203,7 @@ async function resetFactory() {
         const r = await fetch('config/pet.default.yaml?ts=' + Date.now(), { cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const text = new TextDecoder('utf-8').decode(await r.arrayBuffer());
-        cfg = window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text);
+        adoptDoc(window.jsyaml ? window.jsyaml.load(text) : JSON.parse(text));
         render();
         pushHistory();
         status.textContent = T('已载入出厂默认值，点「保存并编译」写回');
@@ -1120,6 +1221,8 @@ function copyYaml() {
 
 async function saveAndBuild() {
     const status = document.getElementById('status');
+    flushCurrent();
+    updateYaml();
     const yamlText = document.getElementById('yaml').textContent;
 
     status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
@@ -1153,6 +1256,28 @@ async function saveAndBuild() {
         }
     } catch (e) {
         status.textContent = window.PetI18n ? PetI18n.s('msg.needServer') : '需要本地服务器';
+    }
+}
+
+/* 把当前内容（含合集）写成出厂默认值，之后「恢复出厂默认」读的就是它 */
+async function saveAsDefault() {
+    const status = document.getElementById('status');
+    flushCurrent();
+    updateYaml();
+    const yamlText = document.getElementById('yaml').textContent;
+    if (!(await hasServer())) { downloadYaml(); return; }
+    if (!(await ensureWriteAllowed())) return;
+    if (!confirm(T('用当前内容覆盖 config/pet.default.yaml？') + '\n' + T('（之后「恢复出厂默认」读的就是这一份）'))) return;
+    try {
+        const save = await fetch('/api/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: 'config/pet.default.yaml', content: yamlText })
+        });
+        const res = await save.json();
+        status.textContent = res.ok ? T('已存为出厂默认值') : T('保存失败') + '：' + (res.error || '');
+    } catch (e) {
+        status.textContent = T('需要本地服务器');
     }
 }
 

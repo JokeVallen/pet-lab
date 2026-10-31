@@ -74,7 +74,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         await ev("document.querySelector('#pet-cat [data-dp-action=feed]').click()");
         await sleep(1200);
         console.log('小橘气泡:', await ev("(document.querySelector('#pet-cat .dp-bubble')||{}).textContent"));
-        console.log('大肥鱼气泡:', await ev("(document.querySelector('#deepseek-pet .dp-bubble')||{}).textContent || '（空）'"));
+        console.log('实例 A 气泡:', await ev("(document.querySelector('#deepseek-pet .dp-bubble')||{}).textContent || '（空）'"));
 
         await ev("document.querySelector('#deepseek-pet [data-dp-action=chat]').click()");
         await sleep(500);

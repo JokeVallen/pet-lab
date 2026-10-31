@@ -1,4 +1,4 @@
-# 大肥鱼 · 博客桌宠 {{VERSION}}
+# 桌宠工具集 {{VERSION}}
 
 一只住在网页角落的鲸鱼娘：透明视频立绘、分区点击反应、状态随机、情境台词、站内检索。
 纯前端，不接任何 API，不需要 Key。
@@ -87,7 +87,7 @@ node tools/build-config.js
 ```html
 <script>window.PetProfiles = { cat: { hostId: 'pet-cat', storageKey: 'pet-cat-v1',
   offset: { x: 168 }, size: { width: 150, height: 133 },
-  accent: { primary: '#f08a3c' }, persona: { name: '小橘' } } };</script>
+  accent: { primary: '#f08a3c' }, persona: { name: '实例 B' } } };</script>
 <script type="module" src="/js/pet/index.js"></script>
 <script type="module" src="/js/pet/index.js?pet=cat"></script>
 ```

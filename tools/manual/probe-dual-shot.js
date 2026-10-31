@@ -39,7 +39,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         await send('Page.enable');
         await sleep(6500);
 
-        // 只让右手边的小橘开聊天，左边大肥鱼用气泡说话
+        // 只让右手边的小橘开聊天，左边实例 A 用气泡说话
         await ev("document.querySelector('#pet-cat [data-dp-action=chat]').click()");
         await sleep(400);
         await ev("document.querySelector('#deepseek-pet [data-dp-action=feed]').click()");
