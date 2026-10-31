@@ -519,6 +519,7 @@
     };
 
     var TERMS = {
+        '它在对话里怎么称呼自己，以及状态存在哪个键下面。她说的话不在这一页，去 <a href="copy-editor.html">文案编辑</a>；那边的每一条都支持 {pet} 等占位符（名字、时间、标题、标签……），改名字会自动跟着变。': 'How it refers to itself in chat, and which key its state lives under. What it says is not on this page — go to <a href="copy-editor.html">Copy editor</a>; every line there supports placeholders such as {pet} (name, time, title, tags…), so renaming updates them automatically.',
         '气泡和对话里的自称': 'How it refers to itself in bubbles and chat',
         '在翻{tag}': 'Browsing {tag}',
         '这页没标签': 'No tag on this page',

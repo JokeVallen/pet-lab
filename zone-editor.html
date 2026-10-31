@@ -77,6 +77,7 @@
     .legal p { margin:0; }
 </style>
 <script>
+const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
 /* ---------- 本地服务探测 ----------
  * 三个编辑器里凡是要走 /api/* 的能力（列素材、写盘、编译）都只有本地服务提供。
  * 发行包可能被放在任何静态托管下，这里先探一次：探不到就整段跳过，
@@ -233,7 +234,6 @@ async function confirmOverwrite(rel) {
 }
 
 /* 文案查询：页面文案走 PetI18n，缺省原样返回中文 */
-const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
 
 let zones = [
     { id: 'head', yMin: 0, yMax: 0.42 },

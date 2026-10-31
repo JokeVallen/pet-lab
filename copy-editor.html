@@ -102,6 +102,7 @@
 </main>
 
 <script>
+const T = (spec) => (spec && typeof spec === 'object' ? (spec[PetI18n.lang] || spec.zh) : spec);
 /* ---------- 本地服务探测 ----------
  * 写盘与编译只有本地服务提供；探不到就整段跳过，不逐个接口撞 404。 */
 let SERVER_OK = null;
@@ -184,7 +185,6 @@ const GROUPS = [
 
 const VAR_LIST = (window.PetVars && PetVars.list) || [];
 
-const T = (spec) => (spec && typeof spec === 'object' ? (spec[PetI18n.lang] || spec.zh) : spec);
 /* TT：普通中文字符串 → 当前语言（走字典），给界面文案用 */
 const TT = (s) => (s == null ? s : (window.PetI18n ? PetI18n.t(String(s)) : s));
 

@@ -128,6 +128,7 @@
 
 <script src="assets/i18n.js"></script>
 <script>
+    const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
 (function () {
     var UNIT = [
         { id: 'kernel',      file: 'kernel.test.js',      key: 'tests.suite.kernel',      fallback: '内核' },

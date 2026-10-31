@@ -179,6 +179,7 @@
     </details>
 </div>
 <script>
+    const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
     /* ---------------- 调试面板 ----------------
      * 按钮只发"意图"，不碰内部实现。三个名字是模块的公开契约：
      *   动作 → intent.action  { act, level, duration }   （modules/actions.js）

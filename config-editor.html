@@ -135,6 +135,7 @@
     .legal p { margin:0; }
 </style>
 <script>
+const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
 /* ---------- 本地服务探测 ----------
  * 三个编辑器里凡是要走 /api/* 的能力（列素材、写盘、编译）都只有本地服务提供。
  * 发行包可能被放在任何静态托管下，这里先探一次：探不到就整段跳过，
@@ -367,9 +368,9 @@ document.addEventListener('keydown', function (e) {
 const SCHEMA = [
     {
         title: '身份',
-        desc: '它在对话里怎么称呼自己，以及状态存在哪个键下面。' +
+        desc: T('它在对话里怎么称呼自己，以及状态存在哪个键下面。' +
               '她说的话不在这一页，去 <a href="copy-editor.html">文案编辑</a>；' +
-              T('那边的每一条都支持 {pet} 等占位符（名字、时间、标题、标签……），改名字会自动跟着变。'),
+              '那边的每一条都支持 {pet} 等占位符（名字、时间、标题、标签……），改名字会自动跟着变。'),
         fields: [
             { path: ['persona', 'name'], label: '名字', hint: '对话标题与自称；写进 persona.name。文案里用 {pet} 引用它', type: 'text' },
             { path: ['name'], label: '内部标识', hint: '只用于日志与兜底，改它不会改称呼', type: 'text' },
@@ -456,7 +457,6 @@ const SCHEMA = [
 
 /* ---------------- 路径读写 ---------------- */
 
-const T = (x) => (window.PetI18n ? PetI18n.t(x) : x);
 
 /* 磁盘上真实存在的素材：能选就不让人手打 */
 const ASSETS = { clips: [], images: [], json: [], dirs: [] };
