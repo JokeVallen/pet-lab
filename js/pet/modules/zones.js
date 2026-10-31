@@ -13,9 +13,24 @@
         var map = cfg.map || {};
         var fallbackId = cfg.fallback || 'body';
 
+        // 父级：显式写 parent 优先，没写就按 id 的点号前缀推导（head.crown → head）
+        var byId = {};
+        zones.forEach(function (z) { if (z && z.id) byId[z.id] = z; });
+
+        function parentOf(id) {
+            var z = byId[id];
+            if (z && z.parent) return z.parent;
+            var dot = String(id).lastIndexOf('.');
+            return dot > 0 ? String(id).slice(0, dot) : null;
+        }
+
         // 子级优先：层级越深越先命中；同一层里面积小的先命中，
         // 这样二维矩形彼此重叠时，细的那个总在上面，结果不依赖书写顺序。
-        function depth(id) { return String(id).split('.').length; }
+        function depth(id) {
+            var d = 1, p = parentOf(id), guard = 0;
+            while (p && guard++ < 32) { d++; p = parentOf(p); }
+            return d;
+        }
         function area(z) {
             var xMin = z.xMin == null ? 0 : z.xMin;
             var xMax = z.xMax == null ? 1 : z.xMax;
@@ -45,10 +60,10 @@
         /** 沿父级链找映射，找不到返回 null */
         function resolve(zoneId) {
             var id = zoneId || hit(0.5);
-            while (id) {
+            var guard = 0;
+            while (id && guard++ < 32) {
                 if (map[id]) return { zone: id, rule: map[id] };
-                var dot = String(id).lastIndexOf('.');
-                id = dot > 0 ? String(id).slice(0, dot) : null;
+                id = parentOf(id);
             }
             return map[fallbackId] ? { zone: fallbackId, rule: map[fallbackId] } : null;
         }

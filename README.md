@@ -1,10 +1,13 @@
-# 大肥鱼 · 博客桌宠 v1.0.1
+# 大肥鱼 · 博客桌宠 v1.0.2
 
 一只住在网页角落的鲸鱼娘：透明视频立绘、分区点击反应、状态随机、情境台词、站内检索。
 纯前端，不接任何 API，不需要 Key。
 
-**这个包是发行版**：只含运行所需的东西，不含开发工具（编辑器、测试、探针脚本、开发笔记）。
-需要完整开发环境、可视化编辑器或二次开发文档，请用仓库：<https://github.com/JokeVallen/pet-lab>
+**这个包是发行版**：含运行所需的全部文件，外加四个离线的可视化编辑器（配置 / 分区 / 规则 / 文案）。
+不含开发侧的东西——测试面板、项目状态、开发沿革、已知问题这些在打包时就已经从页面里删除，不是靠隐藏。
+需要完整开发环境（探针脚本、单元测试、开发笔记），请用仓库：<https://github.com/JokeVallen/pet-lab>
+
+打开 `index.html` 就是入口；`demo.html` 是宠物演示。
 
 ---
 
@@ -17,6 +20,11 @@ config/pet.yaml    配置源文件（配 tools/build-config.js 使用）
 css/deepseek-pet.css
 images/pet/anim/   33 个带 alpha 的 VP9 WebM 片段 + 首帧 poster.webp
 tools/build-config.js + vendor/   YAML → config.js 的编译器（自带 js-yaml）
+index.html demo.html            首页与宠物演示
+config-editor.html              配置编辑：外观、节奏、动作、状态
+copy-editor.html                文案编辑：中英分开，支持 {name} 占位符与实时预览
+zone-editor.html                分区编辑：身体框、鼠标反应
+rules-editor.html               规则编辑：何时做什么
 LICENSE LICENSE-ASSETS.md CREDITS.md
 ```
 

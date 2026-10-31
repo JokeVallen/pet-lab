@@ -1,118 +1,121 @@
 /*!
- * search 模块 —— 站内检索
+ * search 模块 —— 站内检索（只走 SiteAPI）
  *
- * 负责：懒加载索引、中文二字滑窗分词、四字段加权打分、生成回答文本。
- * 索引本身由站点构建期生成（博客里是 scripts/pet-index.js）。
+ * 以前这里自己拉 /pet-index.json、自己切词打分；现在索引归站点，
+ * 宠物只负责"把问题变成查询、把结果说成人话"。
+ *
+ * 对外接口保持旧的形状，只是 answer() 变成了 Promise：
+ *   matches(text)  → boolean          是否像"在问站内内容"
+ *   ensure()       → void             兼容旧调用（站点自己管加载）
+ *   answer(text)   → Promise<string>  一句回答；查不到返回 null
+ *
+ * 权限：SiteAPI.content().search 属于 read，不碰本机数据。
  */
 
+import { PetContent } from '../content/index.js';
+import { PetSite } from '../site.js';
 
-    function createSearch(opts) {
-        var url = (opts && opts.url) || '/pet-index.json';
-        var idxRows = null;    // 索引缓存
-        var idxReq = null;     // 进行中的请求
-        var idxPending = null; // 请求期间到达的问题
-        var say = (opts && opts.say) || function () {};
+const C = PetContent;
 
-        function loadPetIndex() {
-            if (idxRows || idxReq) return;
+export const PetSearch = {
+    createSearch(opts) {
+        opts = opts || {};
+        const maxResults = Math.max(1, Math.min(10, Number(opts.maxResults) || 1));
+
+        /* 停用词和意图正则来自文案，按语言缓存 */
+        let stopRe = null;
+        let intentRe = null;
+        let reLang = null;
+
+        function ensureRes() {
+            if (reLang === C.lang && stopRe && intentRe) return;
+            const esc = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const sw = C.list('search.stopwords').map(esc);
+            stopRe = new RegExp('^(' + sw.join('|') + ')$');
             try {
-                idxReq = fetch('/pet-index.json', { cache: 'force-cache' })
-                    .then(function (r) { return r.json(); })
-                    .then(function (j) { idxRows = (j && j.rows) || []; })
-                    .catch(function () { idxRows = []; })
-                    .then(function () {
-                        // 之前因为索引没加载而搁置的问题，补答一次
-                        if (idxPending) {
-                            var q = idxPending;
-                            idxPending = null;
-                            var ans = indexReply(q);
-                            if (ans) appendMessage('pet', ans);   // 对话框里只回对话，不冒气泡
-                        }
-                    });
-            } catch (e) { idxRows = []; }
-        }
-        function indexSearch(q) {
-            if (!idxRows || !idxRows.length) return null;
-            var terms = splitTerms(q);
-            if (!terms.length) return null;
-        
-            var scored = [];
-            for (var i = 0; i < idxRows.length; i++) {
-                var r = idxRows[i];
-                var title = (r.t || '').toLowerCase();
-                var tags = (r.g || []).join(' ').toLowerCase();
-                var cats = (r.c || []).join(' ').toLowerCase();
-                var ex = (r.x || '').toLowerCase();
-                var score = 0;
-                for (var k = 0; k < terms.length; k++) {
-                    var w = terms[k];
-                    if (title.indexOf(w) >= 0) score += 6;
-                    if (tags.indexOf(w) >= 0) score += 4;
-                    if (cats.indexOf(w) >= 0) score += 3;
-                    if (ex.indexOf(w) >= 0) score += 2;
-                }
-                if (score > 0) scored.push({ r: r, s: score });
+                intentRe = new RegExp(C.t('search.intent'));
+            } catch (e) {
+                intentRe = /$^/;
             }
-            if (!scored.length) return null;
-            scored.sort(function (a, b) {
-                return b.s - a.s || String(b.r.d || '').localeCompare(String(a.r.d || ''));
-            });
-            return scored;
-        }
-        function indexReply(q) {
-            var hits = indexSearch(q);
-            if (hits === null) {
-                if (!idxRows) {
-                    idxPending = q;
-                    loadPetIndex();
-                    return '让我翻一下索引……';
-                }
-                return '没找到相关的内容，换个词试试？';
-            }
-            var top = hits[0].r;
-            var kindName = top.k === 'card' ? '卡片' : (top.k === 'page' ? '页面' : '文章');
-            var more = hits.length > 1 ? '，另外还有 ' + (hits.length - 1) + ' 条' : '';
-            return '最接近的是' + kindName + '「' + top.t + '」' + more + '：' + top.u;
+            reLang = C.lang;
         }
 
-        function splitTerms(q) {
-            var STOP = /^(有没有|有没|没有|关于|相关|相关的|文章|卡片|知识|一下|帮我|找找|看看|什么|哪些|这个|那个|的|了|吗|呢|和|与)$/;
-            var raw = String(q).toLowerCase()
-                .replace(/[，。！？、,.!?：:；;（）()「」"']/g, ' ')
+        /* 最近一次检索的 path → 标题，供链接渲染使用 */
+        let lastTitles = {};
+
+        /** 去掉"有没有/找一下/关于"这类词，留下真正要查的内容 */
+        function toQuery(text) {
+            ensureRes();
+            const raw = String(text || '')
+                .replace(/[，。！？、,.!?：:；;（）()「」“”"']/g, ' ')
                 .split(/\s+/)
-                .filter(function (x) { return x && !STOP.test(x); });
+                .filter(Boolean)
+                .filter((w) => !stopRe.test(w));
+            const joined = raw.join(' ').trim();
+            return joined || String(text || '').trim();
+        }
 
-            var out = [];
-            raw.forEach(function (seg) {
-                if (/[\u4e00-\u9fa5]/.test(seg) && seg.length > 2) {
-                    // 中文没有空格：用二字滑窗切，再保留整段
-                    for (var i = 0; i + 1 < seg.length; i++) out.push(seg.substr(i, 2));
-                    out.push(seg);
-                } else if (seg.length >= 2) {
-                    out.push(seg);
-                }
-            });
-
-            var seen = {}, uniq = [];
-            for (var j = 0; j < out.length; j++) {
-                var x2 = out[j];
-                if (x2.length >= 2 && !seen[x2]) { seen[x2] = 1; uniq.push(x2); }
+        function kindOf(type) {
+            switch (type) {
+                case 'question': return C.t('search.kindQuestion');
+                case 'paper': return C.t('search.kindPaper');
+                case 'knowledge': return C.t('search.kindKnowledge');
+                case 'algorithm': return C.t('search.kindAlgorithm');
+                case 'page': return C.t('search.kindPage');
+                case 'post': return C.t('search.kindPost');
+                default: return C.t('search.kindPost');
             }
-            return uniq.slice(0, 10);
+        }
+
+        function format(rows, query) {
+            if (!rows.length) return C.t('search.notFound');
+            /* 明细缓存：path → 标题。渲染成链接时用标题，避免明文输出路径；
+               这里只收本次检索返回的行，不额外发请求。 */
+            lastTitles = {};
+            for (const row of rows) {
+                if (row && row.path) lastTitles[row.path] = row.title || row.id || '';
+            }
+
+            const first = rows[0];
+            const kind = kindOf(first.type);
+            if (maxResults <= 1) {
+                const more = rows.length > 1 ? C.t('search.andMore', { n: rows.length - 1 }) : '';
+                return C.t('search.closest', { kind, more, url: first.path || '' });
+            }
+            const lines = [C.t('search.listHead', { kind, url: first.path || '' })];
+            const extra = Math.min(maxResults, rows.length) - 1;
+            for (let i = 1; i <= extra; i += 1) {
+                lines.push(C.t('search.listItem', { url: rows[i].path || '' }));
+            }
+            if (rows.length > maxResults) lines.push(C.t('search.listMore', { n: rows.length - maxResults }));
+            return lines.join('\n');
         }
 
         return {
-            matches: function (text) { var INDEX_INTENT = /有没有|找一下|帮我找|搜一[下搜]|查一下|关于|相关的|哪篇|哪张|哪些文章|站内/; return INDEX_INTENT.test(text); },
-            ensure: loadPetIndex,
-            search: indexSearch,
-            reply: function (q) {
-                var ans = indexReply(q);
-                if (ans) say(ans, 4800);
-                return ans;
+            /** 链接渲染用：给定站内路径，返回已知标题；没有就返回空串 */
+            titleOf(path) {
+                return (lastTitles && lastTitles[path]) || '';
             },
-            answer: function (q) { return indexReply(q); },
-            rows: function () { return idxRows; }
+
+            matches(text) {
+                ensureRes();
+                return intentRe.test(text);
+            },
+
+            ensure() {
+                /* 索引归站点，宠物不预加载任何东西 */
+            },
+
+            answer(text) {
+                if (!PetSite.available()) {
+                    return Promise.resolve(C.t('search.unavailable'));
+                }
+                const query = toQuery(text);
+                if (!query) return Promise.resolve(C.t('search.notFound'));
+                return PetSite.search(query, { limit: maxResults }).then((rows) => format(rows, query));
+            }
         };
     }
+};
 
-    export const PetSearch = { createSearch: createSearch };
+export default PetSearch;

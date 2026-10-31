@@ -77,6 +77,7 @@
 
         function play(name, once, done) {
             if (!name) return;
+            stopRange();
 
             // 快速通道：另一块屏上已经备好这一段 → 直接换层，省掉 load + 等首帧
             for (var qi = 0; qi < els.length; qi++) {
@@ -151,6 +152,85 @@
             el.addEventListener('loadeddata', onReady);
         }
 
+        var rangeJob = null;
+
+        function stopRange() {
+            if (!rangeJob) return;
+            clearTimeout(rangeJob.timer);
+            if (rangeJob.el && rangeJob.boundary) {
+                rangeJob.el.removeEventListener('timeupdate', rangeJob.boundary);
+            }
+            rangeJob = null;
+        }
+
+        /**
+         * 区间播放：把同一段动画的 [from, to] 拿出来循环。
+         * 睡眠素材是一整段"打瞌睡→躺下→睡着→醒来"，整段循环会反复起身；
+         * 用区间就能"进入睡眠播一次，之后只循环睡着那段"。
+         *
+         * 计时不靠 rAF：后台标签页会把 rAF 限流，漏掉边界就会播到"醒来"的部分。
+         * 这里用 setTimeout 按剩余时长定时 + timeupdate 兜底，两者都跟着媒体时钟走。
+         *
+         * @param {string} name  动画名
+         * @param {number} from  循环起点（秒）
+         * @param {number} to    循环终点（秒）
+         * @param {{loop?:boolean, done?:Function}} [opts] loop=false 时到点停住并回调
+         */
+        function playRange(name, from, to, opts) {
+            opts = opts || {};
+            stopRange();
+            play(name, false);                 // 先按循环装上，换源/换层都走原路径
+
+            var job = { from: from, to: to, loop: !!opts.loop, done: opts.done, el: null, timer: 0, boundary: null };
+            rangeJob = job;
+
+            function jumpToStart(el) {
+                try { el.currentTime = from; } catch (e) { /* ignore */ }
+            }
+
+            function boundary() {
+                if (rangeJob !== job || !job.el) return;
+                var el = job.el;
+                if (el.currentTime < to - 0.005) { armTimer(); return; }
+                if (job.loop) {
+                    jumpToStart(el);
+                    armTimer();
+                } else {
+                    el.pause();
+                    stopRange();
+                    if (job.done) job.done();
+                }
+            }
+
+            function armTimer() {
+                clearTimeout(job.timer);
+                var el = job.el;
+                if (!el) return;
+                var remain = Math.max(0, to - el.currentTime) / (el.playbackRate || 1);
+                job.timer = setTimeout(boundary, Math.max(16, remain * 1000));
+            }
+
+            function attach() {
+                if (rangeJob !== job) return;
+                var el = els[front];
+                if (!el || el.getAttribute('data-clip') !== name || el.readyState < 2) {
+                    job.timer = setTimeout(attach, 60);
+                    return;
+                }
+                if (job.el !== el) {
+                    if (job.el) job.el.removeEventListener('timeupdate', job.boundary);
+                    job.el = el;
+                    job.boundary = boundary;
+                    el.addEventListener('timeupdate', boundary);
+                    // 首帧进来时先归位，别从第 0 秒开始播
+                    if (el.currentTime < from - 0.02 || el.currentTime > to) jumpToStart(el);
+                }
+                armTimer();
+            }
+
+            attach();
+        }
+
         /* 前台元素真正开始出帧了吗？首帧没就绪时 CSS 仍显示静帧，
            否则用户会看到"取了半天一动不动"。 */
         function frontReady() {
@@ -179,6 +259,31 @@
                 if (wp && wp.catch) wp.catch(function () {});
                 setTimeout(function () { try { el.pause(); } catch (e) { /* ignore */ } }, 220);
                 return true;
+            },
+            /**
+             * 区间播放：把同一段动画的 [from, to] 拿出来循环。
+             * 睡眠素材是一整段"打瞌睡→躺下→睡着→醒来"，整段循环会反复起身；
+             * 用区间就能"进入睡眠播一次，之后只循环睡着那段"。
+             *
+             * @param {string} name  动画名
+             * @param {number} from  循环起点（秒）
+             * @param {number} to    循环终点（秒）
+             * @param {{loop?:boolean, done?:Function}} [opts] loop=false 时到点停住并回调
+             */
+            playRange: playRange,
+            /** 调试用：看一眼区间监督的实时状态 */
+            rangeInfo: function () {
+                return rangeJob
+                    ? {
+                        from: rangeJob.from,
+                        to: rangeJob.to,
+                        loop: rangeJob.loop,
+                        elClip: rangeJob.el && rangeJob.el.getAttribute('data-clip'),
+                        elTime: rangeJob.el && Math.round(rangeJob.el.currentTime * 100) / 100,
+                        hasTimer: !!rangeJob.timer,
+                        frontClip: els[front] && els[front].getAttribute('data-clip')
+                    }
+                    : null;
             },
             pause: function () { els.forEach(function (e) { e.pause(); }); },
             resume: function () {

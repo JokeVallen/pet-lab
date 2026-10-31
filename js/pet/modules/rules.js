@@ -111,7 +111,8 @@
             out.push({
                 key: old,
                 kind: op.kind,
-                label: (op.label || target) + '（旧）',
+                label: (op.label || target),
+                legacyLabel: '（旧）',
                 legacy: true,
                 mapsTo: target
             });
