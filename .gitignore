@@ -24,3 +24,6 @@ __pycache__/
 
 # 发版产物（tools/release.js 生成）
 build/
+
+# 临时脚本
+tools/tmp*/
