@@ -138,3 +138,4 @@ node tools/smoke.js              # 只跑冒烟
 - 占位符全局可用：取值下沉到 `speech` 出口，规则台词、分区反应、检索结果一并生效。变量 23 个（角色 / 来访 / 时间 / 页面），另有语境变量 `{name}`；支持 `{x?a:b}`、`{x??a}`、`{!x?a:b}` 条件写法，未知变量原样保留。清单与说明见 `vars.html`，由 `tools/manual/check-vars-doc.js` 与运行时对账。
 
 - 表达式实现只有一份：`js/pet/content/expr.js`，运行时与编辑器预览共用，避免两边行为漂移。
+- 对接文档：`docs/BLOG_INTEGRATION.md`（中英各一份）写给维护博客的人或 AI——只同步发行包、不碰 `js/pet/`、验证命令与排查表在文档里；`docs.html` 的「接入博客」可读。

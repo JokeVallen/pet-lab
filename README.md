@@ -2,7 +2,7 @@
 
 鲸鱼娘宠物「大肥鱼」的独立工具集。**不依赖 Hexo / Butterfly**，只靠一个静态服务器就能跑；接进任何站点只改一个适配层。
 
-> 只想把它装到自己的博客？直接下发行版：[Releases · v1.0.2](https://github.com/JokeVallen/pet-lab/releases/latest)
+> 只想把它装到自己的博客？直接下发行版：[Releases · v1.0.3](https://github.com/JokeVallen/pet-lab/releases/latest)
 > （含运行时、素材、配置、三个离线编辑器与使用说明）。这个 `main` 分支是开发环境，额外含测试、探针与开发文档。
 >
 > 发行包里没有开发侧内容：测试面板、项目状态、开发沿革、已知问题这些在打包时就被删掉了，不是隐藏。
@@ -80,7 +80,7 @@ persona:
 | `copy-editor.html` | 她**说什么**：见面、对话、状态、互动的台词，中英分开编辑，逐条预览占位符效果 |
 | `rules-editor.html` | 她**何时做什么**：状态规则（条件 → 状态）+ 情境规则（条件 → 台词 / 动作），每条可单独停用 |
 | `vars.html` | 变量表：文案里能用的全部占位符、示例与取值来源 |
-| `docs.html` | Markdown 阅读器，中英文档都能看 |
+| `docs.html` | Markdown 阅读器，中英文档都能看（含 [接入博客](docs/BLOG_INTEGRATION.md)） |
 | `tests.html` | 测试面板：8 个套件可单跑，也能一键全跑 |
 
 ### 分工：一个字段只在一个页面里改
