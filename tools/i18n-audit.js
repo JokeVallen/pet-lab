@@ -26,9 +26,17 @@ function keysOf(file) {
 }
 
 const i18n = fs.readFileSync(path.join(ROOT, 'assets', 'i18n.js'), 'utf8');
+/* 已定义的 key：STR 里的英文键 + TERMS 里的中文键（后者按原文查 T()） */
 const defined = new Set([
     ...[...i18n.matchAll(/^\s{4,8}'([A-Za-z0-9_.]+)':\s*\[/gm)].map((m) => m[1])
 ]);
+{
+    const start = i18n.indexOf('var TERMS');
+    const seg = i18n.slice(start, i18n.indexOf('\n    };', start));
+    for (const m of seg.matchAll(/^\s{4,8}'((?:\\.|[^'\\])*)':/gm)) {
+        defined.add(m[1].replace(/\\'/g, "'").replace(/\\\\/g, '\\').replace(/\\n/g, '\n'));
+    }
+}
 
 let bad = 0;
 for (const page of PAGES) {

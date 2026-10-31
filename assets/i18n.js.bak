@@ -1,0 +1,1130 @@
+/*!
+ * i18n.js —— 中英双语 + 使用说明
+ *
+ * 用法：页面底部引入本文件。
+ *   PetI18n.t('中文')            → 当前语言下的文本（缺英文时回落中文）
+ *   PetI18n.lang                  'zh' | 'en'
+ *   PetI18n.onChange(fn)         语言切换后回调（用于重渲染动态内容）
+ *
+ * 静态文案通过 data-i18n="key" 标记，key 见 STR 表。
+ */
+(function (global) {
+    'use strict';
+
+    var STR = {
+        'home.title': ['宠物实验室', 'Pet Lab'],
+        'home.sub': ['宠物的配置与调试工具。所有页面都可以单独打开，全部在本机运行。', 'Settings and tools for the pet. Every page opens on its own, all running locally.'],
+        'home.play': ['宠物演示', 'Live demo'],
+        'home.play.desc': ['点她、滚一滚，看她换动作、说话。想聊天就点开对话框。', 'Click her, scroll around, watch her change moves and talk. Open the chat box to have a word.'],
+        'home.config': ['配置编辑器', 'Settings editor'],
+        'home.config.desc': ['调外观、节奏、语言、规则冷却、动作池。改完导出 pet.yaml。',
+                             'Tune looks, timing, speech, cooldowns and animation pools. Export pet.yaml when done.'],
+        'home.zone': ['分区编辑器', 'Zone editor'],
+        'home.zone.desc': ['在角色图上拖出点击区域，子分区自动覆盖父分区，导出 YAML。',
+                           'Drag clickable regions onto the character; child zones override parents. Export YAML.'],
+        'home.rules': ['规则编辑器', 'Rules editor'],
+        'home.rules.desc': ['每条情境规则的条件、台词、动作和冷却，可视化增删改。',
+                            'Edit each rule condition, line, action and cooldown as a form.'],
+        'home.issues': ['已知问题', 'Known issues'],
+        'home.issues.desc': ['待修的缺陷、限制与历史上的坑。',
+                             'Open defects, limits, and lessons from past bugs.'],
+        'demo.title': ['宠物演示', 'Pet demo'],
+        'demo.h1': ['宠物演示', 'Live demo'],
+        'demo.sub': ['离线演示 · 只加载宠物本体，不含博客任何依赖', 'Offline demo: only the pet loads, no blog dependencies'],
+        'demo.p1': ['她住在页面角落：会随你浏览的位置换动作，偶尔说句话。', 'She lives in the corner: her moves follow where you are on the page, and now and then she says something.'],
+        'demo.stage': ['当前阶段', 'Current stage'],
+        'demo.p2': ['代码是从博客里原样拷贝出来的第一版，内部仍然是单体结构（播放器、状态机、上下文规则、对话都在这一个文件里），并且还在直接读 location、document、localStorage。',
+                    'The code is the first copy lifted from the blog. It is still monolithic — player, state machine, context rules and dialogue share one file — and still reads location, document and localStorage directly.'],
+        'demo.p3': ['接下来的重构目标：', 'Refactor targets:'],
+        'demo.li1': ['内核（装配、事件总线、调度、持久化）', 'Kernel: assembly, event bus, scheduling, persistence'],
+        'demo.li2': ['动作模块（HFSM 状态机 + 播放器）', 'Action module: HFSM + player'],
+        'demo.li3': ['语言模块（speech act → 气泡 / 对话框渲染器）', 'Speech module: speech act → bubble / dialog renderers'],
+        'demo.li4': ['适配层（把站点信号规范化，本站的 adapter 只在这里）', 'Adapter layer: normalises site signals; site-specific code lives only here'],
+        'demo.how': ['怎么玩', 'How to play'],
+        'demo.p4': ['左下角是测试面板：动作、状态与睡眠、互动、说话通道、提问、语言与配置、站点对接。按钮只发意图（intent.action / intent.state / speech.act），不直接改宠物内部状态。', 'The bottom-left panel is a test bench: actions, state and sleep, interactions, speech channels, asking a question, language and config, site integration. Buttons emit intents only (intent.action / intent.state / speech.act); they never poke internals.'],
+        'demo.p5': ['滚一滚、点一点右下角的她，看看气泡里的反应；想聊天就点开对话框。', 'Scroll, click her in the corner, and watch the bubble respond. Open the chat box to talk.'],
+        'demo.assets': ['素材', 'Assets'],
+        'demo.p6': ['32 段动画，4.55 MB，全部为带 alpha 的 VP9 WebM，路径与博客一致（/images/pet/anim/），所以宠物代码不需要改动路径。',
+                    '32 clips, 4.55 MB, all VP9 WebM with alpha, at the same paths as the blog (/images/pet/anim/), so no path changes are needed.'],
+        'demo.bottom': ['页面底部 —— 滚动到这里应触发「读到底了」。',
+                        'Bottom of page — scrolling here should fire "reached the end".'],
+        'demo.lab': ['测试面板', 'Test panel'],
+        'demo.lab.toggle': ['收起', 'Collapse'],
+        'demo.g.act': ['动作（直接 cue）', 'Actions (cue directly)'],
+        'demo.g.state': ['状态与睡眠', 'State and sleep'],
+        'demo.state.idle': ['待机', 'Idle'],
+        'demo.state.busy': ['忙碌', 'Busy'],
+        'demo.state.sleepy': ['困倦', 'Sleepy'],
+        'demo.state.note': ['状态机默认跟随上下文（页面类型、阅读进度、主题、时间）；手动切换相当于临时指定，换页后自动回到跟随。', 'The state machine follows the site context by default (page type, reading progress, theme, time). Manual switching pins it until the next navigation.'],
+        'demo.state.follow': ['跟随上下文', 'Follow context'],
+        'demo.speech.close': ['关对话框', 'Close chat'],
+        'demo.sim9': ['切换模拟站点', 'Toggle mock site'],
+        'demo.sleep': ['强制入睡', 'Force sleep'],
+        'demo.wake': ['叫醒', 'Wake up'],
+        'demo.g.interact': ['互动', 'Interactions'],
+        'demo.feed': ['喂食', 'Feed'],
+        'demo.poke.head': ['戳脑袋', 'Poke head'],
+        'demo.poke.tail': ['戳尾巴', 'Poke tail'],
+        'demo.particles': ['粒子 ×1', 'One particle'],
+        'demo.g.speech': ['说话', 'Speech'],
+        'demo.speech.ambient': ['闲话', 'Ambient'],
+        'demo.speech.context': ['情境', 'Context'],
+        'demo.speech.reply': ['回答', 'Reply'],
+        'demo.speech.dialog': ['进对话框', 'To dialog'],
+        'demo.g.ask': ['问一句（走检索 / 句库）', 'Ask (search + lines)'],
+        'demo.ask': ['提问', 'Ask'],
+        'demo.ask.ph': ['有没有讲算法的？', 'Do you have anything about algorithms?'],
+        'demo.g.lang': ['语言与配置', 'Language and config'],
+        'demo.showConfig': ['看配置', 'Show config'],
+        'demo.reload': ['刷新（重置会话）', 'Reload (reset session)'],
+        'demo.g.site': ['站点对接（模拟 SiteAPI）', 'Site integration (mock SiteAPI)'],
+        'demo.sim1': ['文章页', 'Post page'],
+        'demo.sim2': ['标签页', 'Tag page'],
+        'demo.sim3': ['滚动到 90%', 'Scroll to 90%'],
+        'demo.sim4': ['滚回顶部', 'Back to top'],
+        'demo.sim5': ['首页', 'Home'],
+        'demo.sim6': ['404', '404'],
+        'demo.sim7': ['收藏这页', 'Bookmark this page'],
+        'demo.sim8': ['切主题', 'Toggle theme'],
+        'home.api': ['API 文档', 'API reference'],
+        'home.api.desc': ['内核、模块、端口、事件的接口说明，写扩展前先看这份。',
+                          'Interfaces for the kernel, modules, ports and events. Read before extending.'],
+        'home.status': ['项目状态', 'Project status'],
+        'home.status.desc': ['当前架构、模块地图、已知问题与下一步计划。',
+                             'Current architecture, module map, known issues and next steps.'],
+        'home.readme': ['使用说明', 'Readme'],
+        'home.readme.desc': ['怎么运行、目录结构、配置流程、测试命令。',
+                             'How to run, folder layout, config workflow and test commands.'],
+        'home.footer': ['代码 MIT，动画素材非商用，署名见博客仓库 PET_CREDITS.md。',
+                        'Code MIT; animations are non-commercial. See PET_CREDITS.md for attribution.'],
+        'home.docs': ['文档', 'Docs'],
+        'home.docs.desc': ['接口说明、项目状态与历史。', 'API reference, project status and history.'],
+        'home.note': ['改完配置后', 'After editing'],
+        'home.note2': ['，点编辑器里的「保存并编译」即可生效；也可以导出 YAML 自己执行', ' hit “Save & build” in the editor; or export the YAML and run '],
+        'home.note3': ['三个页面都能直接双击打开；如果浏览器拦截了本地文件，再用本地服务器：',
+                       'All pages open by double-click. If the browser blocks local files, start a server:'],
+
+        'home.serveTitle': ['离线使用', 'Offline use'],
+        'home.serveDesc': ['：所有页面都能直接双击打开，不需要联网，也不需要服务器。想看宠物动起来就打开', ': every page opens by double-click, with no network and no server. To see the pet move, open '],
+        'home.serveDesc2': ['。', '.'],
+
+        'msg.saving': ['正在保存…', 'Saving…'],
+        'msg.saved': ['已保存并编译完成', 'Saved and rebuilt'],
+        'msg.failed': ['失败：', 'Failed: '],
+        'msg.loaded': ['已读取', 'Loaded'],
+        'msg.needServer': ['需要本地服务器：双击 start.bat 后打开本页',
+                           'Needs the local server: run start.bat and open this page'],
+        'zone.status': ['拖动方块移动分区，拖右下角缩放；右侧可改数值与反应',
+                        'Drag a box to move, drag the corner to resize; edit values and reactions on the right'],
+        'cfg.tip': ['右侧是实时导出结果，点「保存并编译」即可生效。',
+                    'The right panel is the live YAML export. Click "Save & build" to apply.'],
+
+        'cfg.title': ['宠物配置', 'Pet settings'],
+        'cfg.open': ['打开 YAML', 'Open YAML'],
+        'cfg.reload': ['重新读取', 'Reload'],
+        'cfg.reset': ['恢复默认', 'Reset'],
+        'cfg.copy': ['复制 YAML', 'Copy YAML'],
+        'cfg.download': ['下载 pet.yaml', 'Download pet.yaml'],
+        'cfg.asDefault': ['存为默认值', 'Save as default'],
+    'cfg.petPick': ['编辑哪一只', 'Editing'],
+    'cfg.history': ['历史版本', 'History'],
+        'cfg.save': ['保存并编译', 'Save & build'],
+
+        'cfg.loading': ['正在读取…', 'Loading…'],
+        'cfg.loaded': ['已读取 config/pet.yaml', 'Loaded config/pet.yaml'],
+        'cfg.failed': ['读不到配置文件，点「打开 YAML」选择文件，或粘贴到下方',
+                       'Cannot read config. Click "Open YAML" to pick the file, or paste below.'],
+        'cfg.needfile': ['浏览器不让网页自动读取本地文件。点上方「打开 YAML」选择 config/pet.yaml，或把内容粘到下面。',
+                         'Browsers block automatic local reads. Click "Open YAML" above to choose config/pet.yaml, or paste below.'],
+        'cfg.exportTip': ['改完下载覆盖 config/pet.yaml，然后运行 node tools/build-config.js。',
+                          'Download and overwrite config/pet.yaml, then run node tools/build-config.js.'],
+        'cfg.help': ['使用说明', 'How to use'],
+        'cfg.help.body': [
+            '1. 点「打开 YAML」选择 config/pet.yaml（起了服务器会自动读取）。<br>' +
+            '2. 左边改值，右边实时显示 YAML。<br>' +
+            '3. 点「保存并编译」直接写回并生效——不用再敲命令。<br>' +
+            '4. 没有服务器时，用「下载 pet.yaml」覆盖原文件，再运行 <code>node tools/build-config.js</code>。<br>' +
+            '提示：滑杆调外观，芯片输入动画名（回车添加），动作分类表格可增删行。<br>' +
+            '<b>改动什么时候生效</b>：点「保存并编译」后写回 YAML 并重新生成 <code>js/pet/config.js</code>；' +
+            '演示页开着的话会自动重载（每 2.5 秒查一次版本号）。所以<strong>所有字段都是保存即生效</strong>，' +
+            '没反应通常是字段没接进运行时代码，而不是缓存。<br>' +
+            '<b>两个"恢复"不一样</b>：「撤销全部改动」回到本次读取时的状态；' +
+            '「恢复出厂默认」读 <code>config/pet.default.yaml</code>，那是一份独立保存的默认配置，改了也不会被日常编辑带走。<br>' +
+            '<b>保存前会看磁盘</b>：如果这个页面打开之后文件被别的标签页或手工改过，会先弹确认，' +
+            '避免用旧内容整份覆盖。取消后点「重新读取」拿到最新版本再改。<br>' +
+            '<b>站内数据从哪来</b>：宠物不读页面 DOM，只通过 <code>window.SiteAPI</code> 问站点' +
+            '（上下文、检索、阅读位置、收藏与笔记）。站点没提供的能力（比如主题、评论数）宠物就当不知道，' +
+            '相关规则不会命中——这不是坏了，是两边约定的边界。<br>' +
+            '<b>命令行等价物</b>：<code>node tools/build-config.js</code> 编译；' +
+            '<code>--reset</code> 用默认值覆盖并备份旧文件；<code>--snapshot</code> 把当前配置存成新的默认值。',
+            '1. Click "Open YAML" and pick config/pet.yaml (auto-loads when served).<br>' +
+            '2. Edit on the left; the YAML preview updates live on the right.<br>' +
+            '3. Click "Save & build" to write it back and apply — no commands needed.<br>' +
+            '4. Without a server, use "Download pet.yaml" then run <code>node tools/build-config.js</code>.<br>' +
+            '<b>Where site data comes from</b>: the pet never reads the page DOM. It asks ' +
+            '<code>window.SiteAPI</code> (context, search, reading position, bookmarks, notes). ' +
+            'Anything the site does not expose (theme, comment count) is simply unknown, so those rules never fire — ' +
+            'that is the agreed boundary, not a bug.<br>' +
+            'Tip: sliders are for looks, chips take animation names (Enter to add), category rows are editable.<br>' +
+            '<b>When changes apply</b>: "Save & build" writes the YAML back and regenerates ' +
+            '<code>js/pet/config.js</code>; an open demo tab reloads itself (it polls the version every 2.5s). ' +
+            'So <strong>every field applies on save</strong> — if nothing happens, the field is probably not wired ' +
+            'into the runtime, not cached.<br>' +
+            '<b>Two different resets</b>: "Revert all edits" goes back to what was loaded; ' +
+            '"Load factory defaults" reads <code>config/pet.default.yaml</code>, a separate copy of the shipped ' +
+            'defaults that ordinary editing never touches.<br>' +
+            '<b>Saving checks the disk</b>: if the file changed after this tab was opened (another tab, or a manual ' +
+            'edit), you get a confirmation first so stale content cannot overwrite it. Cancel, hit "Reload", edit again.<br>' +
+            '<b>Command-line equivalents</b>: <code>node tools/build-config.js</code> compiles; ' +
+            '<code>--reset</code> copies the defaults over (old file is backed up); <code>--snapshot</code> stores the ' +
+            'current config as the new defaults.'
+        ],
+
+        'zone.title': ['分区编辑器', 'Zone editor'],
+        'zone.add': ['＋ 子分区', '+ Child zone'],
+        'zone.export': ['导出 YAML', 'Export YAML'],
+        'zone.import': ['导入 YAML', 'Import YAML'],
+        'zone.del': ['删除这个分区', 'Delete this zone'],
+        'zone.hint': ['双击分区内部可建子分区；拖空白处（或按 Shift）框选新建；Shift 点选可多选，Del 删除。', 'Double-click inside a zone to add a child; drag on empty space (or hold Shift) to draw a new one; Shift-click to multi-select, Del to delete.'],
+        'zone.exportTip': ['复制到 config/pet.yaml（zones 与 zoneReactions 两段），然后运行 node tools/build-config.js。',
+                           'Paste into config/pet.yaml (both zones and zoneReactions), then run node tools/build-config.js.'],
+        'zone.save': ['保存并编译', 'Save & build'],
+        'rules.save': ['保存并编译', 'Save & build'],
+        '页面类型': ['页面类型', 'Page type'],
+        '细分类型': ['细分类型', 'Sub type'],
+        '标签包含': ['标签包含', 'Has tag'],
+        '字数 >': ['字数 >', 'Words >'],
+        '字数 <': ['字数 <', 'Words <'],
+        '评论数 =': ['评论数 =', 'Comments ='],
+        '评论数 ≥': ['评论数 ≥', 'Comments ≥'],
+        '滚动 >': ['滚动 >', 'Scroll >'],
+        '滚动 ≥': ['滚动 ≥', 'Scroll ≥'],
+        '滚动 <': ['滚动 <', 'Scroll <'],
+        '滚动 ≤': ['滚动 ≤', 'Scroll ≤'],
+        '上次滚动 >': ['上次滚动 >', 'Last scroll >'],
+        '暗色主题': ['暗色主题', 'Dark theme'],
+        '小时 ≥': ['小时 ≥', 'Hour ≥'],
+        '小时 <': ['小时 <', 'Hour <'],
+        '连续天数 ≥': ['连续天数 ≥', 'Streak ≥'],
+        '（旧）': ['（旧）', ' (legacy)'],
+        'cfg.revert': ['撤销全部改动', 'Revert all edits'],
+        'cfg.factory': ['恢复出厂默认', 'Load factory defaults'],
+        'zone.factory': ['恢复出厂默认', 'Load factory defaults'],
+        'rules.factory': ['恢复出厂默认', 'Load factory defaults'],
+        'reset.factoryConfirm': ['用 config/pet.default.yaml 里的出厂默认值替换当前内容？', 'Replace the current values with the factory defaults in config/pet.default.yaml?'],
+        'reset.factoryHint': ['（只是载入到编辑器，点「保存并编译」才会写盘）', '(This only loads them into the editor; nothing is written until you save.)'],
+        'reset.loadedCfg': ['已载入出厂默认值，点「保存并编译」写回', 'Factory defaults loaded — click Save & build to write them'],
+        'reset.loadedZone': ['已载入出厂默认分区，点「保存并编译」写回', 'Factory zones loaded — click Save & build to write them'],
+        'reset.loadedRules': ['已载入出厂默认规则，点「保存并编译」写回', 'Factory rules loaded — click Save & build to write them'],
+        'reset.noDefault': ['读不到 config/pet.default.yaml：', 'Cannot read config/pet.default.yaml: '],
+        'rules.sec.state': ['状态规则（条件 → 状态）', 'State rules (condition → state)'],
+        'rules.sec.state.desc': [
+            '按顺序判断，第一条命中就决定她处于什么状态；都不命中时按状态自身的权重随机。',
+            'Evaluated top to bottom; the first match decides the state. If nothing matches, states are picked by their weights.'
+        ],
+        'rules.sec.item': ['情境规则（条件 → 台词 / 动作）', 'Contextual rules (condition → line / action)'],
+        'rules.sec.item.desc': [
+            '同样按顺序判断，第一条命中就说这句话、做这个动作；停用的规则会被跳过。',
+            'Also evaluated top to bottom; the first match speaks the line / plays the action. Disabled rules are skipped.'
+        ],
+        'rules.enabled': ['启用', 'On'],
+        'rules.enabledTip': [
+            '取消勾选 = 停用这条规则（保留在配置里，但不参与判断）',
+            'Uncheck to disable: the rule stays in the config but is skipped at runtime'
+        ],
+        'rules.count': [' 条', ' rules'],
+
+        'unit.pcs': ['个', 'pcs'],
+        'unit.lines': ['句', 'lines'],
+        'unit.items': ['条', 'items'],
+        'unit.sec': ['秒', 's'],
+        'unit.ms': ['毫秒', 'ms'],
+        'unit.px': ['px', 'px'],
+        'cat.title': ['待机分类', 'Idle categories'],
+        'cat.night': ['夜间分类', 'Night categories'],
+        'cat.desc': ['按权重随机抽取；权重越大出现越频繁。',
+                     'Picked by weight; larger weights appear more often.'],
+        'cat.name': ['分类名', 'Name'],
+        'cat.weight': ['权重', 'Weight'],
+        'cat.actions': ['包含的动画（逗号分隔）', 'Clips (comma separated)'],
+        'cat.add': ['＋ 添加分类', '+ Category'],
+        'hist.title': ['历史版本', 'History'],
+        'hist.desc': ['每次保存前自动留一份，最多 20 份。',
+                      'A snapshot is taken before every save, up to 20 kept.'],
+        'hist.close': ['关闭', 'Close'],
+        'hist.restore': ['恢复', 'Restore'],
+        'cfg.parsePaste': ['解析粘贴内容', 'Parse pasted YAML'],
+        'cfg.bannerLead': ['读不到 config/pet.yaml（双击打开或没有本地服务）。点顶部「打开 YAML」选择它，或把内容粘到下面。',
+                          'Could not read config/pet.yaml (double-clicking, or no local server). Use "Open YAML" above to pick it, or paste its contents below.'],
+        'Expand': ['展开', 'Expand'],
+        'Collapse': ['收起', 'Collapse'],
+        '现在保存会用页面里的规则覆盖它，那些改动会丢。\n\n仍然要保存吗？': 'Saving now will overwrite it with the rules from this page, and those changes will be lost.\n\nSave anyway?',
+        '现在保存会用页面里的分区覆盖它，那些改动会丢。\n\n仍然要保存吗？': 'Saving now will overwrite it with the zones from this page, and those changes will be lost.\n\nSave anyway?',
+        ', tag empty.': ', tag empty.',
+        'cfg.pasteHint': ['粘贴 pet.yaml 全文…', 'Paste the full pet.yaml here…'],
+        'zone.list': ['分区', 'Zones'],
+
+        'zone.parentTip': ['留空表示顶层', 'Empty = top level'],
+        'zone.copyTip': ['复制到 config/pet.yaml（zones 与 zoneReactions 两段），再运行 node tools/build-config.js。',
+                         'Paste into config/pet.yaml (zones and zoneReactions), then run node tools/build-config.js.'],
+        'zone.undo': ['撤销', 'Undo'],
+        'zone.redo': ['重做', 'Redo'],
+        'zone.copy': ['复制', 'Copy'],
+        'rules.copyTip': ['上半段是 policy.stateRules（与 policy 下其它键并列），下半段是 rules.items。',
+                          'Paste into rules.items: in config/pet.yaml, then run node tools/build-config.js.'],
+        'cfg.opening': ['正在读取配置…', 'Loading settings…'],
+        'cfg.noClip': ['（不播动画）', '（none）'],
+    'cfg.unset': ['（未设置）', '（not set）'],
+    'cfg.pick': ['（选择…）', '（choose…）'],
+    'cfg.manual': ['手动输入…', 'Type a path…'],
+    'cfg.customPath': ['自定义路径', 'Custom path'],
+    'cfg.selectAll': ['全选', 'All'],
+    'cfg.clearAll': ['清空', 'Clear'],
+    'cfg.missingClip': ['配置里有，但磁盘上找不到这个动画', 'In the config but missing on disk'],
+    'cfg.noAssets': ['素材清单未加载，可手动输入', 'Asset list not loaded — type it manually'],
+    'cfg.stateMissingClip': ['缺 clip', 'no clip'],
+    'cfg.stateEmptyPool': ['池是空的', 'empty pool'],
+    'cfg.weight': ['权重', 'Weight'],
+    'cfg.weightZero': ['权重 0 = 不会被随机选中', 'Weight 0 = never picked at random'],
+    'cfg.clipCount': ['个动画', 'clips'],
+    'cfg.edit': ['编辑', 'Edit'],
+    'cfg.collapse': ['收起', 'Collapse'],
+    'cfg.pool': ['池', 'pool'],
+    'cfg.incomplete': ['不完整', 'incomplete'],
+    'cfg.states': ['状态', 'States'],
+    'cfg.statesDesc': ['每种状态播哪个动画，以及待机时从哪些动画里抽。', 'Which clip each state plays, and which clips it draws from.'],
+    'cfg.stateId': ['状态 id（决定 rollWeights 里的权重键）', 'State id (the key used by rollWeights)'],
+    'cfg.delState': ['删除状态', 'Delete state'],
+    'cfg.addState': ['＋ 添加状态', '+ State'],
+    'cfg.noStates': ['配置里还没有 states。', 'No states in the config yet.'],
+    'cfg.diskMissing': ['（磁盘上没有）', '（missing on disk）'],
+    'cfg.openFile': ['打开 YAML', 'Open YAML'],
+        'zone.look': ['外观', 'Appearance'],
+    'zone.cParent': ['父分区色', 'Parent colour'],
+    'zone.cChild': ['子分区色', 'Child colour'],
+    'zone.cSel': ['选中色', 'Selection colour'],
+    'zone.cFill': ['填充透明度', 'Fill opacity'],
+    'zone.labelColor': ['标签文字色', 'Label text colour'],
+    'zone.labelBg': ['标签底色', 'Label background'],
+    'zone.labelSize': ['标签字号', 'Label size'],
+    'zone.labelShow': ['显示标签', 'Show labels'],
+    'zone.labelShowTip': ['在分区内显示 id', 'Show zone id inside the box'],
+    'zone.bg': ['底图', 'Backdrop image'],
+    'zone.bgTip': ['只用于对齐，分区是归一化坐标，换图不影响已划分的结果。', 'Alignment only: zones use normalised coordinates, so swapping the image keeps every zone.'],
+    'zone.bgPick': ['选择图片', 'Pick image'],
+    'zone.bgOpen': ['打开图片', 'Open image'],
+    'zone.bgPath': ['图片地址', 'Image path'],
+    'zone.bgOpacity': ['不透明度', 'Opacity'],
+    'zone.resetBg': ['恢复默认底图', 'Reset backdrop'],
+    'zone.resetLook': ['恢复默认外观', 'Reset appearance'],
+    'zone.delSelected': ['删除选中分区（Del）', 'Delete selected (Del)'],
+    'zone.drawMode': ['＋ 框选新建', '＋ Draw new'],
+    'zone.drawHint': ['在图上拖出一个矩形，松手即成新分区（Shift 也可临时框选）', 'Drag a rectangle over the character; release to create a zone (Shift also works)'],
+    'zone.parent': ['父分区', 'Parent zone'],
+    'zone.actCustom': ['自定义动作', 'Custom action'],
+    'zone.width': ['横向范围', 'Horizontal span'],
+    'zone.full': ['占满宽度', 'Full width'],
+    'zone.idErr': ['id 不能为空、不能重复，也不能含空格', 'id must be non-empty, unique and contain no spaces'],
+    'zone.act': ['触发动作', 'Action'],
+        'zone.say': ['点击台词（每行一条；台词*2 表示权重 2）', 'Click lines (one per row; text*2 sets weight 2)'],
+        'zone.help': ['使用说明', 'How to use'],
+        'zone.help.body': [
+            '<b>新建</b><br>' +
+            '· 按 <kbd>N</kbd> 或点「＋ 框选新建」，在图上拖出矩形；按住 <kbd>Shift</kbd> 拖动可临时框选。<br>' +
+            '· 双击任意分区内部，会在点击处建一个子分区，父级就是被双击的那个。<br>' +
+            '· 「＋ 子分区」建一个居中的默认框。<br>' +
+            '<b>选择与编辑</b><br>' +
+            '· 单击选中；<kbd>Shift</kbd> / <kbd>Ctrl</kbd> 单击可多选，右侧可改 id、坐标、父级、动作、台词。<br>' +
+            '· 拖动方块移动；八个手柄拉伸（四角 + 四边中点）。<br>' +
+            '· 多选时拖动任意一个，整组一起移动。<br>' +
+            '<b>删除</b>：<kbd>Del</kbd> 或 <kbd>Backspace</kbd> 删除选中；子分区会自动升到顶层。<br>' +
+            '<b>撤销</b>：<kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销，<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> 或 <kbd>Ctrl</kbd>+<kbd>Y</kbd> 重做。<br>' +
+            '<b>取消</b>：<kbd>Esc</kbd> 依次退出框选模式、放弃正在拖的矩形、回到单选。<br>' +
+            '<b>外观与底图</b><br>' +
+            '· 「外观」改配色、标签样式；「底图」只用于对齐，换图不影响已划分的分区（坐标是归一化的比例）。<br>' +
+            '· 本地选的图片只存在本机浏览器，不会写进仓库。<br>' +
+            '<b>保存</b>：点「保存并编译」直接写回 <code>config/pet.yaml</code>；没有服务器时用「导出 YAML」手动合并。<br>' +
+            '提示：子分区 id 用 <code>head.crown</code> 这种点号层级，会自动继承父分区的反应。<br>' +
+            '<b>父级有两种写法</b>：id 里带点号（<code>head.crown</code>）会自动推出父级；' +
+            '也可以单独填 <code>parent</code>，显式写的优先级更高——id 起名如 <code>crown</code> 时就得靠它。<br>' +
+            '<b>坐标是比例</b>：0~1 的归一化值，跟素材尺寸无关，换立绘不用重画。<br>' +
+            '<b>页面打开时读的是真实配置</b>：启动会先读 <code>config/pet.yaml</code> 里的 zones / zoneReactions，' +
+            '读不到才用内置默认分区；保存同样会先比对磁盘，避免覆盖别人的改动。<br>' +
+            '<b>恢复出厂默认</b>只替换 zones 与 zoneReactions 两段，其它配置不动。',
+            '<b>Create</b><br>' +
+            '· Press <kbd>N</kbd> or click "＋ Draw new", then drag a rectangle; hold <kbd>Shift</kbd> to draw without toggling.<br>' +
+            '· Double-click inside a zone to add a child at that point; its parent is the zone you clicked.<br>' +
+            '· "＋ Child zone" drops a default box in the middle.<br>' +
+            '<b>Select &amp; edit</b><br>' +
+            '· Click to select; <kbd>Shift</kbd> / <kbd>Ctrl</kbd> click to multi-select. Edit id, coordinates, parent, action and dialogue on the right.<br>' +
+            '· Drag the box to move it; eight handles resize it (corners + edge midpoints).<br>' +
+            '· With several selected, dragging one moves the whole group.<br>' +
+            '<b>Delete</b>: <kbd>Del</kbd> or <kbd>Backspace</kbd>; children are promoted to top level.<br>' +
+            '<b>Undo</b>: <kbd>Ctrl</kbd>+<kbd>Z</kbd>, redo with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> or <kbd>Ctrl</kbd>+<kbd>Y</kbd>.<br>' +
+            '<b>Cancel</b>: <kbd>Esc</kbd> leaves draw mode, drops the rectangle being dragged, then returns to single selection.<br>' +
+            '<b>Look &amp; backdrop</b><br>' +
+            '· "Appearance" changes colours and label style; the backdrop is alignment only — zones are normalised, so swapping images keeps every zone.<br>' +
+            '· A locally picked image stays in this browser; nothing is written to the repo.<br>' +
+            '<b>Save</b>: "Save &amp; build" writes <code>config/pet.yaml</code>; without a server use "Export YAML".<br>' +
+            'Tip: dotted ids like <code>head.crown</code> inherit the parent reaction.<br>' +
+            '<b>Two ways to declare a parent</b>: dots in the id (<code>head.crown</code>) imply the parent, and an ' +
+            'explicit <code>parent</code> field wins over that — needed when the id is a plain name like <code>crown</code>.<br>' +
+            '<b>Coordinates are ratios</b>: normalised 0~1, independent of the artwork size, so a new drawing needs no ' +
+            're-tracing.<br>' +
+            '<b>It reads the real config</b>: zones and zoneReactions are loaded from <code>config/pet.yaml</code> at ' +
+            'startup (the built-in array is only a fallback), and saving compares against the file on disk first.<br>' +
+            '<b>Factory defaults</b> replace only zones and zoneReactions; everything else stays put.'
+        ],
+
+        'rules.title': ['规则编辑器', 'Rules editor'],
+        'rules.add': ['＋ 规则', '+ Rule'],
+        'rules.import': ['导入 YAML', 'Import YAML'],
+        'rules.export': ['导出 YAML', 'Export YAML'],
+        'rules.copy': ['复制', 'Copy'],
+        'rules.loading': ['加载中…', 'Loading…'],
+        'rules.condAll': ['条件（全部满足）', 'Conditions (all must match)'],
+        'rules.addCond': ['＋ 条件', '+ Condition'],
+        'rules.say': ['台词（每行一条，随机取）', 'Dialogue (one per row, picked at random)'],
+        'rules.act': ['动作（多个用逗号分隔，留空不切动画）', 'Action (comma-separated; empty = no animation)'],
+        'rules.cd': ['冷却（秒，留空跟随默认）', 'Cooldown (seconds; empty = default)'],
+        'rules.exportTip': ['复制到 config/pet.yaml 的 rules.items:，再运行 node tools/build-config.js。',
+                            'Paste into rules.items: in config/pet.yaml, then run node tools/build-config.js.'],
+        'rules.weightsAllZero': ['全部为 0：只按规则进入，不做随机', 'All zero: entered by rules only, never rolled at random'],
+    'rules.weightsTotal': ['总权重 {n}，上面的条按比例显示', 'Total weight {n}; the bar above shows the shares'],
+    'rules.actPick': ['动作（点选，可多选；都不选则不切动画）', 'Action (click to pick several; none = no animation)'],
+    'rules.custom': ['自定义…', 'Custom…'],
+    'rules.condKey': ['条件键名', 'Condition key'],
+    'rules.condUnknown': ['运行时不认识这个键', 'The runtime does not know this key'],
+    'rules.clear': ['清空', 'Clear'],
+    'rules.noClips': ['没连服务器，只能手填', 'No server — type it manually'],
+    'rules.weights': ['状态权重', 'State weights'],
+    'rules.weightsDesc': ['规则没命中时按权重随机；0 = 不会被随机选中。', 'Without a matching rule the state is rolled by weight; 0 = never picked.'],
+    'rules.noStates': ['（配置里没有 states）', '（no states in the config）'],
+    'rules.help': ['使用说明', 'How to use'],
+        'rules.help.body': [
+            '1. 每条规则从上到下依次判断，先命中先生效。<br>' +
+            '2. 条件越具体越该放前面，兜底规则放最后。<br>' +
+            '3. 台词可以多行，随机取一条；支持 <code>{tag}</code> 与 <code>{streak}</code> 占位。<br>' +
+            '4. 点「保存并编译」直接写回；没有服务器时才需要导出 YAML。<br>' +
+            '提示：冷却时间越短越热闹，太长会显得安静。<br>' +
+            '<b>两个上下区不一样</b>：上面「状态规则」决定她处于什么状态（条件 → 状态），' +
+            '下面「情境规则」决定她说哪句、做哪个动作（条件 → 台词 / 动作）。两组都按从上到下的顺序判定，先命中先生效。<br>' +
+            '<b>启用开关</b>：每条规则左边的勾选框对应 YAML 里的 <code>enabled: false</code>——' +
+            '取消勾选后规则仍保留在配置里，只是运行时跳过，不用删掉再手抄回来。<br>' +
+            '<b>没有状态规则命中时</b>，会按各状态自己的 <code>weight</code> 加权随机。<br>' +
+            '<b>保存</b>只替换 <code>rules.items</code> 与 <code>policy.stateRules</code>，' +
+            '<code>policy</code> 下的 rollWeights / calendar 不受影响；没成功读取配置时保存会被拦下，' +
+            '避免写出一份空规则。',
+            '1. Rules are evaluated top to bottom; the first match wins.<br>' +
+            '2. Put specific conditions first and keep a fallback last.<br>' +
+            '3. Multiple lines are picked at random; <code>{tag}</code> and <code>{streak}</code> are supported.<br>' +
+            '4. Ctrl+Z undoes a drag, Ctrl+Shift+Z or Ctrl+Y redoes it.<br>' +
+            '5. Click "Save & build" to write it back; export only if you have no server.<br>' +
+            'Tip: short cooldowns feel lively, long ones feel quiet.<br>' +
+            '<b>The two sections differ</b>: "State rules" decide which state she is in (condition → state); ' +
+            '"Contextual rules" decide what she says or does (condition → line / action). Both are evaluated top to ' +
+            'bottom and the first match wins.<br>' +
+            '<b>The On switch</b> maps to <code>enabled: false</code> in the YAML: the rule stays in the config but ' +
+            'is skipped at runtime, so you can silence it without deleting and retyping it.<br>' +
+            '<b>When no state rule matches</b>, states are picked by their own <code>weight</code>.<br>' +
+            '<b>Saving</b> replaces only <code>rules.items</code> and <code>policy.stateRules</code>; rollWeights and ' +
+            'the calendar under <code>policy</code> are untouched. If the config was never loaded, saving is blocked ' +
+            'so it cannot write an empty rule list.'
+        ],
+
+        'tests.clear': ['清空输出', 'Clear output'],
+    'tests.passedSuites': ['通过', 'Passed'],
+    'tests.unitTitle': ['单元测试', 'Unit tests'],
+    'tests.unitHint': ['纯函数与数据校验，毫秒级', 'Pure functions and data checks, milliseconds'],
+    'tests.e2eTitle': ['端到端', 'End to end'],
+    'tests.e2eHint': ['无头浏览器，秒级', 'Headless browser, seconds'],
+    'tests.runOne': ['运行', 'Run'],
+    'tests.suite.kernel': ['内核', 'Kernel'],
+    'tests.suite.rules': ['规则编译器', 'Rule compiler'],
+    'tests.suite.rulesData': ['规则数据', 'Rule data'],
+    'tests.suite.levels': ['意图级别', 'Intent levels'],
+    'tests.suite.statesWeights': ['状态权重', 'State weights'],
+    'tests.suite.statesData': ['状态数据', 'State data'],
+    'tests.suite.zones': ['分区引擎', 'Zone engine'],
+    'tests.suite.smoke': ['端到端冒烟', 'Smoke (e2e)'],
+    'tests.suite.i18n': ['中英一致性', 'zh/en consistency'],
+    'tests.title': ['宠物测试', 'Pet tests'],
+    'tests.idle': ['等待运行', 'Ready'],
+    'tests.running': ['运行中…', 'Running…'],
+    'tests.done': ['完成', 'Done'],
+    'tests.failed': ['失败', 'Failed'],
+    'tests.noServerShort': ['没有服务器', 'No server'],
+    'tests.noServer': ['连不上本地服务器。请用 start.bat 启动后再试。', 'Cannot reach the local server. Start it with start.bat and try again.'],
+    'tests.runUnit': ['跑全部单元', 'Run all unit tests'],
+    'tests.runAll': ['全量（含冒烟与中英一致性）', 'Full (smoke + zh/en)'],
+    'tests.panelTitle': ['测试面板', 'Test panel'],
+    'tests.panelDesc': ['每个套件可以单独跑，也可以一次跑全部。需要本地服务器（start.bat）。', 'Run any suite on its own, or all of them in one go. Requires the local server (start.bat).'],
+    'tests.badgeIdle': ['未运行', 'Not run'],
+    'tests.badgeOk': ['通过', 'Passed'],
+    'tests.badgeFail': ['失败', 'Failed'],
+    'tests.outputTitle': ['输出', 'Output'],
+    'tests.duration': ['耗时', 'Took'],
+    'tests.outputPlaceholder': ['（还没有输出）', '(no output yet)'],
+    'tests.hint': ['命令行等价：<code>node tools/run-tests.js --all</code>', 'CLI equivalent: <code>node tools/run-tests.js --all</code>'],
+    'home.tests': ['测试面板', 'Test panel'],
+    'home.tests.desc': ['单元、冒烟、中英一致性，一键跑', 'Unit, smoke and zh/en checks in one click'],
+    'nav.readme': ['使用说明', 'Readme'],
+        'nav.status': ['项目状态', 'Status'],
+        'nav.config': ['配置参考', 'Config reference'],
+    'nav.integration': ['接入博客', 'Blog integration'],
+    'nav.api': ['API 文档', 'API'],
+        'nav.tests': ['测试面板', 'Test panel'],
+    'nav.interaction': ['交互协议（设计稿）', 'Interaction (draft)'],
+    'nav.issues': ['已知问题', 'Issues'],
+        'nav.history': ['开发沿革', 'History'],
+
+        'docs.back': ['← 返回', '← Back'],
+        'lang.toggle': ['EN', '中文'],
+
+    /* ---- 补录：各可视化页面用到的词条 ---- */
+    'legal.privacy': ['隐私', 'Privacy'],
+    'legal.privacyBody': ['本工具完全在你的浏览器本地运行：所有文件读取、编辑与编译都在本机完成，不会上传任何内容，也不含统计或追踪脚本。语言偏好保存在浏览器 localStorage 中，可随时清除站点数据移除。', 'This tool runs entirely in your browser: every file read, edit and build happens locally. Nothing is uploaded, and there are no analytics or tracking scripts. Your language preference is stored in localStorage and is removed when you clear site data.'],
+    'legal.disclaimer': ['免责声明', 'Disclaimer'],
+    'legal.disclaimerBody': ['本工具按“现状”提供，不保证适用于任何特定用途。配置由你自行编辑、编译与应用，由此产生的任何后果由使用者承担；作者不对数据丢失、站点异常或任何间接损失负责。使用前请自行备份配置文件。', 'Provided as-is, without warranty of any kind. You edit, build and apply the configuration at your own risk; the author is not liable for data loss, site breakage or any indirect damages. Back up your configuration before use.'],
+    'legal.writeAsk': ['这个工具需要把改动写回本地文件才会生效。是否允许它直接写盘？\n\n选择“取消”也没关系：可以用页面上的导出按钮自己保存。', 'This tool needs to write changes back to a local file to take effect. Allow direct disk writes?\n\nChoosing Cancel is fine: use the export button and save the file yourself.'],
+
+    'copy.varsBtn': ['变量表', 'Placeholders'],
+    'copy.palette': ['插入变量', 'Insert a placeholder'],
+    'copy.paletteHint': ['先点一个输入框，再点变量名，它会插到光标处。条件写法：{tag?\'有标签\':\'没标签\'} 有值用前段，{tag??\'没标签\'} 空值用后备，{!tag?…} 取反。',
+                         'Click a field first, then a variable name. Conditionals: {tag?\'yes\':\'no\'}, {tag??\'none\'}, and {!tag?…} to negate.'],
+    'copy.help': ['使用说明', 'How to use'],
+    'copy.help.body': ['这里只管 <code>persona.*</code> 的台词：见面、对话、状态、互动四组。外观与节奏在配置编辑器，规则条件在规则编辑器。<br>文案里的花括号是占位符：<code>{pet}</code> 是名字，<code>{n}</code> 是连续天数，<code>{title}</code> 是当前文章标题。写成 <code>{tag?\'有\':\'没有\'}</code> 就是有值取前段、没值取后段。<br>编辑哪种语言跟随右上角的语言按钮：中文模式改 <code>persona.*</code>，英文模式改 <code>persona.en.*</code>，留空即回落到内置文案。',
+                         'This page owns only the <code>persona.*</code> lines: meeting, talking, states and interactions. Looks and timing live in the settings editor; rule conditions live in the rules editor.<br>Braces are placeholders: <code>{pet}</code> is her name, <code>{n}</code> the streak, <code>{title}</code> the current page title. Use <code>{tag?\'yes\':\'no\'}</code> to pick a branch.<br>Which language you edit follows the toggle at the top right: Chinese edits <code>persona.*</code>, English edits <code>persona.en.*</code>; leaving a field empty falls back to the built-in line.'],
+    'vars.title': ['变量表', 'Placeholders'],
+    'vars.sub': ['文案里可以用的全部占位符。点变量名即可复制。', 'Every placeholder you can use in copy. Click a variable name to copy it.'],
+    'vars.back': ['← 返回', '← Back'],
+    'vars.copyAll': ['复制全部', 'Copy all'],
+    'nav.vars': ['变量表', 'Placeholders'],
+    'home.vars': ['变量表', 'Placeholders'],
+    'home.vars.desc': ['文案里能用的全部占位符：名字、时间、页面信息，各自的取值来源与示例。', 'All placeholders available in copy: name, time, page info, with sources and examples.'],
+    'copy.syntax': ['写法：条件与后备', 'Syntax: conditionals and fallbacks'],
+    'copy.syntaxDesc': ['花括号里可以写小表达式：{tag?\'有标签\':\'没标签\'} 有值用前段、没有用后段；{tag??\'没标签\'} 空值才用后备；变量前加 ! 取反。点下面的片段插到刚才编辑的框里。',
+                        'Braces hold small expressions: {tag?\'yes\':\'no\'} picks a branch, {tag??\'none\'} falls back when empty, and a leading ! negates. Click a snippet to insert it into the field you last edited.'],
+    'copy.title': ['文案编辑', 'Copy editor'],
+    'copy.sub': ['她说的每一句话。改名字时这些句子会自动跟着变，不用逐条改。', 'Every line she says. Rename her once and these sentences follow.'],
+    'copy.back': ['← 返回', '← Back'],
+    'copy.loading': ['加载中…', 'Loading…'],
+    'copy.import': ['导入 YAML', 'Import YAML'],
+    'copy.export': ['导出 YAML', 'Export YAML'],
+    'copy.save': ['保存并编译', 'Save & build'],
+    'nav.copy': ['文案编辑', 'Copy editor'],
+    'home.copy': ['文案编辑', 'Copy editor'],
+    'home.copy.desc': ['她说什么：见面、对话、状态、互动的台词，支持 {pet}、{title} 这类占位符。', 'What she says: lines for meetings, chat, states and interactions, with {name} placeholders.'],
+    };
+
+    var TERMS = {
+        '气泡和对话里的自称': 'How it refers to itself in bubbles and chat',
+        '换掉会让访客记录、位置、聊天全部重置': 'Changing this resets visit history, position and chat',
+        '透明 WebM 放这里': 'Transparent WebM files live here',
+        '首帧或无法播放时的静帧': 'Still frame shown first, or when playback fails',
+        '正数向右；偏左就调大': 'Positive moves right; raise it if the art sits left',
+        '越大越"飘在上面"': 'Larger lifts the shadow away',
+        '越大越柔和': 'Larger is softer',
+        '带透明度的颜色值': 'Colour with alpha',
+        '单位毫秒；9000 = 9 秒': 'Milliseconds; 9000 = 9 s',
+        '实际间隔在上限与下限之间随机': 'Actual delay is random between min and max',
+        '无操作累计到这个时间': 'Idle time before it falls asleep',
+        '关掉之后只能点': 'When off, clicking still works',
+        '位移超过这个值才算拖，否则算点': 'Moves beyond this count as a drag, otherwise a click',
+        '点一次飘出的爱心/水滴数量': 'Particles per click',
+        '情境台词会覆盖这个值': 'Context lines override this',
+        '读到底、换页这类主动说话': 'Proactive lines such as reaching the end',
+        '这段时间内同一句不重复说': 'The same line is not repeated within this window',
+        '说不过来时最多积压几句': 'How many lines may queue up',
+        '超出后丢弃最早的': 'Oldest entries are dropped first',
+        '越小越活泼，越大越安静': 'Smaller is livelier, larger is quieter',
+        '构建期生成的 JSON': 'JSON generated at build time',
+        '首屏多久后静默加载索引': 'Silently load the index after this delay',
+        '问答里列出的结果数量': 'Number of results listed',
+        '一直循环的动画': 'Looped while idle',
+        '被点时的候选': 'Candidates on click',
+        '抓起时播的那一个': 'Played when grabbed',
+        '进入休眠播一次': 'Played once on falling asleep',
+        '点喂食按钮播一次': 'Played once on feeding',
+        '它在对话里怎么称呼自己，以及状态存在哪个键下面。': 'How it names itself, and where its state is stored.',
+        '素材位置与投影。角色看起来偏左或偏右，调「水平偏移」。': 'Asset paths and shadow. Adjust horizontal offset if the art sits off-centre.',
+        '她多久换一次待机小动作，以及多久没人理就睡着。': 'How often it changes idle animation, and how soon it naps.',
+        '点击与拖拽怎么区分，点一下飘出几个粒子。': 'How click and drag are told apart, and particles per click.',
+        '说话的节奏：同一句多久内不重复、气泡停留多久、对话保留几条。': 'Speech timing: dedupe window, bubble duration, chat history.',
+        '每条规则触发一次后，需要等多久才可能再次触发。': 'How long a rule waits before it may fire again.',
+        '对话里问「有没有讲 X 的」时，去哪找索引。': 'Where to look when asked about a topic.',
+        '待机时从哪些动画里抽。改这里等于改她的性格。': 'Which clips idle picks from. This is its personality.',
+        '按权重随机抽取；权重越大出现越频繁。': 'Picked by weight; larger weights appear more often.',
+        '个': 'pcs', '句': 'lines', '条': 'items', '秒': 's', '毫秒': 'ms',
+        '名字': 'Name', '存储键': 'Storage key', '身份': 'Identity', '外观': 'Appearance',
+        '节奏': 'Timing', '交互': 'Interaction', '语言': 'Speech', '情境规则': 'Context rules',
+        '站内检索': 'Site search', '动作库': 'Animation pool', '待机分类': 'Idle categories',
+        '夜间分类': 'Night categories', '水平偏移': 'Horizontal offset', '垂直偏移': 'Vertical offset',
+        '模糊半径': 'Blur radius', '颜色': 'Color', '动画目录': 'Animation dir', '占位图': 'Poster',
+        '换动作间隔（最短）': 'Idle roll (min)', '换动作间隔（最长）': 'Idle roll (max)',
+        '多久后睡着': 'Sleep after', '允许拖拽': 'Allow drag', '拖拽判定距离': 'Drag threshold',
+        '点击粒子数': 'Click particles', '气泡停留': 'Bubble duration', '情境台词停留': 'Context line duration',
+        '防重复窗口': 'Dedupe window', '待说队列上限': 'Queue limit', '对话保留条数': 'Chat history',
+        '默认冷却': 'Default cooldown', '索引地址': 'Index URL', '预取延迟': 'Preload delay',
+        '最多返回几条': 'Max results',
+        '站点对接': 'Site integration', '就绪延迟': 'Ready delay', '读取文章元信息': 'Read post metadata',
+        '对话里问「有没有讲 X 的」时，检索请求交给站点的 SiteAPI（收录哪些内容由站点决定，宠物不维护索引）。':
+            'When you ask "do you have anything on X", the query goes to the site SiteAPI — the site decides what is indexed; the pet keeps no index.',
+        '宠物只通过 window.SiteAPI 与站点对话，这里没有任何可调项：页面类型、标签、字数、主题都由站点在 currentContext() 里给。':
+            'The pet talks to the site only through window.SiteAPI. Nothing to tune here: page type, tags, word count and theme all come from currentContext().',
+        'SiteAPI.ready() 会让站点加载内容库，延迟执行可以避开首屏':
+            'SiteAPI.ready() makes the site load its content library, so it runs after first paint',
+        '文章页按需取标签与字数（走内容库，一页只取一次）；关掉后相关台词不会出现':
+            'On post pages, fetch tags and word count on demand (one lookup per page); turn it off and those lines never appear', '常驻待机': 'Idle loop', '点击回应': 'Click replies',
+        '拖拽动画': 'Drag clip', '睡着时': 'Sleep clip', '喂食时': 'Feed clip',
+        '页面类型': 'Page type', '细分类型': 'Sub type', '标签包含': 'Tags include',
+        '字数 >': 'Words >', '字数 <': 'Words <', '评论数 =': 'Comments =', '评论数 ≥': 'Comments ≥',
+        '滚动 >': 'Scroll >', '滚动 <': 'Scroll <', '上次滚动 >': 'Prev scroll >',
+        '暗色主题': 'Dark mode', '小时 ≥': 'Hour ≥', '小时 <': 'Hour <', '连续天数 ≥': 'Streak ≥'
+,
+        '文案编辑': 'Copy editor',
+        '加载中…': 'Loading…',
+        '变量表': 'Placeholders',
+        '导入 YAML': 'Import YAML',
+        '导出 YAML': 'Export YAML',
+        '保存并编译': 'Save & build',
+        '插入变量': 'Insert a placeholder',
+        '先点一个输入框，再点变量名，它会插到光标处。条件写法：{tag?\'有标签\':\'没标签\'}、{tag??\'没标签\'}、{!tag?\'没标签\':\'有标签\'}。': 'Click a field first, then click a variable name to insert it at the cursor. Conditionals: {tag?\'with tag\':\'no tag\'}, {tag??\'no tag\'}, {!tag?\'no tag\':\'with tag\'}.',
+        '隐私': 'Privacy',
+        '本工具完全在你的浏览器本地运行：所有文件读取、编辑与编译都在本机完成，不会上传任何内容，也不含统计或追踪脚本。语言偏好保存在浏览器 localStorage 中，可随时清除站点数据移除。': 'This tool runs entirely in your browser: every file read, edit and build happens locally. Nothing is uploaded, and there are no analytics or tracking scripts. Your language preference is stored in localStorage and is removed when you clear site data.',
+        '免责声明': 'Disclaimer',
+        '本工具按“现状”提供，不保证适用于任何特定用途。配置由你自行编辑、编译与应用，由此产生的任何后果由使用者承担；作者不对数据丢失、站点异常或任何间接损失负责。使用前请自行备份配置文件。': 'Provided as-is, without warranty of any kind. You edit, build and apply the configuration at your own risk; the author is not liable for data loss, site breakage or any indirect damages. Back up your configuration before use.',
+        '未连接本地服务：写盘与编译不可用，可继续导出 YAML。': 'Not connected to the local server: saving and building are unavailable, but you can still export YAML.',
+        '见面': 'Meeting',
+        '第一次见面、再次见面、连续来访。': 'First visit, return visits, streaks.',
+        '初次见面': 'First meeting',
+        '第一次打开页面时': 'First time on the page',
+        '再次见面': 'Meeting again',
+        '之后每次回来': 'Every later visit',
+        '连续 3 天': '3-day streak',
+        '{n} 会替换成天数': '{n} becomes the day count',
+        '连续 7 天': '7-day streak',
+        '对话': 'Talking',
+        '打开对话框时说的话。': 'What she says when the chat opens.',
+        '自我介绍': 'Self-introduction',
+        '打开对话框的第一句': 'First line in the chat',
+        '被召回': 'Brought back',
+        '点了「召回」之后': 'After “bring back”',
+        '状态': 'States',
+        '睡觉这类状态下的描述句。': 'Lines for states such as sleeping.',
+        '睡着了': 'Asleep',
+        '长时间没操作时': 'After a long idle',
+        '互动': 'Interaction',
+        '投喂、问候。数组型可以写多条，随机说一条。': 'Feeding and greetings. Arrays can hold several lines and say one at random.',
+        '投喂': 'Fed',
+        '一行一条，随机说': 'One per line, picked at random',
+        '问候 · 深夜': 'Greeting · late night',
+        '一行一条': 'One per line',
+        '问候 · 早上': 'Greeting · morning',
+        '问候 · 下午': 'Greeting · afternoon',
+        '问候 · 晚上': 'Greeting · evening',
+        '文章': 'Article',
+        '（留空则用内置默认文案）': '(leave empty to use the built-in default)',
+        '预览：': 'Preview: ',
+        '（空，使用默认）': '(empty, using the default)',
+        '先点一个输入框，再插变量': 'Click a field first, then insert a placeholder',
+        '有标题说标题': 'title when present',
+        '有标签说标签': 'tag when present',
+        '没有评论时': 'when there are no comments',
+        '取反': 'negated',
+        '中文': 'Chinese',
+        '正在编辑 ': 'Editing ',
+        ' 文案 · ': ' copy · ',
+        '读不到 config/pet.yaml：': 'Cannot read config/pet.yaml: ',
+        '正在保存…': 'Saving…',
+        '已保存，配置已重新编译': 'Saved and rebuilt',
+        '保存失败：': 'Save failed: ',
+        '需要本地服务器': 'Needs the local server',
+        '已导出 persona.yaml': 'Exported persona.yaml',
+        '宠物演示': 'Pet demo',
+        '离线环境 · 只加载宠物本体，不含博客任何依赖': 'Offline environment: only the pet loads, with no blog dependencies',
+        '她住在页面角落，会随着你浏览的位置换动作、偶尔说句话。点她一下试试，也可以滚到页底。': 'She lives in the corner of the page: her moves follow wherever you are as you browse, and now and then she says something. Give her a click, or scroll to the bottom of the page.',
+        '怎么用这一页': 'How to use this page',
+        '滚一滚、点一点右下角的她，看看气泡里的反应；想聊天就点开对话框。': 'Scroll around, click her in the bottom-right corner and watch how the bubble reacts; open the chat box if you want to talk.',
+        '当前阶段': 'Current stage',
+        '代码是从博客里原样拷贝出来的第一版，内部仍然是单体结构（播放器、状态机、上下文规则、对话都在这一个文件里），并且还在直接读 location、document、localStorage。': 'The code is the first version copied verbatim from the blog. It is still monolithic inside (player, state machine, context rules and dialogue all live in one file) and still reads location, document and localStorage directly.',
+        '接下来的重构目标：': 'Upcoming refactor targets:',
+        '内核（装配、事件总线、调度、持久化）': 'Kernel (assembly, event bus, scheduling, persistence)',
+        '动作模块（HFSM 状态机 + 播放器）': 'Action module (HFSM state machine + player)',
+        '语言模块（speech act → 气泡 / 对话框渲染器）': 'Speech module (speech act → bubble / dialog renderers)',
+        '适配层（把站点信号规范化，本站的 adapter 只在这里）': 'Adapter layer (normalizes site signals; this site\'s adapter lives only here)',
+        '素材': 'Assets',
+        '32 段动画，4.55 MB，全部为带 alpha 的 VP9 WebM，路径与博客一致（/images/pet/anim/），所以宠物代码不需要改动路径。': '32 clips, 4.55 MB in total, all VP9 WebM with alpha, at the same paths as the blog (/images/pet/anim/), so the pet code needs no path changes.',
+        '左下角是测试面板：动作、状态与睡眠、互动、说话通道、提问、语言与配置、站点对接。按钮只发意图（intent.action / intent.state / speech.act），不直接改宠物内部状态。': 'The bottom-left corner is the test panel: actions, state and sleep, interactions, speech channels, asking a question, language and config, site integration. The buttons only emit intents (intent.action / intent.state / speech.act); they never change the pet\'s internal state directly.',
+        '页面底部 —— 滚动到这里应触发「读到底了」。': 'Bottom of the page — scrolling here should trigger "reached the end".',
+        '测试面板': 'Test panel',
+        '收起': 'Collapse',
+        '动作（直接 cue）': 'Actions (cue directly)',
+        '状态与睡眠': 'State and sleep',
+        '待机': 'Idle',
+        '忙碌': 'Busy',
+        '困倦': 'Sleepy',
+        '跟随上下文': 'Follow context',
+        '强制入睡': 'Force sleep',
+        '叫醒': 'Wake up',
+        '状态机默认跟随上下文（页面类型、阅读进度、主题、时间）；手动切换相当于临时指定，换页后自动回到跟随。': 'The state machine follows the context by default (page type, reading progress, theme, time); manual switching acts as a temporary override and returns to following after the next page change.',
+        '喂食': 'Feed',
+        '戳脑袋': 'Poke head',
+        '戳尾巴': 'Poke tail',
+        '粒子 ×1': 'One particle',
+        '说话': 'Speech',
+        '闲话': 'Ambient',
+        '情境': 'Context',
+        '回答': 'Reply',
+        '进对话框': 'To dialog',
+        '关对话框': 'Close chat',
+        '问一句（走检索 / 句库）': 'Ask a question (search / line pool)',
+        '提问': 'Ask',
+        '语言与配置': 'Language and config',
+        '看配置': 'Show config',
+        '刷新（重置会话）': 'Reload (reset session)',
+        '站点对接（模拟 SiteAPI）': 'Site integration (mock SiteAPI)',
+        '切换模拟站点': 'Toggle mock site',
+        '文章页': 'Post page',
+        '标签页': 'Tag page',
+        '首页': 'Home',
+        '滚动到 90%': 'Scroll to 90%',
+        '滚回顶部': 'Scroll back to top',
+        '收藏这页': 'Bookmark this page',
+        '切主题': 'Toggle theme',
+        '宠物还没加载完（等几秒再点）': 'The pet hasn\'t finished loading (wait a few seconds, then try again)',
+        '先写一句话再点提问': 'Type a question before clicking Ask',
+        '出错了：': 'Something went wrong: ',
+        '宠物还没加载完…': 'The pet hasn\'t finished loading…',
+        '展开': 'Expand',
+        '未挂载模拟站点：点「切换模拟站点」重载页面后可用。': 'No mock site mounted: click "Toggle mock site" to reload the page, then it will be available.',
+        '假站点: ': 'Mock site: ',
+        '\n宠物看到: ': '\nPet sees: ',
+        '（adapter 未就绪）': '(adapter not ready)',
+        '演示用的文章': 'Demo post',
+        '技术': 'Technology',
+        '标签：Unity': 'Tag: Unity',
+        '演示首页': 'Demo home',
+        '找不到页面': 'Page not found',
+        '切到「': 'Switched to "',
+        '」了。': '".',
+        '收藏好了。': 'Bookmarked.',
+        '取消收藏了。': 'Bookmark removed.',
+        '收藏没成：': 'Bookmark failed: ',
+        '配置已更新，正在重载…': 'Settings updated, reloading…',
+        '有没有讲算法的？': 'Anything about algorithms?',
+        '规则编辑器': 'Rules editor',
+        '撤销': 'Undo',
+        '重做': 'Redo',
+        '恢复出厂默认': 'Load factory defaults',
+        '＋ 规则': '+ Rule',
+        '上半段是 policy.stateRules（与 policy 下其它键并列），下半段是 rules.items。': 'The top section is policy.stateRules (a sibling of the other keys under policy); the bottom section is rules.items.',
+        '复制': 'Copy',
+        '未连接本地服务：素材列表、写盘与编译不可用，可继续导出 YAML。': 'No local server: the asset list, disk writes and builds are unavailable. You can still export YAML.',
+        '磁盘上的 ': 'The file ',
+        '现在保存会用页面里的规则覆盖它，那些改动会丢。\\n\\n仍然要保存吗？': 'Saving now will overwrite it with the rules on this page, and those changes will be lost.\\n\\nSave anyway?',
+        '细分类型': 'Sub type',
+        '标签包含': 'Has tag',
+        '字数 <': 'Words <',
+        '评论数 =': 'Comments =',
+        '评论数 ≥': 'Comments ≥',
+        '滚动 ≥': 'Scroll ≥',
+        '滚动 <': 'Scroll <',
+        '滚动 ≤': 'Scroll ≤',
+        '上次滚动 >': 'Last scroll >',
+        '小时 ≥': 'Hour ≥',
+        '小时 <': 'Hour <',
+        '连续天数 ≥': 'Streak ≥',
+        '是': 'Yes',
+        '否': 'No',
+        ' 条': ' rules',
+        '＋ 状态规则': '+ State rule',
+        '还没有状态规则：没有规则命中时按状态的权重随机。': 'No state rules yet: when nothing matches, a state is picked at random by weight.',
+        '（未定义）': ' (undefined)',
+        '（未选）': ' (not set)',
+        '上移': 'Move up',
+        '下移': 'Move down',
+        '＋ 条件': '+ Condition',
+        '取消勾选 = 停用这条规则（保留在配置里，但不参与判断）': 'Uncheck to disable this rule: it stays in the config but is skipped at runtime',
+        '启用': 'On',
+        '状态规则（条件 → 状态）': 'State rules (condition → state)',
+        '按顺序判断，第一条命中就决定她处于什么状态；都不命中时按状态自身的权重随机。': 'Evaluated in order; the first match decides her state. If nothing matches, a state is picked at random by its weight.',
+        '情境规则（条件 → 台词 / 动作）': 'Context rules (condition → line / action)',
+        '同样按顺序判断，第一条命中就说这句话、做这个动作；停用的规则会被跳过。': 'Also evaluated in order; the first match speaks this line and plays this action. Disabled rules are skipped.',
+        '规则 id': 'Rule id',
+        '条件（全部满足）': 'Conditions (all must match)',
+        '台词（每行一条，随机取）': 'Lines (one per row, picked at random)',
+        '动作（点选，可多选；都不选则不切动画）': 'Actions (click to pick several; none = no animation change)',
+        '冷却（秒，留空跟随默认）': 'Cooldown (seconds; blank = default)',
+        '不切动画': 'No animation change',
+        '编辑': 'Edit',
+        '没连服务器，只能手填': 'No server — enter it manually',
+        '清空': 'Clear',
+        '（旧）': ' (legacy)',
+        '自定义…': 'Custom…',
+        '条件键名': 'Condition key',
+        '运行时不认识这个键': 'The runtime does not know this key',
+        '用 config/pet.default.yaml 里的出厂默认值替换当前内容？': 'Replace the current values with the factory defaults in config/pet.default.yaml?',
+        '（只是载入到编辑器，点「保存并编译」才会写盘）': '(This only loads them into the editor; nothing is written until you click Save & build.)',
+        '已载入出厂默认规则，点「保存并编译」写回': 'Factory rules loaded — click Save & build to write them back',
+        '读不到 config/pet.default.yaml：': 'Cannot read config/pet.default.yaml: ',
+        '说点什么。': 'Say something.',
+        '还没读取配置：先点「导入 YAML」选 config/pet.yaml，否则保存会把规则清空': 'No config loaded yet: click Import YAML and pick config/pet.yaml first, otherwise saving will clear the rules',
+        '已取消保存：磁盘文件已被改过，请先重新读取': 'Save cancelled: the file on disk has changed. Reload it first.',
+        '已保存': 'Saved',
+        '失败：': 'Failed: ',
+        '已复制': 'Copied',
+        '复制失败，请手动选中': 'Copy failed — select the text manually',
+        '已下载 rules.yaml': 'Downloaded rules.yaml',
+        '已读取': 'Loaded',
+        '解析失败：': 'Parse failed: ',
+        '点「导入 YAML」选择 config/pet.yaml': 'Click Import YAML and choose config/pet.yaml',
+        '文档': 'Docs',
+        '← 返回': '← Back',
+        '使用说明': 'User guide',
+        '项目状态': 'Project status',
+        '配置参考': 'Configuration',
+        '接入博客': 'Add to your blog',
+        'API 文档': 'API reference',
+        '开发沿革': 'Development history',
+        '交互协议': 'Interaction protocol',
+        '已知问题': 'Known issues',
+        '这是网页而不是 Markdown': 'This is a web page, not Markdown',
+        '浏览器不允许网页读取本地文件。双击 pet-lab 目录里的 <code>start.bat</code>，然后访问 <code>http://127.0.0.1:8080/docs.html</code>。<br>': 'Browsers block web pages from reading local files. Double-click <code>start.bat</code> in the pet-lab folder, then open <code>http://127.0.0.1:8080/docs.html</code>.<br>',
+        '或手动运行：<br>': 'Or run it manually:<br>',
+        '复制全部': 'Copy all',
+        '写法': 'Syntax',
+        ', tag empty.\'\n        : \'花括号里是': ', tag empty.\'\n        : \'Braces hold a "small expression". The examples below assume pet=Whale, title="An article title" and tag empty.\'',
+        '取值来源': 'Source',
+        '点击复制': 'Click to copy',
+        '为空：': 'Empty: ',
+        ' 个占位符 · 点变量名复制': ' placeholders · click a name to copy',
+        '宠物测试': 'Pet tests',
+        '等待运行': 'Idle',
+        '跑全部单元': 'Run all unit tests',
+        '全量（含冒烟与中英一致性）': 'Full run (smoke + EN/ZH parity)',
+        '清空输出': 'Clear output',
+        '每个套件可以单独跑，也可以一次跑全部。需要本地服务器（start.bat）。': 'Each suite runs on its own or all at once. Requires a local server (start.bat).',
+        '未运行': 'Not run',
+        '总耗时': 'Total time',
+        '通过': 'Passed',
+        '单元测试': 'Unit tests',
+        '纯函数与数据校验，毫秒级': 'Pure functions and data checks, in milliseconds',
+        '端到端': 'End-to-end',
+        '无头浏览器，秒级': 'Headless browser, in seconds',
+        '输出': 'Output',
+        '（还没有输出）': '(No output yet)',
+        '命令行等价：': 'Command-line equivalent: ',
+        '内核': 'Kernel',
+        '规则编译器': 'Rule compiler',
+        '规则数据': 'Rule data',
+        '意图级别': 'Intent levels',
+        '状态数据': 'State data',
+        '状态权重': 'State weights',
+        '分区引擎': 'Zone engine',
+        '端到端冒烟': 'End-to-end smoke',
+        '中英一致性': 'EN/ZH parity',
+        '失败': 'Failed',
+        '运行': 'Run',
+        '运行中…': 'Running…',
+        '完成': 'Done',
+        '分区编辑器': 'Zone editor',
+        '拖动方块移动分区，拖右下角缩放': 'Drag a box to move it; drag the corner to resize',
+        '＋ 框选新建': '＋ Draw new',
+        '＋ 子分区': '＋ Child zone',
+        '分区': 'Zones',
+        'id 不能为空、不能重复，也不能含空格': 'id must be non-empty, unique and contain no spaces',
+        '父分区': 'Parent zone',
+        '触发动作': 'Action',
+        '自定义': 'Custom',
+        '横向范围': 'Horizontal span',
+        '占满宽度': 'Full width',
+        '点击台词': 'Click lines',
+        '删除选中分区（Del）': 'Delete selected (Del)',
+        '外观': 'Appearance',
+        '父分区色': 'Parent color',
+        '子分区色': 'Child color',
+        '选中色': 'Selection color',
+        '填充透明度': 'Fill opacity',
+        '标签字号': 'Label size',
+        '显示标签': 'Show labels',
+        '在分区内显示 id': 'Show zone id inside the box',
+        '标签文字色': 'Label text color',
+        '标签底色': 'Label background',
+        '恢复默认外观': 'Reset appearance',
+        '底图': 'Backdrop image',
+        '只用于对齐，分区是归一化坐标，换图不影响已划分的结果。': 'Alignment only: zones use normalized coordinates, so swapping the image keeps every zone.',
+        '选择图片': 'Pick image',
+        '打开图片': 'Open image',
+        '图片地址': 'Image path',
+        '不透明度': 'Opacity',
+        '恢复默认底图': 'Reset backdrop',
+        '导出': 'Export',
+        '复制到 config/pet.yaml（zones 与 zoneReactions 两段），再运行 node tools/build-config.js。': 'Paste into config/pet.yaml (both zones and zoneReactions), then run node tools/build-config.js.',
+        ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\\n\\n': ' on disk has changed since you opened this page (another tab, or a manual edit).\\n\\n',
+        '现在保存会用页面里的分区覆盖它，那些改动会丢。\\n\\n仍然要保存吗？': 'Saving now will overwrite it with the zones on this page, and those changes will be lost.\\n\\nSave anyway?',
+        '（不播动作）': '(No action)',
+        '其他…': 'Other…',
+        '（自定义）': ' (custom)',
+        '（顶层）': '(Top level)',
+        '在图上拖出一个矩形': 'Drag a rectangle over the image',
+        'YAML 已复制': 'YAML copied',
+        '已取消保存：磁盘文件已被改过': 'Save canceled: the file on disk has changed',
+        '已载入出厂默认分区，点「保存并编译」写回': 'Factory zones loaded — click Save & build to write them',
+        '已下载 zones.yaml': 'Downloaded zones.yaml',
+        '已导入 ': 'Imported ',
+        ' 个分区': ' zones',
+        '已读取 config/pet.yaml（': 'Loaded config/pet.yaml (',
+        ' 个分区）': ' zones)',
+        '读不到 config/pet.yaml，用的是内置默认分区': 'Cannot read config/pet.yaml — using the built-in default zones',
+        '角色': 'Character',
+        '例如 spin-shy': 'e.g. spin-shy',
+        '\n宠物看到: ': '\nPet sees: ',
+        '现在保存会用页面里的规则覆盖它，那些改动会丢。\\n\\n仍然要保存吗？': 'Saving now will overwrite it with the rules on this page, and those changes will be lost.\\n\\nSave anyway?',
+        ', tag empty.\'\n        : \'花括号里是': ', tag empty.\'\n        : \'Braces hold a "small expression". The examples below assume pet=Whale, title="An article title" and tag empty.\'',
+        ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\\n\\n': ' on disk has changed since you opened this page (another tab, or a manual edit).\\n\\n',
+        '现在保存会用页面里的分区覆盖它，那些改动会丢。\\n\\n仍然要保存吗？': 'Saving now will overwrite it with the zones on this page, and those changes will be lost.\\n\\nSave anyway?',
+        '宠物配置': 'Pet settings',
+        '正在读取配置…': 'Reading settings…',
+        '打开 YAML': 'Open YAML',
+        '重新读取': 'Reload',
+        '撤销全部改动': 'Revert all changes',
+        '复制 YAML': 'Copy YAML',
+        '下载 pet.yaml': 'Download pet.yaml',
+        '历史版本': 'Version history',
+        '存为默认值': 'Save as default',
+        '编辑哪一只': 'Which pet to edit',
+        '读不到': 'Could not read',
+        '（双击打开或没有本地服务）。点顶部「打开 YAML」选择它，\n            或把内容粘到下面。': '(opened directly, or no local server). Use "Open YAML" at the top to pick the file,\n            or paste its contents below.',
+        '解析粘贴内容': 'Parse pasted content',
+        '右侧是实时导出结果，点「保存并编译」即可生效。': 'The live export appears on the right; click "Save and build" to apply it.',
+        '每次保存前自动留一份，最多 20 份。': 'A copy is kept automatically before each save, up to 20.',
+        '关闭': 'Close',
+        '未连接本地服务（双击打开的页面不能写盘）：可以浏览和编辑，改完点「下载 pet.yaml」或「复制 YAML」存回去。': 'No local server connected (a page opened by double-clicking cannot write to disk): you can browse and edit, then save your work with "Download pet.yaml" or "Copy YAML".',
+        'pets 是空的': 'pets is empty',
+        '正在编辑': 'Editing',
+        '这份文件里有': 'This file contains',
+        '只宠物；保存时只写回选中的这一只': 'pets; only the selected one is written back on save',
+        '身份': 'Identity',
+        '她说的话不在这一页，去 <a href="copy-editor.html">文案编辑</a>；': 'What she says is not on this page — go to the <a href="copy-editor.html">Copy editor</a>;',
+        '那边的每一条都支持 {pet} 等占位符（名字、时间、标题、标签……），改名字会自动跟着变。': 'every entry there supports placeholders such as {pet} (name, time, title, tags …), so renaming updates them automatically.',
+        '对话标题与自称；写进 persona.name。文案里用 {pet} 引用它': 'Conversation title and self-reference; written to persona.name. Reference it as {pet} in copy',
+        '内部标识': 'Internal ID',
+        '只用于日志与兜底，改它不会改称呼': 'Used only for logs and fallbacks; changing it does not change how she is called',
+        '存储键': 'Storage key',
+        '动画目录': 'Animation directory',
+        '占位图': 'Placeholder image',
+        '水平偏移': 'Horizontal offset',
+        '垂直偏移': 'Vertical offset',
+        '颜色': 'Color',
+        '动画格式': 'Animation format',
+        '素材扩展名。播放器目前只吃带 alpha 的 WebM，别的新格式要先换播放器': 'Asset extension. The player currently only handles WebM with alpha; other formats require a different player first',
+        '立绘框宽': 'Stage frame width',
+        '写进 CSS 变量；同页放两只时每只都要不同': 'Written to CSS variables; set different values per pet when two are on the same page',
+        '立绘框高': 'Stage frame height',
+        '按素材比例，和宽一起决定占位大小': 'Follows the asset aspect ratio; together with width it sets the footprint',
+        '主题色（主）': 'Accent color (primary)',
+        '按钮、进度条等强调色': 'Highlight color for buttons, progress bars, etc.',
+        '主题色（辅）': 'Accent color (secondary)',
+        '渐变的另一端': 'The other end of the gradient',
+        '主题色（点缀）': 'Accent color (detail)',
+        '高亮、光晕': 'Highlights and glows',
+        '换动作间隔（最长）': 'Action interval (max)',
+        '交互': 'Interaction',
+        '允许拖拽': 'Allow dragging',
+        '拖拽判定距离': 'Drag threshold',
+        '语言': 'Speech',
+        '气泡停留': 'Bubble duration',
+        '情境台词停留': 'Context line duration',
+        '待说队列上限': 'Speech queue limit',
+        '句': 'lines',
+        '对话保留条数': 'Messages kept',
+        '条': 'messages',
+        '情境规则': 'Context rules',
+        '秒': 's',
+        '界面': 'UI',
+        '左侧那排按钮（投喂 / 聊天 / 隐藏）什么时候收起、淡入淡出多快。数值按手感调。': 'When the button column on the left (Feed / Chat / Hide) collapses and how fast it fades. Tune the values by feel.',
+        '按钮收起宽限': 'Button hide delay',
+        '鼠标离开后等这么久再收，防止横穿时点空': 'Wait this long after the mouse leaves before collapsing, so passing over does not lose clicks',
+        '淡入淡出时长': 'Fade duration',
+        '按钮出现与消失的过渡时间': 'Transition time as buttons appear and disappear',
+        '阅读速度': 'Reading speed',
+        '算出「这篇要读几分钟」用的每分钟字数；不填按 300 算': 'Characters per minute used to estimate "how many minutes this takes to read"; defaults to 300 if blank',
+        '字/分': 'chars/min',
+        '自定义路径': 'Custom path',
+        '（未设置）': '(not set)',
+        '手动输入…': 'Enter manually…',
+        '动作库': 'Action library',
+        '常驻待机': 'Default idle',
+        '点击回应': 'Click response',
+        '睡着时': 'When asleep',
+        '喂食时': 'When fed',
+        '个动画': 'clips',
+        '（不播动画）': '(no animation)',
+        '配置里有，但磁盘上找不到这个动画': 'This animation is in the config but not found on disk',
+        '全选': 'Select all',
+        '每种状态播哪个动画、待机池里有哪些、被随机选中的概率有多大。': 'Which animation each state plays, what is in its idle pool, and how likely it is to be picked at random.',
+        '配置里还没有 states。': 'No states in the config yet.',
+        '（不指定）': '(not set)',
+        '池': 'pool',
+        '权重': 'weight',
+        '不完整': 'Incomplete',
+        '缺 clip': 'missing clip',
+        '池是空的': 'pool is empty',
+        '删除状态': 'Delete state',
+        '随机权重': 'Random weight',
+        '＋ 添加状态': '+ Add state',
+        '导出失败：': 'Export failed: ',
+        '仍然要保存吗？': 'Save anyway?',
+        '正在读取…': 'Reading…',
+        '读不到配置文件，请粘贴内容': 'Could not read the config file. Please paste its contents',
+        '已从粘贴内容读取': 'Loaded from pasted content',
+        '把所有项恢复成刚读取时的值？': 'Restore all fields to their values as first loaded?',
+        '已恢复': 'Restored',
+        '已载入出厂默认值，点「保存并编译」写回': 'Factory defaults loaded. Click "Save and build" to write them back',
+        'YAML 已复制到剪贴板': 'YAML copied to clipboard',
+        '复制失败，请手动选中右侧内容': 'Copy failed. Please select the content on the right manually',
+        '已取消保存：磁盘文件已被改过，请先点「重新读取」': 'Save cancelled: the file on disk has changed. Please click "Reload" first',
+        '保存失败': 'Save failed',
+        '已保存并编译完成': 'Saved and built',
+        '用当前内容覆盖 config/pet.default.yaml？': 'Overwrite config/pet.default.yaml with the current content?',
+        '（之后「恢复出厂默认」读的就是这一份）': '(later, "Restore factory defaults" will read this copy)',
+        '已存为出厂默认值': 'Saved as factory defaults',
+        '已下载 pet.yaml': 'pet.yaml downloaded',
+        '读取中…': 'Loading…',
+        '还没有备份。': 'No backups yet.',
+        '恢复': 'Restore',
+        '需要本地服务器（双击 start.bat 后打开本页）。': 'Local server required (run start.bat, then open this page).',
+        '用这份备份覆盖当前配置？当前版本会先被备份。': 'Overwrite the current config with this backup? The current version will be backed up first.',
+        '已恢复 ': 'Restored ',
+        '，正在重新读取…': ', reloading…',
+        '恢复失败：': 'Restore failed: ',
+        '粘贴 pet.yaml 全文…': 'Paste the full pet.yaml here…',
+        '⚠ 磁盘上的 <code>{file}</code>': '⚠ The file on disk, <code>{file}</code>',
+        '在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。': 'was modified after you opened this page (in another tab, or by hand).',
+        '现在保存会用页面里的内容覆盖它，那些改动会丢。': 'Saving now will overwrite it with the page’s content, and those changes will be lost.',
+        '建议先取消，点「重新读取」，再重新改一遍。': 'It is best to cancel, click "Reload", and make your edits again.',
+        '\n宠物看到: ': '\nPet sees: ',
+        ', tag empty.\'\n        : \'花括号里是': ', tag empty.\'\n        : \'Braces hold a "small expression". The examples below assume pet=Whale, title="An article title" and tag empty.\'',
+        '（双击打开或没有本地服务）。点顶部「打开 YAML」选择它，\n            或把内容粘到下面。': '(opened directly, or no local server). Use "Open YAML" at the top to pick the file,\n            or paste its contents below.',
+        '\n宠物看到: ': '\nPet sees: ',
+        ', tag empty.\'\n        : \'花括号里是': ', tag empty.\'\n        : \'Braces hold a "small expression". The examples below assume pet=Whale, title="An article title" and tag empty.\'',
+        '（双击打开或没有本地服务）。点顶部「打开 YAML」选择它，\n            或把内容粘到下面。': '(opened directly, or no local server). Use "Open YAML" at the top to pick the file,\n            or paste its contents below.',
+        '\n宠物看到: ': '\nPet sees: ',
+        '（双击打开或没有本地服务）。点顶部「打开 YAML」选择它，\n            或把内容粘到下面。': '(double-clicking, or no local server). Use "Open YAML" above to pick it, or paste its contents below.',
+        '{title?\'读《{title}》\':\'随便逛逛\'}': '{title?\'Reading {title}\':\'Just browsing\'}',
+        '{tag?\'在翻{tag}\':\'这页没标签\'}': '{tag?\'Browsing {tag}\':\'No tag on this page\'}',
+        '{comments??\'还没有评论\'}': '{comments??\'No comments yet\'}',
+        '{!title?\'还没打开文章\':\'正在读{title}\'}': '{!title?\'No article open\':\'Reading {title}\'}',
+        '小鲸': 'Whale',
+        '读《一篇文章的标题》': 'Reading an article title',
+        '这页没有标签': 'No tag on this page',
+        '正在读一篇文章的标题': 'Reading an article title',
+        '还没有评论': 'No comments yet',
+        ', tag empty.\'\n        : \'花括号里是': ', tag empty.\'\n        : \'Braces hold a "small expression". The examples below assume pet=Whale, title="An article title" and tag empty.\'',
+    };
+
+    var lang = (function () {
+        try {
+            return localStorage.getItem('pet-i18n') || ((navigator.language || 'zh').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en');
+        } catch (e) { return 'zh'; }
+    })();
+
+    function t(zh) {
+        if (lang === 'zh') return zh;
+        if (TERMS[zh]) return TERMS[zh];
+        var k = Object.keys(STR).find(function (key) { return STR[key][0] === zh; });
+        if (k) return STR[k][1];
+        return zh;
+    }
+
+    function s(key) {
+        var v = STR[key];
+        if (!v) return key;
+        return lang === 'zh' ? v[0] : v[1];
+    }
+
+    var listeners = [];
+
+    function apply() {
+        document.querySelectorAll('[data-i18n]').forEach(function (el) {
+            var key = el.getAttribute('data-i18n');
+            if (!STR[key]) return;                 // 缺词条就保留原文，绝不显示 key
+            var val = s(key);
+            if (el.hasAttribute('data-i18n-html')) el.innerHTML = val;
+            else el.textContent = val;
+        });
+        var tk = document.body.getAttribute('data-title-key');
+        if (tk && STR[tk]) document.title = s(tk);
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+            var key = el.getAttribute('data-i18n-placeholder');
+            if (STR[key]) el.setAttribute('placeholder', s(key));
+        });
+        document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+        listeners.forEach(function (fn) { try { fn(lang); } catch (e) { /* ignore */ } });
+    }
+
+    function setLang(next) {
+        lang = next;
+        try { localStorage.setItem('pet-i18n', lang); } catch (e) { /* ignore */ }
+        apply();
+        // 说明面板是拼出来的 HTML，apply() 不认识它，得手动重建
+        try { buildHelp(); } catch (e) { /* ignore */ }
+    }
+
+    function toggle() { setLang(lang === 'zh' ? 'en' : 'zh'); }
+
+    function mountToggle() {
+        var header = document.querySelector('header');
+        if (document.querySelector('.i18n-btn')) return;
+        var btn = document.createElement('button');
+        btn.className = 'i18n-btn';
+        btn.type = 'button';
+        btn.textContent = s('lang.toggle');
+        btn.style.cssText = 'font:inherit;font-size:12.5px;padding:5px 10px;border:1px solid #dde5f0;background:#fff;border-radius:7px;cursor:pointer;color:#4a5769';
+        if (!header) {
+            btn.style.cssText += ';position:fixed;top:16px;right:18px;z-index:50;box-shadow:0 2px 8px rgba(30,50,90,.12)';
+            document.body.appendChild(btn);
+        }
+        btn.addEventListener('click', function () {
+            toggle();
+            btn.textContent = s('lang.toggle');
+            document.querySelectorAll('[data-i18n]').forEach(function (el) { /* noop */ });
+            var again = document.querySelectorAll('.help-panel');
+            again.forEach(function (p) { p.dataset.built = ''; });
+            buildHelp();
+        });
+        if (header) header.appendChild(btn);
+    }
+
+    /* 使用说明：给每个编辑器注入一个可折叠面板 */
+    function buildHelp() {
+        var host = document.querySelector('main');
+        var key = document.body.dataset.helpKey;
+        if (!host || !key || !STR[key + '.help']) return;
+        var existing = document.querySelector('.help-panel');
+        if (existing) existing.remove();
+        var details = document.createElement('details');
+        details.className = 'help-panel';
+        details.style.cssText = 'grid-column:1/-1;margin:0 0 16px;background:#fff;border:1px solid #e3e9f3;border-radius:12px;padding:12px 18px;font-size:13px;line-height:1.85;color:#3f4c5f';
+        details.innerHTML = '<summary style="cursor:pointer;font-weight:600;color:#1f2a37">' +
+            s(key + '.help') + '</summary><div style="margin-top:8px">' + s(key + '.help.body') + '</div>';
+        host.insertBefore(details, host.firstChild);
+    }
+
+    global.PetI18n = {
+        get lang() { return lang; },
+        t: t,
+        s: s,
+        setLang: setLang,
+        toggle: toggle,
+        apply: apply,
+        onChange: function (fn) { listeners.push(fn); }
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        apply();
+        mountToggle();
+        buildHelp();
+    });
+})(window);

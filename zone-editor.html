@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:,">
-<title>分区编辑器</title>
+<title data-i18n="分区编辑器">分区编辑器</title>
 <style>
     :root { color-scheme: light; --line:#e3e9f3; --ink:#1f2a37; --muted:#7b8798; --brand:#2f6fed; }
     * { box-sizing: border-box; }
@@ -97,7 +97,7 @@ function noteNoServer() {
     if (document.getElementById('noServerNote')) return;
     const d = document.createElement('div');
     d.id = 'noServerNote';
-    d.textContent = '未连接本地服务：素材列表、写盘与编译不可用，可继续导出 YAML。';
+    d.textContent = T('未连接本地服务：素材列表、写盘与编译不可用，可继续导出 YAML。');
     d.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:200;' +
         'background:#1f2a37;color:#fff;font:12.5px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;' +
         'padding:7px 14px;border-radius:18px;box-shadow:0 6px 20px rgba(20,40,80,.25)';
@@ -134,7 +134,7 @@ function noteNoServer() {
         </div>
 
         <div class="card" id="editor" style="display:none">
-            <h2 id="edTitle">编辑</h2>
+            <h2 data-i18n="编辑" id="edTitle">编辑</h2>
             <div class="row"><label>id</label><input id="fId" spellcheck="false"></div>
             <p class="err" id="idErr" data-i18n="zone.idErr">id 不能为空、不能重复，也不能含空格</p>
             <div class="grid2">
@@ -227,7 +227,7 @@ async function confirmOverwrite(rel) {
     const diskHash = await currentFileSha1(rel);
     if (!diskHash || !baseHash || diskHash === baseHash) return true;
     return confirm(
-        '磁盘上的 ' + rel + ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\n\n' +
+        T('磁盘上的 ') + rel + ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\n\n' +
         '现在保存会用页面里的分区覆盖它，那些改动会丢。\n\n仍然要保存吗？'
     );
 }
@@ -247,14 +247,14 @@ let zones = [
 ];
 
 let reactions = {
-    head: { act: 'click-shy', say: ['别戳脑袋啦。', '脑袋不能乱摸……'] },
-    'head.crown': { act: 'click-wave', say: ['头上有东西吗？'] },
-    'head.cheek': { act: 'click-shy', say: ['痒。', '别捏脸。'] },
+    head: { act: 'click-shy', say: [T('别戳脑袋啦。'), T('脑袋不能乱摸……')] },
+    'head.crown': { act: 'click-wave', say: [T('头上有东西吗？')] },
+    'head.cheek': { act: 'click-shy', say: [T('痒。'), T('别捏脸。')] },
     'head.face': { act: 'click-shy', say: [] },
-    body: { act: 'click-happy', say: ['干嘛呀。'] },
-    'body.fin': { act: 'spin', say: ['鳍不能拽。'] },
-    'body.belly': { act: 'click-happy', say: ['肚子软软的。', '别戳肚子啦。'] },
-    tail: { act: 'tail', say: ['尾巴会痒的。', '甩你一脸水。'] }
+    body: { act: 'click-happy', say: [T('干嘛呀。')] },
+    'body.fin': { act: 'spin', say: [T('鳍不能拽。')] },
+    'body.belly': { act: 'click-happy', say: [T('肚子软软的。'), T('别戳肚子啦。')] },
+    tail: { act: 'tail', say: [T('尾巴会痒的。'), T('甩你一脸水。')] }
 };
 
 let selected = 0;
@@ -578,7 +578,7 @@ function renderActSelect() {
     sel.innerHTML = '';
     const optNone = document.createElement('option');
     optNone.value = '';
-    optNone.textContent = '（不播动作）';
+    optNone.textContent = T('（不播动作）');
     sel.appendChild(optNone);
     ACTS.forEach((a) => {
         const o = document.createElement('option');
@@ -588,13 +588,13 @@ function renderActSelect() {
     });
     const other = document.createElement('option');
     other.value = '__custom__';
-    other.textContent = '其他…';
+    other.textContent = T('其他…');
     sel.appendChild(other);
 
     if (cur && !known) {
         const o = document.createElement('option');
         o.value = cur;
-        o.textContent = cur + '（自定义）';
+        o.textContent = cur + T('（自定义）');
         sel.insertBefore(o, other);
         sel.value = cur;
     } else {
@@ -619,7 +619,7 @@ function renderParentSelect() {
     sel.innerHTML = '';
     const none = document.createElement('option');
     none.value = '';
-    none.textContent = '（顶层）';
+    none.textContent = T('（顶层）');
     sel.appendChild(none);
     zones.forEach((x) => {
         if (banned.has(x.id)) return;
@@ -731,7 +731,7 @@ function toggleDrawMode(on) {
         st.dataset.key = drawMode ? 'zone.drawHint' : 'zone.status';
         st.textContent = window.PetI18n
             ? PetI18n.s(drawMode ? 'zone.drawHint' : 'zone.status')
-            : (drawMode ? '在图上拖出一个矩形' : '拖动方块移动分区，拖右下角缩放');
+            : (drawMode ? T('在图上拖出一个矩形') : '拖动方块移动分区，拖右下角缩放');
     }
 }
 
@@ -1049,15 +1049,15 @@ function renderOut() { document.getElementById('out').textContent = fullYaml(); 
 
 function copyOut() {
     navigator.clipboard.writeText(fullYaml())
-        .then(() => { document.getElementById('status').textContent = 'YAML 已复制'; })
-        .catch(() => { document.getElementById('status').textContent = '复制失败，请手动选中'; });
+        .then(() => { document.getElementById('status').textContent = T('YAML 已复制'); })
+        .catch(() => { document.getElementById('status').textContent = T('复制失败，请手动选中'); });
 }
 
 async function saveZones() {
     const status = document.getElementById('status');
     status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
     if (!(await confirmOverwrite('config/pet.yaml'))) {
-        status.textContent = '已取消保存：磁盘文件已被改过';
+        status.textContent = T('已取消保存：磁盘文件已被改过');
         return;
     }
     try {
@@ -1116,7 +1116,7 @@ function download() {
     a.download = 'zones.yaml';
     a.click();
     URL.revokeObjectURL(a.href);
-    document.getElementById('status').textContent = '已下载 zones.yaml';
+    document.getElementById('status').textContent = T('已下载 zones.yaml');
 }
 
 document.getElementById('file').addEventListener('change', (e) => {
@@ -1134,9 +1134,9 @@ document.getElementById('file').addEventListener('change', (e) => {
             selected = 0;
             draw();
             pushHistory();
-            document.getElementById('status').textContent = '已导入 ' + zones.length + ' 个分区';
+            document.getElementById('status').textContent = T('已导入 ') + zones.length + T(' 个分区');
         } catch (err) {
-            document.getElementById('status').textContent = '解析失败：' + err.message;
+            document.getElementById('status').textContent = T('解析失败：') + err.message;
         }
     };
     reader.readAsText(f);
@@ -1164,9 +1164,9 @@ pushHistory();
         baseHash = await fileSha1(text);
         draw();
         pushHistory();
-        document.getElementById('status').textContent = '已读取 config/pet.yaml（' + zones.length + ' 个分区）';
+        document.getElementById('status').textContent = T('已读取 config/pet.yaml（') + zones.length + T(' 个分区）');
     } catch (e) {
-        document.getElementById('status').textContent = '读不到 config/pet.yaml，用的是内置默认分区';
+        document.getElementById('status').textContent = T('读不到 config/pet.yaml，用的是内置默认分区');
     }
 })();
 /* 多宠物合集：配置是多只时，补丁要指明改哪一只 */

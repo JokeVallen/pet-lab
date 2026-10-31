@@ -119,7 +119,7 @@ const FORBIDDEN = [
     'docs/SITE_API_REQUIREMENTS', 'docs/SITE_API_CHANGELOG',
 
     /* 开发辅助 */
-    'start.bat', '.git/', 'release/notes', '.chrome', 'build/'
+    '.git/', 'release/notes', '.chrome', 'build/'
 ];
 
 /* ==================== 小工具 ==================== */
@@ -409,6 +409,17 @@ function verify(files) {
 
     /* 发行包必须自带「怎么打开」的说明 */
     if (!fs.existsSync(path.join(STAGE, '如何打开.txt'))) problems.push('发行包缺少「如何打开.txt」');
+    for (const name of ['server.js', 'start.bat', 'start.sh']) {
+        if (!fs.existsSync(path.join(STAGE, name))) problems.push('发行包缺少本地服务文件: ' + name);
+    }
+    /* 服务脚本的 API 面必须与页面用到的一致 */
+    {
+        const srv = fs.readFileSync(path.join(STAGE, 'server.js'), 'utf8');
+        for (const ep of ['/api/version', '/api/assets', '/api/backups', '/api/save', '/api/patch', '/api/restore', '/api/build']) {
+            if (srv.indexOf(ep) < 0) problems.push('server.js 缺少接口: ' + ep);
+        }
+        if (/spawnSync\(\s*'python|spawn\(\s*'python/.test(srv)) problems.push('server.js 不应依赖 Python');
+    }
 
     /* 配置编译链在发行包里也要能跑 */
     const cfg = run('node', [path.join(STAGE, 'tools', 'build-config.js')], { cwd: STAGE });
@@ -502,7 +513,13 @@ const files = stage();
 /* 零依赖提示：双击可用 / 起服务才可写 */
 fs.copyFileSync(path.join(ROOT, 'release', '如何打开.txt'), path.join(STAGE, '如何打开.txt'));
 files.push('如何打开.txt');
-console.log('  说明：如何打开.txt → 发行根目录');
+
+/* 本地服务：纯 Node 单文件 + 两个平台的启动脚本，不依赖 Python */
+for (const name of ['server.js', 'start.bat', 'start.sh']) {
+    fs.copyFileSync(path.join(ROOT, 'release', name), path.join(STAGE, name));
+    files.push(name);
+}
+console.log('  运行：server.js + start.bat/start.sh → 发行根目录');
 console.log('  组装：' + files.length + ' 个文件 → ' + path.relative(ROOT, STAGE));
 
 verify(files);

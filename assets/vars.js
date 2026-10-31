@@ -61,37 +61,38 @@
             code: '{pet}',
             zh: '直接取值。变量不存在时原样保留，方便发现写错的名字。',
             en: 'Plain value. Unknown names are left as-is so typos are visible.',
-            result: '小鲸'
+            result: '小鲸', resultEn: 'Whale'
         },
         {
             code: "{title?'读《{title}》':'随便逛逛'}",
             zh: '有值用前段，没有用后段。分支里还能嵌占位符。',
             en: 'First branch when set, second when empty. Branches may nest placeholders.',
-            result: '读《一篇文章的标题》'
+            result: '读《一篇文章的标题》', resultEn: 'Reading "An article title"'
         },
         {
             code: "{tag??'这页没有标签'}",
             zh: '空值合并：有值就用值本身，没有才用后备。',
             en: 'Nullish: keep the value when set, use the fallback otherwise.',
-            result: '这页没有标签'
+            result: '这页没有标签', resultEn: 'No tag on this page'
         },
         {
             code: "{!title?'还没打开文章':'正在读{title}'}",
             zh: '变量名前加 ! 表示取反。',
             en: 'A leading ! negates the condition.',
-            result: '正在读一篇文章的标题'
+            result: '正在读一篇文章的标题', resultEn: 'Reading "An article title"'
         },
         {
             code: '{comments?有{comments}条评论:还没有评论}',
             zh: '数字 0 也算"没有"，所以计数类可以直接判断。',
             en: 'The number 0 counts as empty, so numeric checks just work.',
-            result: '还没有评论'
+            result: '还没有评论', resultEn: 'No comments yet'
         },
         {
             code: "{title?'真的?那就':'不是'}",
             zh: '分支里有问号或冒号时，用引号包起来。',
             en: 'Quote a branch when it contains ? or :.',
-            result: '不是'
+            result: '不是',
+            resultEn: 'No'
         }
     ];
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:,">
-<title>规则编辑器</title>
+<title data-i18n="规则编辑器">规则编辑器</title>
 <style>
     :root { color-scheme: light; --line:#e3e9f3; --ink:#1f2a37; --muted:#7b8798; --brand:#2f6fed; }
     * { box-sizing:border-box; }
@@ -27,8 +27,9 @@
     .rule .top input.id { flex:1; font-weight:600; }
 .rule.is-off { opacity:.55; }
 .rule.is-off .lbl, .rule.is-off textarea { text-decoration:line-through; }
-.en { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--muted); cursor:pointer; user-select:none; }
+.en { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--muted); cursor:pointer; user-select:none; white-space:nowrap; flex:none; }
 .en input { margin:0; cursor:pointer; }
+.en .en-label { white-space:nowrap; }
 .sechead { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin:18px 0 8px; padding-bottom:6px; border-bottom:1px solid #e3e9f3; }
 .sechead:first-child { margin-top:0; }
 .sechead h2 { margin:0; font-size:14px; color:#1f2a37; }
@@ -114,7 +115,7 @@ function noteNoServer() {
     if (document.getElementById('noServerNote')) return;
     const d = document.createElement('div');
     d.id = 'noServerNote';
-    d.textContent = '未连接本地服务：素材列表、写盘与编译不可用，可继续导出 YAML。';
+    d.textContent = T('未连接本地服务：素材列表、写盘与编译不可用，可继续导出 YAML。');
     d.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:200;' +
         'background:#1f2a37;color:#fff;font:12.5px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;' +
         'padding:7px 14px;border-radius:18px;box-shadow:0 6px 20px rgba(20,40,80,.25)';
@@ -126,7 +127,7 @@ function noteNoServer() {
 <body data-title-key="rules.title" data-help-key="rules">
 <header>
     <h1 data-i18n="rules.title">规则编辑器</h1>
-    <span class="status" id="status">加载中…</span>
+    <span data-i18n="加载中…" class="status" id="status">加载中…</span>
     <button id="undoBtn" onclick="undo()" data-i18n="zone.undo" disabled>撤销</button>
     <button id="redoBtn" onclick="redo()" data-i18n="zone.redo" disabled>重做</button>
     <label class="btn"><span data-i18n="rules.import">导入 YAML</span><input type="file" id="file" accept=".yaml,.yml,.json" hidden></label>
@@ -180,7 +181,7 @@ async function confirmOverwrite(rel) {
     const diskHash = await currentFileSha1(rel);
     if (!diskHash || !baseHash || diskHash === baseHash) return true;
     return confirm(
-        '磁盘上的 ' + rel + ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\n\n' +
+        T('磁盘上的 ') + rel + ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\n\n' +
         '现在保存会用页面里的规则覆盖它，那些改动会丢。\n\n仍然要保存吗？'
     );
 }
@@ -451,7 +452,9 @@ function enabledBox(rule) {
         pushHistory();
     };
     wrap.title = box.title;
-    wrap.append(box, el('span', null, T('启用')));
+    /* 单独一行显示「启用」：复用字典里的 rules.enabled，避免和在用的翻译打架 */
+    const label = el('span', 'en-label', window.PetI18n ? PetI18n.s('rules.enabled') : '启用');
+    wrap.append(box, label);
     return wrap;
 }
 
@@ -471,14 +474,14 @@ function render() {
     list.innerHTML = '';
 
     // 状态规则放在列表最上面：先决定处于什么状态，再决定说什么
-    list.appendChild(sectionHead('状态规则（条件 → 状态）',
-        '按顺序判断，第一条命中就决定她处于什么状态；都不命中时按状态自身的权重随机。'));
+    list.appendChild(sectionHead(T('状态规则（条件 → 状态）'),
+        T('按顺序判断，第一条命中就决定她处于什么状态；都不命中时按状态自身的权重随机。')));
     const srHost = el('div', 'srwrap');
     list.appendChild(srHost);
     renderStateRules(srHost);
 
-    list.appendChild(sectionHead('情境规则（条件 → 台词 / 动作）',
-        '同样按顺序判断，第一条命中就说这句话、做这个动作；停用的规则会被跳过。'));
+    list.appendChild(sectionHead(T('情境规则（条件 → 台词 / 动作）'),
+        T('同样按顺序判断，第一条命中就说这句话、做这个动作；停用的规则会被跳过。')));
 
     rules.forEach((r, i) => {
         const card = el('div', 'rule' + (r.enabled === false ? ' is-off' : ''));
@@ -488,9 +491,9 @@ function render() {
         const id = document.createElement('input');
         id.className = 'id';
         id.value = r.id || '';
-        id.placeholder = '规则 id';
+        id.placeholder = T('规则 id');
         id.addEventListener('input', () => { r.id = id.value; renderOut(); schedulePush(); });
-        const up = el('button', 'del', '↑'); up.title = '上移'; up.style.cssText = 'font-size:13px';
+        const up = el('button', 'del', '↑'); up.title = T('上移'); up.style.cssText = 'font-size:13px';
         up.onclick = () => { if (i > 0) { [rules[i - 1], rules[i]] = [rules[i], rules[i - 1]]; render(); pushHistory(); } };
         const del = el('button', 'del', '×');
         del.onclick = () => { rules.splice(i, 1); render(); pushHistory(); };
@@ -640,7 +643,7 @@ function condRow(rule, key, redraw) {
         if (k === key) o.selected = true;
         sel.appendChild(o);
     };
-    const labelOf = (m) => T(m.label) + (m.legacy ? T(m.legacyLabel || '（旧）') : '');
+    const labelOf = (m) => T(m.label) + (m.legacy ? T(m.legacyLabel || T('（旧）')) : '');
     WHEN_META.filter((m) => !m.legacy).forEach((m) => add(m.key, labelOf(m)));
     WHEN_META.filter((m) => m.legacy).forEach((m) => add(m.key, labelOf(m)));   // 旧键排在后面
     if (!seen[key]) add(key, KEY_LABEL[key] ? T(KEY_LABEL[key]) : key);
@@ -704,7 +707,7 @@ function quote(s) {
 function toYaml() {
     let s = '';
     if (stateRules.length) {
-        s += '# 只替换 policy.stateRules，别覆盖 policy 下的 rollWeights / calendar\n';
+        s += T('# 只替换 policy.stateRules，别覆盖 policy 下的 rollWeights / calendar\n');
         s += 'policy:\n  stateRules:\n';
         stateRules.forEach((r) => {
             s += '    - when: { ' + Object.keys(r.when || {}).map((k) => {
@@ -775,12 +778,12 @@ async function saveRules() {
     const status = document.getElementById('status');
     // 没读进 pet.yaml 就保存 = 把 rules.items 清空，这里直接拦住
     if (!window.__lastLoaded) {
-        status.textContent = '还没读取配置：先点「导入 YAML」选 config/pet.yaml，否则保存会把规则清空';
+        status.textContent = T('还没读取配置：先点「导入 YAML」选 config/pet.yaml，否则保存会把规则清空');
         return;
     }
     status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
     if (!(await confirmOverwrite('config/pet.yaml'))) {
-        status.textContent = '已取消保存：磁盘文件已被改过，请先重新读取';
+        status.textContent = T('已取消保存：磁盘文件已被改过，请先重新读取');
         return;
     }
     try {
@@ -804,8 +807,8 @@ async function saveRules() {
 
 function copyOut() {
     navigator.clipboard.writeText(toYaml())
-        .then(() => setStatus('已复制'))
-        .catch(() => setStatus('复制失败，请手动选中'));
+        .then(() => setStatus(T('已复制')))
+        .catch(() => setStatus(T('复制失败，请手动选中')));
 }
 
 function download() {
@@ -815,7 +818,7 @@ function download() {
     a.download = 'rules.yaml';
     a.click();
     URL.revokeObjectURL(a.href);
-    setStatus('已下载 rules.yaml');
+    setStatus(T('已下载 rules.yaml'));
 }
 
 function setStatus(s) { document.getElementById('status').textContent = s; }
@@ -839,7 +842,7 @@ function loadText(text, name) {
         fileSha1(text).then((h) => { baseHash = h; });
         setStatus((window.PetI18n ? PetI18n.s('msg.loaded') : '已读取') + ' ' + name + ' (' + rules.length + ')');
     } catch (e) {
-        setStatus('解析失败：' + e.message);
+        setStatus(T('解析失败：') + e.message);
     }
 }
 
@@ -865,7 +868,7 @@ window.addEventListener('load', function () {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         loadText(new TextDecoder('utf-8').decode(await res.arrayBuffer()), 'config/pet.yaml');
     } catch (e) {
-        setStatus('点「导入 YAML」选择 config/pet.yaml');
+        setStatus(T('点「导入 YAML」选择 config/pet.yaml'));
     }
 })();
 /* 多宠物合集：配置是多只时，补丁要指明改哪一只 */

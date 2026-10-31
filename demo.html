@@ -59,6 +59,10 @@
     .lab .lab-head h3 { margin:0; white-space:nowrap; }
     .lab .lab-head button { display:inline-block; width:auto; margin:0; padding:2px 8px; font-size:11px; color:#8b97a8; background:transparent; border-color:transparent; }
     .lab .lab-head button:hover { background:#f0f4fa; }
+
+    /* 收起：只留标题条，其余全部隐藏；再点一次展开 */
+    .lab.is-open > *:not(.lab-head) { display: none; }
+    .lab.is-open { max-height: none; }
 </style>
 </head>
 <body data-title-key="demo.title">
@@ -93,7 +97,7 @@
 <div class="lab" id="lab" data-dev-only>
     <div class="lab-head">
         <h3 data-i18n="demo.lab">测试面板</h3>
-        <button class="lab-mini" onclick="document.getElementById('lab').classList.toggle('is-open')" data-i18n="demo.lab.toggle">收起</button>
+        <button class="lab-mini" id="labToggle" onclick="toggleLab()">Collapse</button>
     </div>
 
     <div class="lab-read" id="labRead">…</div>
@@ -150,7 +154,7 @@
     <details>
         <summary data-i18n="demo.g.lang">语言与配置</summary>
         <div class="lab-row">
-            <button onclick="labLang('zh')">中文</button>
+            <button onclick="labLang('zh')" title="切换宠物语言（本按钮不受界面语言影响）">中文</button>
             <button onclick="labLang('en')">English</button>
             <button onclick="labShowConfig()" data-i18n="demo.showConfig">看配置</button>
             <button onclick="location.reload()" data-i18n="demo.reload">刷新（重置会话）</button>
@@ -201,7 +205,7 @@
         function intent(type, payload) {
             var k = kernel();
             if (!k || typeof k.emit !== 'function') {
-                console.warn('[lab] 内核还没就绪（宠物是 ES module，重页面要等几秒）');
+                console.warn(T('[lab] 内核还没就绪（宠物是 ES module，重页面要等几秒）'));
                 return false;
             }
             k.emit(type, payload);
@@ -325,13 +329,13 @@
             var input = document.getElementById('labQ');
             var box = document.getElementById('labAns');
             var q = input ? String(input.value || '').trim() : '';
-            if (!d) { box.textContent = '宠物还没加载完（等几秒再点）'; return; }
-            if (!q) { box.textContent = '先写一句话再点提问'; return; }
+            if (!d) { box.textContent = T('宠物还没加载完（等几秒再点）'); return; }
+            if (!q) { box.textContent = T('先写一句话再点提问'); return; }
             box.textContent = '…';
             Promise.resolve(d.reply(q)).then(function (text) {
                 box.textContent = String(text);
             }).catch(function (err) {
-                box.textContent = '出错了：' + ((err && err.message) || err);
+                box.textContent = T('出错了：') + ((err && err.message) || err);
             });
         };
 
@@ -364,7 +368,7 @@
             var box = document.getElementById('labRead');
             var d = dbg();
             if (!box) return;
-            if (!d) { box.textContent = '宠物还没加载完…'; return; }
+            if (!d) { box.textContent = T('宠物还没加载完…'); return; }
             var st = d.state || {};
             var sleeping = !!(d.director && d.director.isSleeping());
             var mstate = (d.machine && d.machine.state) ? d.machine.state() : '-';
@@ -396,6 +400,31 @@
 
         buildActs();
         setInterval(refresh, 600);
+
+/* 面板按钮文案：中文走字典，英文原样 */
+const T_ = (s) => (window.PetI18n && PetI18n.lang === 'zh' ? PetI18n.t(s) : s);
+
+/* 测试面板：收起时只留标题条，按钮文案跟着变 */
+function toggleLab() {
+    const box = document.getElementById('lab');
+    const btn = document.getElementById('labToggle');
+    if (!box) return;
+    box.classList.toggle('is-open');
+    const open = box.classList.contains('is-open');
+    const en = window.PetI18n && window.PetI18n.lang === 'en';
+    if (btn) btn.textContent = open ? T_('Expand') : T_('Collapse');
+}
+window.toggleLab = toggleLab;
+if (window.PetI18n) {
+    window.PetI18n.onChange(function () {
+        const btn = document.getElementById('labToggle');
+        const box = document.getElementById('lab');
+        if (!btn || !box) return;
+        const open = box.classList.contains('is-open');
+        const en = window.PetI18n.lang === 'en';
+        btn.textContent = open ? T_('Expand') : T_('Collapse');
+    });
+}
         setTimeout(refresh, 1500);
     })();
 </script>
@@ -426,15 +455,15 @@
             var m = mock();
             var d = dbg();
             if (!m || !d) {
-                box('未挂载模拟站点：点「切换模拟站点」重载页面后可用。');
+                box(T('未挂载模拟站点：点「切换模拟站点」重载页面后可用。'));
                 return;
             }
             var c = m.state.ctx;
             var seen = adapter() ? adapter().context() : null;
-            box('假站点: ' + c.type + ' ' + c.path +
+            box(T('假站点: ') + c.type + ' ' + c.path +
                 ' · theme=' + (c.theme || '?') +
                 ' · ratio=' + m.state.scroll +
-                '\n宠物看到: ' + (seen ? JSON.stringify(seen) : '（adapter 未就绪）'));
+                T('\n宠物看到: ') + (seen ? JSON.stringify(seen) : '（adapter 未就绪）'));
         }
 
         /* 每个页面类型都给完整上下文，避免上一个页面的字段残留 */
@@ -450,7 +479,7 @@
                 post: {
                     type: 'post', id: 'mock-post', contentId: 'post:_posts/mock.md',
                     title: '演示用的文章', path: '/posts/mock/',
-                    tags: ['Unity', 'C#'], categories: ['技术'], wordCount: 5200
+                    tags: ['Unity', 'C#'], categories: [T('技术')], wordCount: 5200
                 },
                 tag: {
                     type: 'tag', id: '/tags/Unity/', title: '标签：Unity',
@@ -471,7 +500,7 @@
             var m = mock();
             if (!m) { render(); return; }
             m.setContext(ctxOf(kind));
-            intro('切到「' + kind + '」了。', 'Switched to "' + kind + '".');
+            intro(T('切到「') + kind + T('」了。'), 'Switched to "' + kind + '".');
             setTimeout(render, 80);
         };
 
@@ -499,9 +528,9 @@
             }).then(function (r) {
                 if (r.ok) {
                     var on = !!(r.result && r.result.active);
-                    intro(on ? '收藏好了。' : '取消收藏了。', on ? 'Bookmarked.' : 'Bookmark removed.');
+                    intro(on ? T('收藏好了。') : '取消收藏了。', on ? 'Bookmarked.' : 'Bookmark removed.');
                 } else {
-                    intro('收藏没成：' + r.error, 'Bookmark failed: ' + r.error);
+                    intro(T('收藏没成：') + r.error, 'Bookmark failed: ' + r.error);
                 }
                 setTimeout(render, 100);
             });

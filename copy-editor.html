@@ -120,7 +120,7 @@ function noteNoServer() {
     if (document.getElementById('noServerNote')) return;
     const d = document.createElement('div');
     d.id = 'noServerNote';
-    d.textContent = '未连接本地服务：写盘与编译不可用，可继续导出 YAML。';
+    d.textContent = T('未连接本地服务：写盘与编译不可用，可继续导出 YAML。');
     d.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:200;' +
         'background:#1f2a37;color:#fff;font:12.5px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;' +
         'padding:7px 14px;border-radius:18px;box-shadow:0 6px 20px rgba(20,40,80,.25)';
@@ -185,6 +185,8 @@ const GROUPS = [
 const VAR_LIST = (window.PetVars && PetVars.list) || [];
 
 const T = (spec) => (spec && typeof spec === 'object' ? (spec[PetI18n.lang] || spec.zh) : spec);
+/* TT：普通中文字符串 → 当前语言（走字典），给界面文案用 */
+const TT = (s) => (s == null ? s : (window.PetI18n ? PetI18n.t(String(s)) : s));
 
 let lastArea = null;       // 最近聚焦的文本框：变量插到这儿
 let persona = {};          // 配置里的 persona 原样
@@ -296,8 +298,8 @@ function slotEl(spec) {
         const shown = Array.isArray(raw) ? raw.map((x) => fill(x)).join('\n') : fill(raw);
         preview.innerHTML = '';
         const tag = document.createElement('b');
-        tag.textContent = PetI18n.lang === 'zh' ? '预览：' : 'Preview: ';
-        preview.append(tag, document.createTextNode(shown || (PetI18n.lang === 'zh' ? '（空，使用默认）' : '(empty, default used)')));
+        tag.textContent = PetI18n.lang === 'zh' ? T('预览：') : 'Preview: ';
+        preview.append(tag, document.createTextNode(shown || (PetI18n.lang === 'zh' ? T('（空，使用默认）') : '(empty, default used)')));
     };
 
     ta.addEventListener('focus', () => { lastArea = ta; });
@@ -321,7 +323,7 @@ function slotEl(spec) {
 function insertAt(token, area) {
     const ta = area || lastArea;
     if (!ta) {
-        setStatus(PetI18n.lang === 'zh' ? '先点一个输入框，再插变量' : 'Click a field first');
+        setStatus(PetI18n.lang === 'zh' ? T('先点一个输入框，再插变量') : 'Click a field first');
         document.getElementById('palette').open = true;
         return;
     }
@@ -369,10 +371,10 @@ function renderPalette() {
 }
 
 const SNIPPETS = [
-    { code: "{title?'读《{title}》':'随便逛逛'}", zh: '有标题说标题', en: 'title when present' },
-    { code: "{tag?'在翻{tag}':'这页没标签'}", zh: '有标签说标签', en: 'tag when present' },
-    { code: "{comments??'还没有评论'}", zh: '没有评论时', en: 'when no comments' },
-    { code: "{!title?'还没打开文章':'正在读{title}'}", zh: '取反', en: 'negated' }
+    { code: "{title?'读《{title}》':'随便逛逛'}", codeEn: "{title?'Reading {title}':'Just browsing'}", zh: '有标题说标题', en: 'title when present' },
+    { code: "{tag?'在翻{tag}':'这页没标签'}", codeEn: "{tag?'Browsing {tag}':'No tag here'}", zh: '有标签说标签', en: 'tag when present' },
+    { code: "{comments??'还没有评论'}", codeEn: "{comments??'No comments yet'}", zh: '没有评论时', en: 'when no comments' },
+    { code: "{!title?'还没打开文章':'正在读{title}'}", codeEn: "{!title?'No article open':'Reading {title}'}", zh: '取反', en: 'negated' }
 ];
 
 function renderSnips() {
@@ -380,7 +382,9 @@ function renderSnips() {
     if (!host) return;
     host.textContent = '';
     for (const s of SNIPPETS) {
-        host.appendChild(chipButton(s.code, PetI18n.lang === 'en' ? s.en : s.zh, s.code));
+        /* 按钮上的示例按界面语言切换；插入的 token 永远是原样的表达式 */
+        const code = PetI18n.lang === 'en' ? (s.codeEn || s.code) : s.code;
+        host.appendChild(chipButton(code, PetI18n.lang === 'en' ? s.en : s.zh, s.code));
     }
 }
 
@@ -388,8 +392,8 @@ function updateStatus() {
     const el = document.getElementById('status');
     if (!el) return;
     if (!loadedName) return;
-    const langName = PetI18n.lang === 'en' ? 'English' : '中文';
-    el.textContent = (PetI18n.lang === 'zh' ? '正在编辑 ' + langName + ' 文案 · ' : 'Editing ' + langName + ' copy · ') + loadedName;
+    const langName = PetI18n.lang === 'en' ? 'Chinese' : '中文';   /* 指的是「正在编辑哪一层文案」 */
+    el.textContent = (PetI18n.lang === 'zh' ? T('正在编辑 ') + langName + T(' 文案 · ') : 'Editing ' + langName + ' copy · ') + loadedName;
 }
 
 function setStatus(s) {
@@ -419,7 +423,7 @@ async function boot() {
         const text = new TextDecoder('utf-8').decode(await r.arrayBuffer());
         await loadYamlText(text, 'config/pet.yaml');
     } catch (e) {
-        setStatus((PetI18n.lang === 'zh' ? '读不到 config/pet.yaml：' : 'Cannot read config/pet.yaml: ') + e.message);
+        setStatus((PetI18n.lang === 'zh' ? T('读不到 config/pet.yaml：') : 'Cannot read config/pet.yaml: ') + e.message);
         render();
     }
 }
@@ -441,7 +445,7 @@ function buildPatch() {
 async function saveCopy() {
     if (!(await hasServer())) return;
     if (!(await ensureWriteAllowed())) return;
-    setStatus(PetI18n.lang === 'zh' ? '正在保存…' : 'Saving…');
+    setStatus(PetI18n.lang === 'zh' ? T('正在保存…') : 'Saving…');
     try {
         const res = await fetch('/api/patch', {
             method: 'POST',
@@ -451,12 +455,12 @@ async function saveCopy() {
         const data = await res.json();
         if (data.ok) {
             try { localStorage.setItem('pet-config-ts', String(Date.now())); } catch (e) { /* ignore */ }
-            setStatus(PetI18n.lang === 'zh' ? '已保存，配置已重新编译' : 'Saved and rebuilt');
+            setStatus(PetI18n.lang === 'zh' ? T('已保存，配置已重新编译') : 'Saved and rebuilt');
         } else {
-            setStatus((PetI18n.lang === 'zh' ? '保存失败：' : 'Save failed: ') + (data.error || data.stderr || '').slice(0, 120));
+            setStatus((PetI18n.lang === 'zh' ? T('保存失败：') : 'Save failed: ') + (data.error || data.stderr || '').slice(0, 120));
         }
     } catch (e) {
-        setStatus(PetI18n.lang === 'zh' ? '需要本地服务器' : 'Needs the local server');
+        setStatus(PetI18n.lang === 'zh' ? T('需要本地服务器') : 'Needs the local server');
     }
 }
 
@@ -471,7 +475,7 @@ function download() {
     a.download = 'persona.yaml';
     a.click();
     URL.revokeObjectURL(a.href);
-    setStatus(PetI18n.lang === 'zh' ? '已导出 persona.yaml' : 'Exported persona.yaml');
+    setStatus(PetI18n.lang === 'zh' ? T('已导出 persona.yaml') : 'Exported persona.yaml');
 }
 
 document.getElementById('file').addEventListener('change', (e) => {

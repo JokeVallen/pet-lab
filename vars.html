@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:,">
-<title>变量表</title>
+<title data-i18n="变量表">变量表</title>
 <style>
     :root { color-scheme: light; --line:#e3e9f3; --ink:#1f2a37; --muted:#7b8798; --brand:#2f6fed; }
     * { box-sizing: border-box; }
@@ -113,7 +113,8 @@ function renderSyntax(host) {
 
         const td3 = document.createElement('td');
         td3.className = 'res';
-        td3.textContent = s.result;
+        /* 示例结果里含示例人名与演示文案，切英文时也一并换掉 */
+    td3.textContent = (window.PetI18n && PetI18n.lang === 'en') ? (s.resultEn || s.result) : s.result;
 
         tr.append(td1, td2, td3);
         body.appendChild(tr);
@@ -196,7 +197,7 @@ function render() {
     if (st) {
         st.textContent = en()
             ? PetVars.list.length + ' placeholders · click a name to copy'
-            : PetVars.list.length + ' 个占位符 · 点变量名复制';
+            : PetVars.list.length + T(' 个占位符 · 点变量名复制');
     }
 }
 

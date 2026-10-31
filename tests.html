@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:,">
-<title>宠物测试</title>
+<title data-i18n="宠物测试">宠物测试</title>
 <style>
     :root {
         color-scheme: light;
@@ -121,7 +121,7 @@
         <section class="card">
             <h2 data-i18n="tests.outputTitle">输出</h2>
             <pre class="out" id="out" data-i18n="tests.outputPlaceholder">（还没有输出）</pre>
-            <p class="hint" data-i18n-html="tests.hint">命令行等价：<code>node tools/run-tests.js --all</code></p>
+            <p class="hint" data-i18n-html="tests.hint"><span data-i18n="tests.cli">命令行等价：</span><code>node tools/run-tests.js --all</code></p>
         </section>
     </div>
 </main>
@@ -162,7 +162,7 @@
     function setBadge(kind) {
         badge.className = 'badge' + (kind ? ' ' + kind : '');
         badge.dataset.key = kind === 'ok' ? 'tests.badgeOk' : (kind === 'fail' ? 'tests.badgeFail' : 'tests.badgeIdle');
-        badge.textContent = T(badge.dataset.key, kind === 'ok' ? '通过' : (kind === 'fail' ? '失败' : '未运行'));
+        badge.textContent = T(badge.dataset.key, kind === 'ok' ? T('通过') : (kind === 'fail' ? T('失败') : '未运行'));
     }
 
     function setBusy(on) {
@@ -173,11 +173,11 @@
     }
 
     function clearOut() {
-        out.textContent = T('tests.outputPlaceholder', '（还没有输出）');
+        out.textContent = T('tests.outputPlaceholder', T('（还没有输出）'));
         durationEl.textContent = '–';
         tallyEl.textContent = '0 / 0';
         setBadge('');
-        setStatus('tests.idle', '等待运行');
+        setStatus('tests.idle', T('等待运行'));
     }
 
     /* 建卡片 */
@@ -196,7 +196,7 @@
             el.querySelector('.file').textContent = s.file;
             var btn = el.querySelector('button');
             btn.dataset.key = 'tests.runOne';
-            btn.textContent = T('tests.runOne', '运行');
+            btn.textContent = T('tests.runOne', T('运行'));
             btn.onclick = function () { runGroup(s.id); };
             host.appendChild(el);
         });
@@ -233,7 +233,7 @@
                 var text = data.output || data.error || '(no output)';
                 var tail = parseTail(text);
                 var kind = data.ok ? 'ok' : 'fail';
-                var label = tail ? (tail.pass + ' / ' + (tail.pass + tail.fail)) : (data.ok ? T('tests.badgeOk', '通过') : T('tests.badgeFail', '失败'));
+                var label = tail ? (tail.pass + ' / ' + (tail.pass + tail.fail)) : (data.ok ? T('tests.badgeOk', T('通过')) : T('tests.badgeFail', T('失败')));
                 markSuite(id, kind, label + '  ·  ' + (data.durationMs != null ? data.durationMs + ' ms' : ''));
                 return { id: id, ok: !!data.ok, ms: data.durationMs || 0, text: text, tail: tail };
             })
@@ -253,7 +253,7 @@
         var ids = GROUPS[group] || [group];
         setBusy(true);
         setBadge('');
-        setStatus('tests.running', '运行中…');
+        setStatus('tests.running', T('运行中…'));
         out.textContent = '';
         durationEl.textContent = '–';
         tallyEl.textContent = '0 / ' + ids.length;
@@ -272,7 +272,7 @@
             if (i >= ids.length) {
                 var allOk = passed === ids.length;
                 setBadge(allOk ? 'ok' : 'fail');
-                setStatus(allOk ? 'tests.done' : 'tests.failed', allOk ? '完成' : '失败');
+                setStatus(allOk ? 'tests.done' : 'tests.failed', allOk ? T('完成') : '失败');
                 durationEl.textContent = totalMs + ' ms';
                 tallyEl.textContent = passed + ' / ' + ids.length;
                 setBusy(false);

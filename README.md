@@ -2,7 +2,7 @@
 
 可复用的桌宠工具集。**不依赖 Hexo / Butterfly**，只靠一个静态服务器就能跑；接进任何站点只改一个适配层。
 
-> 只想把它装到自己的博客？直接下发行版：[Releases · v1.0.4](https://github.com/JokeVallen/pet-lab/releases/latest)
+> 只想把它装到自己的博客？直接下发行版：[Releases · v1.0.5](https://github.com/JokeVallen/pet-lab/releases/latest)
 > （含运行时、素材、配置、三个离线编辑器与使用说明）。这个 `main` 分支是开发环境，额外含测试、探针与开发文档。
 >
 > 发行包里没有开发侧内容：测试面板、项目状态、开发沿革、已知问题这些在打包时就被删掉了，不是隐藏。

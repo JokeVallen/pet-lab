@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:,">
-<title>宠物配置</title>
+<title data-i18n="宠物配置">宠物配置</title>
 <style>
     :root {
         color-scheme: light;
@@ -155,7 +155,7 @@ function noteNoServer() {
     if (document.getElementById('noServerNote')) return;
     const d = document.createElement('div');
     d.id = 'noServerNote';
-    d.textContent = '未连接本地服务（双击打开的页面不能写盘）：可以浏览和编辑，改完点「下载 pet.yaml」或「复制 YAML」存回去。';
+    d.textContent = T('未连接本地服务（双击打开的页面不能写盘）：可以浏览和编辑，改完点「下载 pet.yaml」或「复制 YAML」存回去。');
     d.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:200;' +
         'background:#1f2a37;color:#fff;font:12.5px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;' +
         'padding:7px 14px;border-radius:18px;box-shadow:0 6px 20px rgba(20,40,80,.25)';
@@ -188,9 +188,8 @@ function noteNoServer() {
             <span class="petbarnote" id="petNote"></span>
         </div>
         <div class="banner" id="banner">
-            读不到 <code>config/pet.yaml</code>（双击打开或没有本地服务）。点顶部「打开 YAML」选择它，
-            或把内容粘到下面。
-            <textarea id="pasteYaml" placeholder="粘贴 pet.yaml 全文…"></textarea>
+            <span data-i18n="cfg.bannerLead">读不到 config/pet.yaml（双击打开或没有本地服务）。点顶部「打开 YAML」选择它，或把内容粘到下面。</span>
+            <textarea id="pasteYaml" data-i18n-placeholder="cfg.pasteHint" placeholder="粘贴 pet.yaml 全文…"></textarea>
             <button onclick="parsePaste()" data-i18n="cfg.parsePaste">解析粘贴内容</button>
         </div>
         <div id="form"></div>
@@ -233,7 +232,7 @@ function isCollection(d) {
 
 function adoptDoc(loaded) {
     if (isCollection(loaded)) {
-        if (!loaded.pets.length) throw new Error('pets 是空的');
+        if (!loaded.pets.length) throw new Error(T('pets 是空的'));
         doc = loaded;
         const want = loaded.active || (loaded.pets[0] && loaded.pets[0].id);
         const hit = loaded.pets.find((x) => x && x.id === want) || loaded.pets[0];
@@ -370,7 +369,7 @@ const SCHEMA = [
         title: '身份',
         desc: '它在对话里怎么称呼自己，以及状态存在哪个键下面。' +
               '她说的话不在这一页，去 <a href="copy-editor.html">文案编辑</a>；' +
-              '那边的每一条都支持 {pet} 等占位符（名字、时间、标题、标签……），改名字会自动跟着变。',
+              T('那边的每一条都支持 {pet} 等占位符（名字、时间、标题、标签……），改名字会自动跟着变。'),
         fields: [
             { path: ['persona', 'name'], label: '名字', hint: '对话标题与自称；写进 persona.name。文案里用 {pet} 引用它', type: 'text' },
             { path: ['name'], label: '内部标识', hint: '只用于日志与兜底，改它不会改称呼', type: 'text' },
@@ -1074,7 +1073,7 @@ function updateYaml() {
             ? window.jsyaml.dump(target, { lineWidth: 100, noRefs: true })
             : JSON.stringify(target, null, 2);
     } catch (e) {
-        out.textContent = '导出失败：' + e.message;
+        out.textContent = T('导出失败：') + e.message;
     }
 }
 
@@ -1104,7 +1103,7 @@ function loadFromFile(file) {
             __st2.dataset.suffix = ' ' + file.name;
             __st2.textContent = (window.PetI18n ? PetI18n.s('msg.loaded') : '已读取') + ' ' + file.name;
         } catch (e) {
-            alert('解析失败：' + e.message);
+            alert(T('解析失败：') + e.message);
         }
     };
     reader.readAsText(file, 'utf-8');
@@ -1143,16 +1142,16 @@ async function confirmOverwrite(rel) {
     const diskHash = await currentFileSha1(rel);
     if (!diskHash || !baseHash || diskHash === baseHash) return true;
     return confirm(
-        '磁盘上的 ' + rel + ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\n\n' +
-        '现在保存会用页面里的内容覆盖它，那些改动会丢。\n' +
+        T('磁盘上的 ') + rel + ' 在你打开这个页面之后被改过（另一个标签页，或者手工编辑）。\n\n' +
+        T('现在保存会用页面里的内容覆盖它，那些改动会丢。\n') +
         '建议先取消，点「重新读取」，再重新改一遍。\n\n' +
-        '仍然要保存吗？'
+        T('仍然要保存吗？')
     );
 }
 
 async function reload() {
     const status = document.getElementById('status');
-    status.textContent = '正在读取…';
+    status.textContent = T('正在读取…');
     try {
         const res = await fetch('config/pet.yaml?ts=' + Date.now());
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1167,7 +1166,7 @@ async function reload() {
         __st.dataset.suffix = ' config/pet.yaml';
         __st.textContent = (window.PetI18n ? PetI18n.s('msg.loaded') : '已读取') + ' config/pet.yaml';
     } catch (e) {
-        status.textContent = '读不到配置文件，请粘贴内容';
+        status.textContent = T('读不到配置文件，请粘贴内容');
         document.getElementById('banner').style.display = 'block';
     }
 }
@@ -1180,19 +1179,19 @@ function parsePaste() {
         document.getElementById('banner').style.display = 'none';
         render();
         resetHistory();
-        document.getElementById('status').textContent = '已从粘贴内容读取';
+        document.getElementById('status').textContent = T('已从粘贴内容读取');
     } catch (e) {
-        alert('解析失败：' + e.message);
+        alert(T('解析失败：') + e.message);
     }
 }
 
 function resetAll() {
     if (!base) return;
-    if (!confirm('把所有项恢复成刚读取时的值？')) return;
+    if (!confirm(T('把所有项恢复成刚读取时的值？'))) return;
     cfg = JSON.parse(JSON.stringify(base));
     render();
     pushHistory();
-    document.getElementById('status').textContent = '已恢复';
+    document.getElementById('status').textContent = T('已恢复');
 }
 
 /* 恢复出厂默认：读 config/pet.default.yaml 装进编辑器，不直接写盘 */
@@ -1215,8 +1214,8 @@ async function resetFactory() {
 function copyYaml() {
     const text = document.getElementById('yaml').textContent;
     navigator.clipboard.writeText(text)
-        .then(() => { document.getElementById('status').textContent = 'YAML 已复制到剪贴板'; })
-        .catch(() => { document.getElementById('status').textContent = '复制失败，请手动选中右侧内容'; });
+        .then(() => { document.getElementById('status').textContent = T('YAML 已复制到剪贴板'); })
+        .catch(() => { document.getElementById('status').textContent = T('复制失败，请手动选中右侧内容'); });
 }
 
 async function saveAndBuild() {
@@ -1227,7 +1226,7 @@ async function saveAndBuild() {
 
     status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
     if (!(await confirmOverwrite('config/pet.yaml'))) {
-        status.textContent = '已取消保存：磁盘文件已被改过，请先点「重新读取」';
+        status.textContent = T('已取消保存：磁盘文件已被改过，请先点「重新读取」');
         return;
     }
     try {
@@ -1239,7 +1238,7 @@ async function saveAndBuild() {
             body: JSON.stringify({ path: 'config/pet.yaml', content: yamlText })
         });
         const saveRes = await save.json();
-        if (!saveRes.ok) throw new Error(saveRes.error || '保存失败');
+        if (!saveRes.ok) throw new Error(saveRes.error || T('保存失败'));
 
         status.textContent = window.PetI18n ? PetI18n.s('msg.saving') : '正在保存…';
         if (!(await hasServer())) return;
@@ -1288,7 +1287,7 @@ function downloadYaml() {
     a.download = 'pet.yaml';
     a.click();
     URL.revokeObjectURL(a.href);
-    document.getElementById('status').textContent = '已下载 pet.yaml';
+    document.getElementById('status').textContent = T('已下载 pet.yaml');
 }
 
 loadAssets().then(reload);
@@ -1336,12 +1335,12 @@ async function openHistory() {
     const modal = document.getElementById('histModal');
     const list = document.getElementById('histList');
     modal.style.display = 'block';
-    list.textContent = '读取中…';
+    list.textContent = T('读取中…');
     try {
         if (!(await hasServer())) return;
     const res = await fetch('/api/backups');
         const data = await res.json();
-        if (!data.items || !data.items.length) { list.textContent = '还没有备份。'; return; }
+        if (!data.items || !data.items.length) { list.textContent = T('还没有备份。'); return; }
         list.innerHTML = '';
         data.items.forEach(function (it) {
             const row = document.createElement('div');
@@ -1360,12 +1359,12 @@ async function openHistory() {
             list.appendChild(row);
         });
     } catch (e) {
-        list.textContent = '需要本地服务器（双击 start.bat 后打开本页）。';
+        list.textContent = T('需要本地服务器（双击 start.bat 后打开本页）。');
     }
 }
 
 async function restoreBackup(name) {
-    if (!confirm('用这份备份覆盖当前配置？当前版本会先被备份。')) return;
+    if (!confirm(T('用这份备份覆盖当前配置？当前版本会先被备份。'))) return;
     if (!(await hasServer())) return;
     if (!(await ensureWriteAllowed())) return;
     const res = await fetch('/api/restore', {
@@ -1376,10 +1375,10 @@ async function restoreBackup(name) {
     const data = await res.json();
     document.getElementById('histModal').style.display = 'none';
     if (data.ok) {
-        document.getElementById('status').textContent = '已恢复 ' + name + '，正在重新读取…';
+        document.getElementById('status').textContent = T('已恢复 ') + name + T('，正在重新读取…');
         await reload();
     } else {
-        document.getElementById('status').textContent = '恢复失败：' + (data.error || '');
+        document.getElementById('status').textContent = T('恢复失败：') + (data.error || '');
     }
 }
 </script>
